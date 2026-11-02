@@ -410,10 +410,11 @@ class ModTestRunner:
 
         env = self._build_env(mod)
         start_time = time.time()
+        inline_cwd = str(self.repo) if self.repo.exists() else str(self.mods_dir)
         try:
             res = subprocess.run(
                 cmd,
-                cwd=str(self.repo),
+                cwd=inline_cwd,
                 env=env,
                 capture_output=True,
                 text=True,

@@ -303,6 +303,10 @@ python3 runner.py update                 # Atomic Git update + simulation + tran
 python3 runner.py update --check         # Check remote updates without applying
 python3 runner.py update --dry-run       # In-memory update simulation without disk modification
 python3 runner.py update --no-apply      # Pull repository updates without patching core
+python3 runner.py push                   # Zero-friction auto-commit (Conventional Commit) + push to GitHub
+python3 runner.py push --dry-run         # Dry-run push simulation (view staged files and commit message)
+python3 runner.py push -m "message"      # Push with explicit commit message
+python3 runner.py push --install-hook    # Install post-commit hook for auto-push on any git commit
 
 # === Lifecycle & Patching ===
 python3 runner.py apply                  # Apply all enabled mods in topological DAG order

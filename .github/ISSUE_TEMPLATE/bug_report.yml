@@ -1,0 +1,90 @@
+name: "🐛 Bug Report"
+description: "Report a bug or unexpected behavior in Hermes Mods Engine"
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue! Please provide detailed information so we can reproduce and fix it quickly.
+  - type: dropdown
+    id: component
+    attributes:
+      label: "Component Affected"
+      description: "Which part of Hermes Mods Engine is having problems?"
+      options:
+        - "Engine Core (.engine/)"
+        - "CLI (runner.py)"
+        - "System Mod (system/)"
+        - "Custom Mod (custom/)"
+        - "Installer (install.sh)"
+        - "Documentation / Specification"
+        - "Other"
+    validations:
+      required: true
+  - type: input
+    id: mod_id
+    attributes:
+      label: "Mod ID (if applicable)"
+      description: "e.g., smart-compaction, mod-manager, speech-to-text"
+      placeholder: "smart-compaction"
+    validations:
+      required: false
+  - type: input
+    id: hermes_version
+    attributes:
+      label: "Hermes Agent Version"
+      description: "Run `hermes --version` or check doctor output"
+      placeholder: "v0.22.5"
+    validations:
+      required: false
+  - type: input
+    id: environment
+    attributes:
+      label: "Python & OS Environment"
+      description: "Operating system, architecture, and Python version"
+      placeholder: "Ubuntu 24.04 LTS / Python 3.11.8 / Linux x86_64"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: "Bug Description"
+      description: "A clear and concise description of what the bug is."
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: "Steps to Reproduce"
+      description: "Steps to reproduce the behavior."
+      placeholder: |
+        1. Run `python3 runner.py apply ...`
+        2. Execute command `...`
+        3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: "Expected Behavior"
+      description: "A clear and concise description of what you expected to happen."
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Diagnostics & Logs"
+      description: "Paste output from `python3 runner.py doctor` or relevant logs/traceback."
+      render: shell
+    validations:
+      required: false
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: "Code of Conduct & Pre-checks"
+      options:
+        - label: "I have verified that no sensitive credentials, tokens, or secrets are exposed in this report."
+          required: true
+        - label: "I have searched existing GitHub issues to make sure this is not a duplicate."
+          required: true

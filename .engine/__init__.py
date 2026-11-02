@@ -87,6 +87,12 @@ except ImportError:
     BackupManager = None
 
 try:
+    from .pusher import ModPusher, handle_push_cli
+except ImportError:
+    ModPusher = None
+    handle_push_cli = None
+
+try:
     from .validator import ModValidator, ModValidationResult, ValidationIssue, CompositeSimulationReport
 except ImportError:
     ModValidator = None
@@ -228,6 +234,8 @@ __all__ = [
     "ENGINE_VERSION",
     "MIN_SUPPORTED_HERMES_VERSION",
     "ModUpdater",
+    "ModPusher",
+    "handle_push_cli",
     "parse_version",
     "compare_versions",
     "get_hermes_version",

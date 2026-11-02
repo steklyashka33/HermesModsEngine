@@ -514,11 +514,13 @@ class ModValidator:
                 if not ok and err:
                     snippet = _extract_snippet_with_pointer(target.new_block, err.lineno or 1, err.offset)
                     hint = self._suggest_syntax_hint(err)
+                    severity = "warning" if not self.repo_root.exists() else "error"
+                    msg_type = "advisory warning (Hermes core root not found)" if not self.repo_root.exists() else "error"
                     issues.append(
                         ValidationIssue(
-                            severity="error",
+                            severity=severity,
                             category="ast",
-                            message=f"Target #{idx} ({target.file}) new_block AST syntax error: {err.msg}",
+                            message=f"Target #{idx} ({target.file}) new_block AST syntax {msg_type}: {err.msg}",
                             mod_id=mod.id,
                             file=target.file,
                             line=err.lineno,

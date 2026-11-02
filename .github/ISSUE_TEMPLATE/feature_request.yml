@@ -1,0 +1,52 @@
+name: "🚀 Feature Request"
+description: "Suggest an idea or new capability for Hermes Mods Engine"
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        We welcome proposals for new declarative mods, CLI capabilities, or engine architectural extensions!
+  - type: dropdown
+    id: area
+    attributes:
+      label: "Feature Area"
+      description: "Select the area this request pertains to."
+      options:
+        - "New Declarative Mod (custom/)"
+        - "Core System Mod (system/)"
+        - "Engine Runtime (.engine/)"
+        - "CLI Commands (runner.py)"
+        - "i18n & Localization"
+        - "Testing & CI Automation"
+        - "Documentation"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: "Problem Statement"
+      description: "Is your feature request related to a problem or limitation? Please describe."
+    validations:
+      required: true
+  - type: textarea
+    id: proposed_solution
+    attributes:
+      label: "Proposed Solution / Specification"
+      description: "Describe the desired behavior, new command syntax, or mod targets."
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "Alternatives Considered"
+      description: "Any alternative solutions or features you've considered."
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: "Additional Context"
+      description: "Add any other context, sketches, YAML examples, or references."
+    validations:
+      required: false

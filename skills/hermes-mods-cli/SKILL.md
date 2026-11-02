@@ -456,6 +456,31 @@ python3 ~/.hermes/mods/runner.py update --force
 
 ---
 
+### 25. `push` — Автоматизированная выгрузка в GitHub (Zero-Friction Push)
+Обеспечивает безопасную выгрузку изменений, автокоммит по стандартам Conventional Commits и отправку в репозиторий через настроенный credential helper:
+```bash
+# Симуляция выгрузки (dry-run): показывает файлы, авто-сообщение коммита и статус без изменений
+python3 ~/.hermes/mods/runner.py push --dry-run
+
+# Автоматическая выгрузка с генерацией Conventional Commit (feat/fix/chore/docs)
+python3 ~/.hermes/mods/runner.py push
+
+# Выгрузка с явным пользовательским сообщением коммита
+python3 ~/.hermes/mods/runner.py push -m "feat(mod-manager): add telegram button actions"
+
+# Установка git-хука post-commit для перманентного авто-пуша при любых git commit
+python3 ~/.hermes/mods/runner.py push --install-hook
+
+# Машиночитаемый JSON-вывод для скриптов и агентов
+python3 ~/.hermes/mods/runner.py push --dry-run --json
+```
+- **Аутентификация Zero-Prompt:** использует скрипт `scripts/git-askpass.sh` и настроенный `GITHUB_TOKEN` из `~/.hermes/.env` без интерактивных запросов логина/пароля.
+- **Интеллектуальный Conventional Commit:** если `--message` не передан, движок автоматически анализирует измененные файлы (по категориям `custom/`, `system/`, `.engine/`, `runner.py`, `docs/`, `tests/`) и формирует валидное семантическое сообщение.
+- **Git Hook `.git/hooks/post-commit`:** флаг `--install-hook` активирует авто-пуш при любых локальных коммитах через стандартный CLI `git commit`.
+- **Защита от зацикливания:** переменная окружения `HERMES_DISABLE_AUTOPUSH=1` предотвращает повторный вызов хука внутри `runner.py push`.
+
+---
+
 ## Глобальные флаги и опции
 
 | Флаг | Описание |

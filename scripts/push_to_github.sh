@@ -5,6 +5,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODS_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
+# If runner.py is present, delegate directly to engine push command
+if [ -f "${MODS_DIR}/runner.py" ]; then
+    exec python3 "${MODS_DIR}/runner.py" push "$@"
+fi
+
 echo "=== HermesModsEngine Push Helper ==="
 echo "Working directory: ${MODS_DIR}"
 

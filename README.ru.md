@@ -301,6 +301,10 @@ python3 runner.py update                 # Атомарное обновлени
 python3 runner.py update --check         # Проверка доступности обновлений без применения
 python3 runner.py update --dry-run       # Симуляция обновления в памяти без изменения диска
 python3 runner.py update --no-apply      # Загрузка изменений репозитория без наложения на ядро
+python3 runner.py push                   # Zero-friction автокоммит (Conventional Commit) + пуш в GitHub
+python3 runner.py push --dry-run         # Симуляция выгрузки (просмотр файлов и сформированного коммита)
+python3 runner.py push -m "сообщение"    # Выгрузка с явным пользовательским сообщением коммита
+python3 runner.py push --install-hook    # Установка post-commit хука для авто-пуша при любом git commit
 
 # === Наложение и жизненный цикл ===
 python3 runner.py apply                  # Наложить все моды в топологическом порядке DAG
