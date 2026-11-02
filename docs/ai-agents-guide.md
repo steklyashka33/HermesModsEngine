@@ -96,14 +96,26 @@ curl -sSL https://raw.githubusercontent.com/steklyashka33/HermesModsEngine/main/
 ```
 
 ### 2.1 Autonomous Post-Install Verification
-Immediately confirm installation success:
+Immediately confirm installation success and ecosystem health:
 ```bash
 python3 ~/.hermes/mods/runner.py doctor --no-color
+python3 ~/.hermes/mods/runner.py status
 ```
 
-### 2.2 Non-Interactive Installation Flags
+### 2.2 Configure Automated Nightly Auto-Updates (Cron)
+Immediately configure the nightly three-phase auto-update scheduler:
+```bash
+python3 ~/.hermes/mods/runner.py cron install
+python3 ~/.hermes/mods/runner.py cron status
+```
+This ensures the engine, system mods, and Hermes core stay updated nightly at 04:00 with zero downtime.
+
+### 2.3 Non-Interactive Installation Flags
 For custom environments, the installer supports headless flags:
 ```bash
+# Install with automatic cron update scheduling enabled:
+curl -sSL https://raw.githubusercontent.com/steklyashka33/HermesModsEngine/main/install.sh | bash -s -- --cron
+
 # Custom target location:
 bash install.sh --target /custom/path/mods
 
@@ -311,6 +323,9 @@ python3 ~/.hermes/mods/runner.py commands --json
 
 # 5. Mod logs and errors
 python3 ~/.hermes/mods/runner.py logs <mod_id> --format json
+
+# 6. Auto-update cron job status
+python3 ~/.hermes/mods/runner.py cron status --format json
 ```
 
 ### JSON Exit Code Conventions:

@@ -14,6 +14,8 @@
 
 Read this in other languages: **[English](README.md)** | **[Русский](README.ru.md)**
 
+> 🤖 **For AI Agents (Claude Code, Hermes Agent, Cursor, Codex, OpenCode):** Read **[AGENTS.md](AGENTS.md)** for turnkey deterministic onboarding, autonomous 1-command installation, and self-healing protocols.
+
 ---
 
 ## ⚡ Quick Start (1 Line)
@@ -21,7 +23,11 @@ Read this in other languages: **[English](README.md)** | **[Русский](READ
 Install or update the engine and apply all 37 production mods in a single automated step:
 
 ```bash
+# Standard 1-command installation:
 curl -sSL https://raw.githubusercontent.com/steklyashka33/HermesModsEngine/main/install.sh | bash
+
+# Or install and immediately enable automated nightly auto-updates (04:00 daily):
+curl -sSL https://raw.githubusercontent.com/steklyashka33/HermesModsEngine/main/install.sh | bash -s -- --cron
 ```
 
 ### 🔄 Update in 1 Command
@@ -300,6 +306,7 @@ Run commands directly using `python3 ~/.hermes/mods/runner.py <command>`:
 ```bash
 # === Git Synchronization & Updates ===
 python3 runner.py update                 # Atomic Git update + simulation + transactional apply
+python3 runner.py update --all           # Full three-phase update (engine git pull + core update + reapply)
 python3 runner.py update --check         # Check remote updates without applying
 python3 runner.py update --dry-run       # In-memory update simulation without disk modification
 python3 runner.py update --no-apply      # Pull repository updates without patching core
@@ -307,6 +314,10 @@ python3 runner.py push                   # Zero-friction auto-commit (Convention
 python3 runner.py push --dry-run         # Dry-run push simulation (view staged files and commit message)
 python3 runner.py push -m "message"      # Push with explicit commit message
 python3 runner.py push --install-hook    # Install post-commit hook for auto-push on any git commit
+python3 runner.py cron status            # View auto-update cron schedule and recent log output
+python3 runner.py cron install           # Schedule nightly auto-update task (04:00 daily)
+python3 runner.py cron install --schedule "0 3 * * *" # Custom schedule (03:00 daily)
+python3 runner.py cron uninstall         # Safely remove auto-update job from user crontab
 
 # === Lifecycle & Patching ===
 python3 runner.py apply                  # Apply all enabled mods in topological DAG order

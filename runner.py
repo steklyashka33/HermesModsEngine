@@ -1545,7 +1545,7 @@ def handle_doctor_cli(args, mods: List[Mod]) -> int:
     required_engine_files = [
         "__init__.py", "models.py", "version.py", "loader.py",
         "validator.py", "config_manager.py", "monitor_manager.py", "updater.py", "file_ops.py",
-        "exporter.py", "circuit_breaker.py", "inspector.py", "pusher.py"
+        "exporter.py", "circuit_breaker.py", "inspector.py", "pusher.py", "cron_manager.py"
     ]
     engine_missing = [f for f in required_engine_files if not (_engine_dir / f).exists()]
     engine_ast_errs = []
@@ -2680,7 +2680,7 @@ def handle_circuit_breaker_cli(args, mods: List[Mod], runner: ModRunner) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Hermes Mod Runner")
-    parser.add_argument("action", nargs="?", default="apply", choices=["apply", "verify", "test", "list", "enable", "disable", "config", "monitors", "validate", "mcp", "commands", "update", "push", "diff", "doctor", "unpatch", "rollback", "purge", "uninstall-all", "info", "create", "export", "pack", "import", "snapshot", "watchdog", "circuit-breaker", "status", "logs"])
+    parser.add_argument("action", nargs="?", default="apply", choices=["apply", "verify", "test", "list", "enable", "disable", "config", "monitors", "validate", "mcp", "commands", "update", "push", "diff", "doctor", "unpatch", "rollback", "purge", "uninstall-all", "info", "create", "export", "pack", "import", "snapshot", "watchdog", "circuit-breaker", "status", "logs", "cron"])
     parser.add_argument("args", nargs="*", help="Subaction or target identifiers (e.g. mod-id, monitor-id)")
     parser.add_argument("--message", "-m", default=None, help="Commit message for git push (auto-generated conventional commit if omitted)")
     parser.add_argument("--install-hook", action="store_true", help="Install or update .git/hooks/post-commit auto-push hook")
@@ -2727,6 +2727,8 @@ def main() -> int:
     parser.add_argument("--service", default="hermes-gateway", help="Systemd service name for watchdog (default: hermes-gateway)")
     parser.add_argument("--watchdog", action="store_true", help="Run gateway watchdog healthcheck after apply and auto-rollback on failure")
     parser.add_argument("--watchdog-window", type=float, default=30.0, help="Observation window for --watchdog after apply (default: 30s)")
+    parser.add_argument("--schedule", default="0 4 * * *", help="Cron schedule expression for auto-update (default: '0 4 * * *')")
+    parser.add_argument("--python", dest="python_bin", default=None, help="Explicit python interpreter path for cron jobs")
     args = parser.parse_args()
 
     # Map positional extra args
@@ -2806,6 +2808,10 @@ def main() -> int:
     if args.action == "push":
         from engine.pusher import handle_push_cli
         return handle_push_cli(args, mods)
+
+    if args.action == "cron":
+        from engine.cron_manager import handle_cron_cli
+        return handle_cron_cli(args, mods)
 
     if args.action == "mcp":
         return handle_mcp_cli(args, mods)

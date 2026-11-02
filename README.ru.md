@@ -14,6 +14,8 @@
 
 Документация на других языках: **[English](README.md)** | **[Русский](README.ru.md)**
 
+> 🤖 **Для AI-агентов (Claude Code, Hermes Agent, Cursor, Codex, OpenCode):** Читайте **[AGENTS.md](AGENTS.md)** для автономного детерминированного онбординга, установки в 1 строку, настройки автообновлений и шаблона отчёта человеку.
+
 ---
 
 ## ⚡ Быстрый старт в 1 строку
@@ -21,7 +23,11 @@
 Установка или обновление движка с автоматическим наложением всех 37 готовых модов в один шаг:
 
 ```bash
+# Стандартная автономная установка:
 curl -sSL https://raw.githubusercontent.com/steklyashka33/HermesModsEngine/main/install.sh | bash
+
+# Либо установка с автоматической настройкой ночного автообновления (04:00 ежедневно):
+curl -sSL https://raw.githubusercontent.com/steklyashka33/HermesModsEngine/main/install.sh | bash -s -- --cron
 ```
 
 ### 🔄 Обновление в 1 команду
@@ -298,6 +304,7 @@ flowchart TD
 ```bash
 # === Синхронизация и обновление из Git ===
 python3 runner.py update                 # Атомарное обновление Git + симуляция + наложение
+python3 runner.py update --all           # Полное трёхфазное обновление (движок git pull + ядро Hermes + накатка модов)
 python3 runner.py update --check         # Проверка доступности обновлений без применения
 python3 runner.py update --dry-run       # Симуляция обновления в памяти без изменения диска
 python3 runner.py update --no-apply      # Загрузка изменений репозитория без наложения на ядро
@@ -305,6 +312,10 @@ python3 runner.py push                   # Zero-friction автокоммит (C
 python3 runner.py push --dry-run         # Симуляция выгрузки (просмотр файлов и сформированного коммита)
 python3 runner.py push -m "сообщение"    # Выгрузка с явным пользовательским сообщением коммита
 python3 runner.py push --install-hook    # Установка post-commit хука для авто-пуша при любом git commit
+python3 runner.py cron status            # Просмотр расписания автообновлений и статуса crontab
+python3 runner.py cron install           # Установка задачи ночного автообновления (04:00 ежедневно)
+python3 runner.py cron install --schedule "0 3 * * *" # Установка с кастомным расписанием (03:00)
+python3 runner.py cron uninstall         # Безопасное удаление задачи автообновления из crontab
 
 # === Наложение и жизненный цикл ===
 python3 runner.py apply                  # Наложить все моды в топологическом порядке DAG

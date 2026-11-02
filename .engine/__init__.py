@@ -93,6 +93,21 @@ except ImportError:
     handle_push_cli = None
 
 try:
+    from .cron_manager import (
+        CronManager,
+        handle_cron_cli,
+        validate_cron_schedule,
+        human_readable_schedule,
+        DEFAULT_SCHEDULE,
+    )
+except ImportError:
+    CronManager = None
+    handle_cron_cli = None
+    validate_cron_schedule = None
+    human_readable_schedule = None
+    DEFAULT_SCHEDULE = "0 4 * * *"
+
+try:
     from .validator import ModValidator, ModValidationResult, ValidationIssue, CompositeSimulationReport
 except ImportError:
     ModValidator = None
@@ -236,6 +251,11 @@ __all__ = [
     "ModUpdater",
     "ModPusher",
     "handle_push_cli",
+    "CronManager",
+    "handle_cron_cli",
+    "validate_cron_schedule",
+    "human_readable_schedule",
+    "DEFAULT_SCHEDULE",
     "parse_version",
     "compare_versions",
     "get_hermes_version",

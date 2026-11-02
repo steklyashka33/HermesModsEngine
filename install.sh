@@ -20,6 +20,9 @@
 #   --branch <branch>  Git branch to clone/checkout (default: main)
 #   --dry-run          Simulate checks without modifying files on disk
 #   --no-apply         Install/update engine without running 'runner.py apply'
+#   --cron             Automatically install nightly auto-update cron job
+#   --enable-cron      Alias for --cron
+#   --cron-schedule <s> Custom cron schedule expression (default: "0 4 * * *")
 #   --force            Force reset or fresh clone when resolving conflicts
 #   -h, --help         Display this help message
 #
@@ -63,6 +66,8 @@ HERMES_HOME="${HERMES_HOME:-$HOME/.hermes}"
 TARGET_DIR="${HERMES_MODS_DIR:-$HERMES_HOME/mods}"
 DRY_RUN=false
 APPLY_MODS=true
+ENABLE_CRON=false
+CRON_SCHEDULE="0 4 * * *"
 FORCE=false
 
 # --- Logging Helpers ---
@@ -111,6 +116,9 @@ Options:
   --branch <branch>  Git branch to clone (default: main)
   --dry-run          Simulate installation without modifying files
   --no-apply         Install engine repository without running 'runner.py apply'
+  --cron             Automatically install nightly auto-update cron job
+  --enable-cron      Alias for --cron
+  --cron-schedule <s> Custom cron schedule expression (default: "0 4 * * *")
   --force            Force installation, overwrite uncommitted changes or conflicts
   -h, --help         Display this help message
 
@@ -147,6 +155,15 @@ while [[ $# -gt 0 ]]; do
         --no-apply)
             APPLY_MODS=false
             shift
+            ;;
+        --cron|--enable-cron)
+            ENABLE_CRON=true
+            shift
+            ;;
+        --cron-schedule)
+            ENABLE_CRON=true
+            CRON_SCHEDULE="$2"
+            shift 2
             ;;
         --force)
             FORCE=true
@@ -352,6 +369,9 @@ main() {
     if [[ "$DRY_RUN" == true ]]; then
         printf "\n"
         log_warning "DRY RUN MODE ENABLED: No changes will be written to disk."
+        if [[ "$ENABLE_CRON" == true ]]; then
+            log_info "Simulating auto-update cron setup: runner.py cron install --schedule \"$CRON_SCHEDULE\""
+        fi
         log_info "Checks completed successfully. Ready for deployment."
         exit 0
     fi
@@ -453,12 +473,23 @@ main() {
         "$python_bin" runner.py status
     )
 
+    if [[ "$ENABLE_CRON" == true ]]; then
+        log_step "Step 7: Configuring Automated Nightly Updates (Cron)"
+        log_info "Scheduling nightly three-phase auto-update ($CRON_SCHEDULE)..."
+        (
+            cd "$TARGET_DIR"
+            "$python_bin" runner.py cron install --schedule "$CRON_SCHEDULE"
+        )
+        log_success "Automated auto-update cron job configured successfully."
+    fi
+
     printf "\n"
     printf "${GREEN}════════════════════════════════════════════════════════════════════════════════${RESET}\n"
     printf "  ${BOLD}${GREEN}🎉 HermesModsEngine Successfully Installed & Verified!${RESET}\n"
     printf "${GREEN}════════════════════════════════════════════════════════════════════════════════${RESET}\n\n"
     printf "  ${BOLD}Essential Commands:${RESET}\n"
     printf "    • View ecosystem status:         ${CYAN}python3 %s/runner.py status${RESET}\n" "$TARGET_DIR"
+    printf "    • Auto-update cron status:       ${CYAN}python3 %s/runner.py cron status${RESET}\n" "$TARGET_DIR"
     printf "    • List all active mods:          ${CYAN}python3 %s/runner.py list${RESET}\n" "$TARGET_DIR"
     printf "    • Update engine in 1 command:    ${CYAN}python3 %s/runner.py update${RESET}\n" "$TARGET_DIR"
     printf "    • Inspect slash commands UX:     ${CYAN}python3 %s/runner.py commands${RESET}\n" "$TARGET_DIR"
