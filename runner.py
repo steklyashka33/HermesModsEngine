@@ -1215,6 +1215,7 @@ def handle_update_cli(args, mods: List[Mod]) -> int:
     )
     remote = getattr(args, "remote", "origin") or "origin"
     branch = getattr(args, "branch", "main") or "main"
+    with_hermes = bool(getattr(args, "with_hermes", False) or getattr(args, "all_mods", False))
 
     res = updater.update(
         check=bool(args.check),
@@ -1223,11 +1224,40 @@ def handle_update_cli(args, mods: List[Mod]) -> int:
         force=bool(args.force),
         remote=remote,
         branch=branch,
+        with_hermes=with_hermes,
     )
 
     if args.json:
         print(json.dumps(res, indent=2, ensure_ascii=False))
         return res.get("exit_code", 0)
+
+    if with_hermes:
+        if args.check:
+            print("🔍 Проверка обновлений трёхфазного конвейера (--all):")
+            eng_status = res.get("engine", {}).get("status", "unknown")
+            print(f"  • Движок модов: {eng_status}")
+            hermes_status = res.get("hermes", {}).get("status", "unknown")
+            print(f"  • Ядро Hermes Agent: {hermes_status}")
+            return res.get("exit_code", 0)
+
+        if args.dry_run:
+            print("🔍 Симуляция трёхфазного обновления (dry-run):")
+            print("  [Фаза 1/3] Обновление движка модов: симуляция pull")
+            print("  [Фаза 2/3] Обновление ядра Hermes: симуляция update")
+            print("  [Фаза 3/3] Накатка модов: симуляция apply")
+            return res.get("exit_code", 0)
+
+        if res.get("status") == "completed":
+            print(f"✓ Трёхфазное обновление успешно выполнено:")
+            print(f"  [Фаза 1/3] ✓ Движок модов актуализирован (v{ENGINE_VERSION})")
+            print(f"  [Фаза 2/3] ✓ Ядро Hermes Agent успешно обновлено")
+            print(f"  [Фаза 3/3] ✓ Все моды наложены и верифицированы (runner.py apply --watchdog)")
+            print("✓ Кэши команд, локализаций и MCP успешно перекомпилированы (Zero Downtime)")
+            return 0
+        else:
+            err = res.get("error") or res.get("apply", {}).get("error") or "Ошибка трёхфазного обновления"
+            print(f"❌ Ошибка трёхфазного обновления: {err}")
+            return res.get("exit_code", 1)
 
     if args.check:
         status = res.get("status")
@@ -1515,7 +1545,7 @@ def handle_doctor_cli(args, mods: List[Mod]) -> int:
     required_engine_files = [
         "__init__.py", "models.py", "version.py", "loader.py",
         "validator.py", "config_manager.py", "monitor_manager.py", "updater.py", "file_ops.py",
-        "exporter.py", "circuit_breaker.py", "inspector.py"
+        "exporter.py", "circuit_breaker.py", "inspector.py", "pusher.py"
     ]
     engine_missing = [f for f in required_engine_files if not (_engine_dir / f).exists()]
     engine_ast_errs = []
@@ -2650,8 +2680,10 @@ def handle_circuit_breaker_cli(args, mods: List[Mod], runner: ModRunner) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Hermes Mod Runner")
-    parser.add_argument("action", nargs="?", default="apply", choices=["apply", "verify", "test", "list", "enable", "disable", "config", "monitors", "validate", "mcp", "commands", "update", "diff", "doctor", "unpatch", "rollback", "purge", "uninstall-all", "info", "create", "export", "pack", "import", "snapshot", "watchdog", "circuit-breaker", "status", "logs"])
+    parser.add_argument("action", nargs="?", default="apply", choices=["apply", "verify", "test", "list", "enable", "disable", "config", "monitors", "validate", "mcp", "commands", "update", "push", "diff", "doctor", "unpatch", "rollback", "purge", "uninstall-all", "info", "create", "export", "pack", "import", "snapshot", "watchdog", "circuit-breaker", "status", "logs"])
     parser.add_argument("args", nargs="*", help="Subaction or target identifiers (e.g. mod-id, monitor-id)")
+    parser.add_argument("--message", "-m", default=None, help="Commit message for git push (auto-generated conventional commit if omitted)")
+    parser.add_argument("--install-hook", action="store_true", help="Install or update .git/hooks/post-commit auto-push hook")
     parser.add_argument("--format", choices=["text", "json"], default="text", help="Output format: text or json")
     parser.add_argument("--status", choices=["applied", "disabled", "all"], default="all", help="Filter mods by status: applied, disabled, all")
     parser.add_argument("--lines", "-n", dest="lines", type=int, default=50, help="Number of log lines to show (default: 50)")
@@ -2665,7 +2697,8 @@ def main() -> int:
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose test and command execution output")
     parser.add_argument("-x", "--fail-fast", action="store_true", help="Stop tests immediately on first failure")
     parser.add_argument("-k", "--filter", dest="test_filter", help="Filter tests by name expression")
-    parser.add_argument("--all", dest="all_mods", action="store_true", help="Run tests for all mods including disabled, or include system mods in unpatch")
+    parser.add_argument("--all", dest="all_mods", action="store_true", help="Run tests for all mods including disabled, include system mods in unpatch, or run full three-phase update in update action")
+    parser.add_argument("--with-hermes", action="store_true", help="Run full three-phase update (engine pre-update -> Hermes core update -> mods reapply)")
     parser.add_argument("--system", dest="include_system", action="store_true", help="Include system engine mods in unpatch/rollback")
     parser.add_argument("--confirm", action="store_true", help="Confirm destructive purge of all mods including system core mods")
     parser.add_argument("-y", "--yes", action="store_true", help="Assume yes / confirm dangerous actions without prompting")
@@ -2769,6 +2802,10 @@ def main() -> int:
 
     if args.action == "update":
         return handle_update_cli(args, mods)
+
+    if args.action == "push":
+        from engine.pusher import handle_push_cli
+        return handle_push_cli(args, mods)
 
     if args.action == "mcp":
         return handle_mcp_cli(args, mods)

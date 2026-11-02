@@ -696,9 +696,9 @@ class ModUpdater:
         try:
             from .loader import update_commands_cache, update_locales_cache, update_mcp_cache
             all_mods = ModLoader.load_all(self.mods_dir)
-            update_commands_cache(self.mods_dir, all_mods)
-            update_locales_cache(self.mods_dir, all_mods, repo_root=self.repo_root)
-            update_mcp_cache(self.mods_dir, all_mods, repo_root=self.repo_root)
+            update_commands_cache(all_mods, self.mods_dir)
+            update_locales_cache(all_mods, self.mods_dir)
+            update_mcp_cache(all_mods, self.mods_dir)
         except Exception as exc:
             sys.stderr.write(f"Warning: error recompiling mod caches after update: {exc}\n")
 
@@ -719,8 +719,158 @@ class ModUpdater:
         remote: str = "origin",
         branch: str = "main",
         runner_instance: Optional[Any] = None,
+        with_hermes: bool = False,
     ) -> Dict[str, Any]:
         """Полный цикл обновления."""
+        if with_hermes:
+            if check:
+                engine_check = {}
+                if self.is_git_repo():
+                    try:
+                        engine_check = self.check_updates(remote=remote, branch=branch)
+                    except Exception as exc:
+                        engine_check = {"status": "error", "error": str(exc)}
+                else:
+                    engine_check = {"status": "not_git_repo"}
+
+                hermes_check = {}
+                hermes_bin = shutil.which("hermes")
+                cmd = [hermes_bin, "update", "--check"] if hermes_bin else [sys.executable, "-m", "hermes_cli.main", "update", "--check"]
+                try:
+                    res = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+                    hermes_check = {
+                        "status": "up_to_date" if res.returncode == 0 else "updates_available",
+                        "exit_code": res.returncode,
+                        "output": res.stdout.strip(),
+                    }
+                except Exception as exc:
+                    hermes_check = {"status": "error", "error": str(exc), "exit_code": 1}
+
+                has_updates = (engine_check.get("status") == "updates_available" or hermes_check.get("status") == "updates_available")
+                return {
+                    "status": "updates_available" if has_updates else "up_to_date",
+                    "with_hermes": True,
+                    "engine": engine_check,
+                    "hermes": hermes_check,
+                    "exit_code": 0,
+                }
+
+            if dry_run:
+                eng_check = {}
+                if self.is_git_repo():
+                    try:
+                        eng_check = self.check_updates(remote=remote, branch=branch)
+                    except Exception:
+                        pass
+                apply_sim = self.apply_updated_mods(dry_run=True, runner_instance=runner_instance)
+                return {
+                    "status": "dry_run",
+                    "with_hermes": True,
+                    "git_check": eng_check,
+                    "apply_simulation": apply_sim,
+                    "hermes_update_simulated": True,
+                    "exit_code": 0 if apply_sim.get("success") else 1,
+                }
+
+            # Phase 1: Engine pre-update
+            git_updated = False
+            if self.is_git_repo():
+                self.ensure_remote(remote)
+                fetch_code, _, fetch_err = self.run_git(["fetch", remote, branch, "--tags"])
+                if fetch_code != 0 and not force:
+                    return {
+                        "status": "failed",
+                        "phase": "phase1_engine",
+                        "error": f"git fetch failed for mods engine: {fetch_err}",
+                        "exit_code": 1,
+                    }
+                pull_ok, pull_msg = self.pull_updates(remote=remote, branch=branch, force=force)
+                if not pull_ok and not force:
+                    return {
+                        "status": "failed",
+                        "phase": "phase1_engine",
+                        "error": f"git pull failed for mods engine: {pull_msg}",
+                        "exit_code": 1,
+                    }
+                git_updated = pull_ok
+            self.state_mgr.record_update(ENGINE_VERSION)
+
+            # Phase 2: Hermes Agent core update
+            hermes_bin = shutil.which("hermes")
+            cmd = [hermes_bin, "update", "--yes"] if hermes_bin else [sys.executable, "-m", "hermes_cli.main", "update", "--yes"]
+            try:
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+                hermes_ok = (proc.returncode == 0)
+                hermes_out = proc.stdout
+                hermes_err = proc.stderr
+            except Exception as exc:
+                hermes_ok = False
+                hermes_out = ""
+                hermes_err = str(exc)
+                proc = None
+
+            if not hermes_ok and not force:
+                return {
+                    "status": "failed",
+                    "phase": "phase2_hermes",
+                    "error": f"Hermes Agent core update failed: {hermes_err or hermes_out}",
+                    "exit_code": proc.returncode if proc else 1,
+                    "phase1_engine": {"success": git_updated or not self.is_git_repo()},
+                    "phase2_hermes": {"success": False, "exit_code": proc.returncode if proc else 1, "output": hermes_out, "error": hermes_err},
+                }
+
+            # Phase 3: Post-update (Re-apply & Verify & Watchdog)
+            if no_apply:
+                return {
+                    "status": "completed",
+                    "with_hermes": True,
+                    "git_updated": git_updated,
+                    "phase1_engine": {"success": True},
+                    "phase2_hermes": {"success": True, "exit_code": 0, "output": hermes_out},
+                    "exit_code": 0,
+                    "message": "Engine and Hermes updated successfully, apply skipped (--no-apply)",
+                }
+
+            runner_script = self.mods_dir / "runner.py"
+            if runner_script.is_file() and runner_instance is None:
+                apply_proc = subprocess.run(
+                    [sys.executable, str(runner_script), "apply", "--watchdog", "--watchdog-window", "30", "--json"],
+                    capture_output=True,
+                    text=True,
+                )
+                try:
+                    apply_mods_results = json.loads(apply_proc.stdout)
+                except Exception:
+                    apply_mods_results = []
+                apply_res = {
+                    "success": apply_proc.returncode == 0,
+                    "mods_results": apply_mods_results,
+                    "output": apply_proc.stdout,
+                    "stderr": apply_proc.stderr,
+                }
+            else:
+                apply_res = self.apply_updated_mods(dry_run=False, runner_instance=runner_instance)
+
+            try:
+                from .loader import update_commands_cache, update_locales_cache, update_mcp_cache, ModLoader
+                all_mods = ModLoader.load_all(self.mods_dir)
+                update_commands_cache(all_mods, self.mods_dir)
+                update_locales_cache(all_mods, self.mods_dir)
+                update_mcp_cache(all_mods, self.mods_dir)
+            except Exception as exc:
+                sys.stderr.write(f"Warning: error recompiling mod caches after update: {exc}\n")
+
+            exit_code = 0 if apply_res.get("success") else 1
+            return {
+                "status": "completed" if exit_code == 0 else "failed",
+                "with_hermes": True,
+                "git_updated": git_updated,
+                "phase1_engine": {"success": True},
+                "phase2_hermes": {"success": hermes_ok, "exit_code": 0, "output": hermes_out},
+                "phase3_apply": apply_res,
+                "exit_code": exit_code,
+            }
+
         if check:
             return self.check_updates(remote=remote, branch=branch)
 

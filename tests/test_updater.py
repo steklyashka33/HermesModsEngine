@@ -527,3 +527,66 @@ def test_engine_version_is_150():
     from engine import __version__
     assert ver == "1.5.0"
     assert __version__ == "1.5.0"
+
+
+# ---------------------------------------------------------------------------
+# 8. Three-Phase Pipeline & --with-hermes / --all
+# ---------------------------------------------------------------------------
+
+
+def test_update_with_hermes_check(tmp_path):
+    """Test updater.update(with_hermes=True, check=True)."""
+    updater = ModUpdater(mods_dir=tmp_path, repo_root=tmp_path)
+    with patch.object(updater, "check_updates", return_value={"status": "up_to_date"}), \
+         patch("subprocess.run") as mock_sub:
+        mock_sub.return_value = MagicMock(returncode=0, stdout="Up to date")
+        res = updater.update(check=True, with_hermes=True)
+        assert res["with_hermes"] is True
+        assert res["status"] in ("up_to_date", "updates_available")
+        assert "engine" in res
+        assert "hermes" in res
+
+
+def test_update_with_hermes_dry_run(tmp_path):
+    """Test updater.update(with_hermes=True, dry_run=True)."""
+    updater = ModUpdater(mods_dir=tmp_path, repo_root=tmp_path)
+    with patch.object(updater, "apply_updated_mods", return_value={"success": True, "mods_results": []}):
+        res = updater.update(dry_run=True, with_hermes=True)
+        assert res["status"] == "dry_run"
+        assert res["with_hermes"] is True
+        assert res["hermes_update_simulated"] is True
+        assert res["exit_code"] == 0
+
+
+def test_update_with_hermes_full_success(tmp_path):
+    """Test full 3-phase update pipeline when engine and hermes succeed."""
+    updater = ModUpdater(mods_dir=tmp_path, repo_root=tmp_path)
+    with patch.object(updater, "is_git_repo", return_value=True), \
+         patch.object(updater, "ensure_remote", return_value=True), \
+         patch.object(updater, "run_git", return_value=(0, "", "")), \
+         patch.object(updater, "pull_updates", return_value=(True, "Pulled")), \
+         patch("subprocess.run") as mock_sub, \
+         patch.object(updater, "apply_updated_mods", return_value={"success": True, "mods_results": []}):
+        mock_sub.return_value = MagicMock(returncode=0, stdout="Hermes updated", stderr="")
+        res = updater.update(with_hermes=True)
+        assert res["status"] == "completed"
+        assert res["exit_code"] == 0
+        assert res["phase1_engine"]["success"] is True
+        assert res["phase2_hermes"]["success"] is True
+        assert res["phase3_apply"]["success"] is True
+
+
+def test_update_with_hermes_failure_in_hermes(tmp_path):
+    """Test 3-phase update pipeline when Hermes update fails in phase 2."""
+    updater = ModUpdater(mods_dir=tmp_path, repo_root=tmp_path)
+    with patch.object(updater, "is_git_repo", return_value=True), \
+         patch.object(updater, "ensure_remote", return_value=True), \
+         patch.object(updater, "run_git", return_value=(0, "", "")), \
+         patch.object(updater, "pull_updates", return_value=(True, "Pulled")), \
+         patch("subprocess.run") as mock_sub:
+        mock_sub.return_value = MagicMock(returncode=1, stdout="", stderr="Git pull conflict in Hermes core")
+        res = updater.update(with_hermes=True)
+        assert res["status"] == "failed"
+        assert res["phase"] == "phase2_hermes"
+        assert res["exit_code"] == 1
+        assert res["phase2_hermes"]["success"] is False
