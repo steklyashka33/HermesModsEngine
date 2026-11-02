@@ -1,0 +1,6 @@
+name: Command Role
+description: 'Befehl /role (Alias: /instruct) für nicht komprimierbare Sitzungsanweisungen,
+  Regeln und Systemrolle'
+slash:
+  role:
+    description: Sitzungsrolle festlegen

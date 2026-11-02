@@ -1,0 +1,61 @@
+id: state-db-threaded-repair-safety
+name: State DB Threaded Repair Safety
+description: 'Evict idle reader connections from the process pool before running state.db
+  schema surgery and vacuum (Issue #142077)'
+version: 1.0.1
+author: Hermes Admin
+enabled: true
+targets:
+- file: hermes_state_repair.py
+  description: Reclaim idle pool connections before schema repair
+  old_block: "            before_mode = _probe_journal_mode_for_repair(db_path)\n\
+    \            result = _repair_state_db_schema_locked(db_path, backup=backup, report=report,\n\
+    \                                                    journal_mode_before=before_mode)"
+  new_block: "            try:\n                from hermes_state_readpool import\
+    \ _read_budget_for\n                budget = _read_budget_for(db_path)\n     \
+    \           while budget.reclaim_idle():\n                    pass\n         \
+    \   except Exception:\n                pass\n            before_mode = _probe_journal_mode_for_repair(db_path)\n\
+    \            result = _repair_state_db_schema_locked(db_path, backup=backup, report=report,\n\
+    \                                                    journal_mode_before=before_mode)"
+i18n:
+  en:
+    name: State DB Threaded Repair Safety
+    description: 'Evict idle reader connections from the process pool before running
+      state.db schema surgery and vacuum (Issue #142077)'
+  ru:
+    name: State DB Threaded Repair Safety
+    description: Сброс неактивных соединений из пула процесса перед выполнением восстановления
+      state.db
+  es:
+    name: State DB Threaded Repair Safety
+    description: 'Expulsión de conexiones de lectura inactivas del grupo de procesos
+      antes de la reparación y optimización de state.db (Issue #142077)'
+  fr:
+    name: State DB Threaded Repair Safety
+    description: 'Éviction des connexions de lecture inactives du pool de processus
+      avant la réparation et le vacuum de state.db (Issue #142077)'
+  zh:
+    name: State DB Threaded Repair Safety
+    description: '在对state.db执行架构修复和清理操作前，从进程池中逐出空闲读取连接（Issue #142077）'
+  ar:
+    name: State DB Threaded Repair Safety
+    description: 'طرد اتصالات القراءة الخاملة من تجمع العمليات قبل إجراء إصلاح مخطط
+      state.db والضغط (المسألة #142077)'
+  de:
+    name: State DB Threaded Repair Safety
+    description: 'Bereinigung inaktiver Lese-Verbindungen aus dem Prozess-Pool vor
+      Durchführung von state.db-Schemareparatur und Vacuum (Issue #142077)'
+  pt:
+    name: State DB Threaded Repair Safety
+    description: 'Despejo de conexões leitoras ociosas do pool de processos antes
+      da reparação e vácuo do esquema state.db (Issue #142077)'
+tests:
+  test_repair_state_db_schema_callable: 'from hermes_state_repair import repair_state_db_schema
+
+    assert callable(repair_state_db_schema)
+
+    '
+  test_read_budget_idle_reclaim: "from hermes_state_readpool import _read_budget_for\n\
+    import tempfile, pathlib\nwith tempfile.TemporaryDirectory() as td:\n    p = pathlib.Path(td)\
+    \ / \"test.db\"\n    p.touch()\n    budget = _read_budget_for(p)\n    assert hasattr(budget,\
+    \ \"reclaim_idle\")\n"

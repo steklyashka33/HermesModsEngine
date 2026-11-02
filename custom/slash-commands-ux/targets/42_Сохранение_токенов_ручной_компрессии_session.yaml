@@ -1,0 +1,65 @@
+targets:
+- file: gateway/slash_commands_session.py
+  description: Передача токенов сжатия after_tokens в _persist_manual_compression
+  old_block: "            if result.status != \"compressed\":\n                return\
+    \ \"\\n\".join(render_compress_result(result))\n            await self._persist_manual_compression(tmp_agent,\
+    \ session_entry, source, result.after_messages)\n            finalize_context_engine_compression_notification(tmp_agent,\
+    \ committed=True)"
+  new_block: "            if result.status != \"compressed\":\n                return\
+    \ \"\\n\".join(render_compress_result(result))\n            await self._persist_manual_compression(tmp_agent,\
+    \ session_entry, source, result.after_messages, after_tokens=getattr(result, \"\
+    after_tokens\", 0))\n            finalize_context_engine_compression_notification(tmp_agent,\
+    \ committed=True)"
+- file: gateway/slash_commands_session.py
+  description: Сохранение токенов сжатия после ручного /compress вместо сброса в 0
+  old_block: "    async def _persist_manual_compression(self, tmp_agent, session_entry,\
+    \ source, compressed) -> None:\n        \"\"\"Commit a manual /compress result\
+    \ to the session store.  Rotation (new continuation id)\n        makes the NEW\
+    \ session durable (already published, else rewritten) so the original stays searchable;\n\
+    \        persist BEFORE repointing so a failed write is fatal and old history\
+    \ stays reachable.\n        In-place compaction already archived + inserted rows,\
+    \ and a rewrite would DELETE the\n        archive; an unchanged id without in-place\
+    \ means rotation FAILED.\"\"\"\n        new_session_id = tmp_agent.session_id\n\
+    \        if new_session_id != session_entry.session_id:\n            # Published\
+    \ child is already durable; a rewrite would drop rows cloned at publish.\n   \
+    \         if not await self.async_session_store.persist_rotated_compression_child(\n\
+    \                    session_entry.session_id, new_session_id, compressed):\n\
+    \                raise RuntimeError(f\"failed to persist compressed transcript\
+    \ for session {new_session_id}\")\n            session_entry.session_id = new_session_id\n\
+    \            await self.async_session_store._save()\n            await asyncio.to_thread(self._sync_telegram_topic_binding,\
+    \ source, session_entry,\n                                    reason=\"compress-command\"\
+    )\n        elif not getattr(tmp_agent, \"_last_compaction_in_place\", False):\n\
+    \            logger.warning(\n                \"Manual /compress: session rotation\
+    \ did not occur (session_id unchanged) and in-place \"\n                \"mode\
+    \ is off — preserving original transcript instead of overwriting it (#44794).\"\
+    )\n        await self.async_session_store.update_session(session_entry.session_key,\
+    \ last_prompt_tokens=0)"
+  new_block: "    async def _persist_manual_compression(self, tmp_agent, session_entry,\
+    \ source, compressed, after_tokens: int = 0) -> None:\n        \"\"\"Commit a\
+    \ manual /compress result to the session store.  Rotation (new continuation id)\n\
+    \        makes the NEW session durable (already published, else rewritten) so\
+    \ the original stays searchable;\n        persist BEFORE repointing so a failed\
+    \ write is fatal and old history stays reachable.\n        In-place compaction\
+    \ already archived + inserted rows, and a rewrite would DELETE the\n        archive;\
+    \ an unchanged id without in-place means rotation FAILED.\"\"\"\n        new_session_id\
+    \ = tmp_agent.session_id\n        if new_session_id != session_entry.session_id:\n\
+    \            # Published child is already durable; a rewrite would drop rows cloned\
+    \ at publish.\n            if not await self.async_session_store.persist_rotated_compression_child(\n\
+    \                    session_entry.session_id, new_session_id, compressed):\n\
+    \                raise RuntimeError(f\"failed to persist compressed transcript\
+    \ for session {new_session_id}\")\n            session_entry.session_id = new_session_id\n\
+    \            await self.async_session_store._save()\n            await asyncio.to_thread(self._sync_telegram_topic_binding,\
+    \ source, session_entry,\n                                    reason=\"compress-command\"\
+    )\n        elif not getattr(tmp_agent, \"_last_compaction_in_place\", False):\n\
+    \            logger.warning(\n                \"Manual /compress: session rotation\
+    \ did not occur (session_id unchanged) and in-place \"\n                \"mode\
+    \ is off — preserving original transcript instead of overwriting it (#44794).\"\
+    )\n        after_tokens = int(after_tokens or 0)\n        if not after_tokens:\n\
+    \            after_tokens = int(getattr(getattr(tmp_agent, \"context_compressor\"\
+    , None), \"last_prompt_tokens\", 0) or 0)\n        if not after_tokens and compressed:\n\
+    \            try:\n                from agent.model_metadata import estimate_messages_tokens_rough\n\
+    \                after_tokens = estimate_messages_tokens_rough(compressed)\n \
+    \           except Exception:\n                pass\n        after_tokens = max(0,\
+    \ after_tokens)\n        session_entry.last_prompt_tokens = after_tokens\n   \
+    \     await self.async_session_store.update_session(session_entry.session_key,\
+    \ last_prompt_tokens=after_tokens)"

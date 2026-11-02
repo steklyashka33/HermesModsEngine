@@ -1,0 +1,20 @@
+targets:
+- file: hermes_cli/commands.py
+  description: Форматирование вывода /help и /commands без бэктиков на командах и
+    с чистыми псевдонимами
+  old_block: "        args = f\" {cmd.args_hint}\" if cmd.args_hint else \"\"\n  \
+    \      # Skip internal aliases like reload_mcp (underscore variant of the name).\n\
+    \        alias_parts = [f\"`/{a}`\" for a in cmd.aliases\n                   \
+    \    if not (a.replace(\"-\", \"_\") == cmd.name.replace(\"-\", \"_\") and a !=\
+    \ cmd.name)]\n        alias_note = t(\"slash.shared.alias_note\", aliases=\",\
+    \ \".join(alias_parts)) if alias_parts else \"\"\n        lines.append(f\"`/{cmd.name}{args}`\
+    \ -- {cmd.describe()}{alias_note}\")"
+  new_block: "        args = f\" {cmd.args_hint}\" if cmd.args_hint else \"\"\n  \
+    \      # Skip internal aliases like reload_mcp (underscore variant of the name).\n\
+    \        alias_parts = [f\"/{a}\" for a in cmd.aliases\n                     \
+    \  if not (a.replace(\"-\", \"_\") == cmd.name.replace(\"-\", \"_\") and a !=\
+    \ cmd.name)]\n        alias_note = t(\"slash.shared.alias_note\", aliases=\",\
+    \ \".join(alias_parts)) if alias_parts else \"\"\n        desc = cmd.describe()\n\
+    \        desc = re.sub(r'(?<![`\\w/])/(?P<c>[a-zA-Z0-9][a-zA-Z0-9_-]*)(?![`\\\
+    w/])', r'`/\\g<c>`', desc)\n        lines.append(f\"/{cmd.name}{args} — {desc}{alias_note}\"\
+    )"

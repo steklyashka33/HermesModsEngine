@@ -1,0 +1,12 @@
+targets:
+- file: gateway/slash_commands_status.py
+  description: Отображение модели через алиас в /status
+  old_block: "        if fields[\"model\"] and fields[\"provider\"]:\n           \
+    \ lines.append(t(\"gateway.status.model_provider\", model=fields[\"model\"], provider=fields[\"\
+    provider\"]))\n        elif fields[\"model\"]:\n            lines.append(t(\"\
+    gateway.status.model\", model=fields[\"model\"]))"
+  new_block: "        display_model = _reverse_alias_for_display(fields[\"model\"\
+    ]) if fields[\"model\"] else \"\"\n        if display_model and fields[\"provider\"\
+    ]:\n            lines.append(t(\"gateway.status.model_provider\", model=display_model,\
+    \ provider=fields[\"provider\"]))\n        elif display_model:\n            lines.append(t(\"\
+    gateway.status.model\", model=display_model))"

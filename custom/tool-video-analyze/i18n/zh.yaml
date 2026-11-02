@@ -1,0 +1,2 @@
+name: Tool Video Analyze
+description: 在核心工具集中注册video_analyze工具并通过auxiliary.video进行路由

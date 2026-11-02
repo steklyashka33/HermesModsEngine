@@ -1,0 +1,21 @@
+targets:
+- file: gateway/slash_commands_status.py
+  description: Добавление процента оставшегося запаса в строку автосжатия /context
+    (Superseded by target 29)
+  disabled: true
+  disabled_reason: Superseded by 29_Кумулятивная.yaml
+  old_block: "    threshold = _n(ctx, \"threshold_tokens\")\n    threshold_pct = f\"\
+    {_n(ctx, 'threshold_percent') * 100:.0f}\"\n    if threshold > 0:\n        if\
+    \ used >= threshold:\n            lines.append(t(\"gateway.context.over_threshold\"\
+    , threshold=_fmt(threshold),\n                           threshold_pct=threshold_pct))\n\
+    \        else:\n            lines.append(t(\"gateway.context.threshold\", threshold=_fmt(threshold),\n\
+    \                           threshold_pct=threshold_pct, to_go=mark + _fmt(threshold\
+    \ - used)))"
+  new_block: "    threshold = _n(ctx, \"threshold_tokens\")\n    threshold_pct = f\"\
+    {_n(ctx, 'threshold_percent') * 100:.0f}\"\n    if threshold > 0:\n        if\
+    \ used >= threshold:\n            lines.append(t(\"gateway.context.over_threshold\"\
+    , threshold=_fmt(threshold),\n                           threshold_pct=threshold_pct))\n\
+    \        else:\n            to_go_pct = f\"{(threshold - used) / threshold * 100:.0f}%\"\
+    \n            lines.append(t(\"gateway.context.threshold\", threshold=_fmt(threshold),\n\
+    \                           threshold_pct=threshold_pct, to_go=mark + _fmt(threshold\
+    \ - used),\n                           to_go_pct=to_go_pct))"

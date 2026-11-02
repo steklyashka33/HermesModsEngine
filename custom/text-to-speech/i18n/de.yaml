@@ -1,0 +1,27 @@
+name: Text to Speech
+description: Sprachsynthese-Modul (TTS) über API mit neuronaler Anpassung an den Konversationsstil
+config:
+  voice:
+    title: Sprachsynthese-Stimme
+    description: Sprachsynthese-Stimme für Gemini TTS
+  adaptation:
+    title: Neuronale Textanpassung
+    description: Neuronale Anpassung von geschriebenem Markdown-Text in gesprochene
+      Sprache vor der Synthese
+  api_key:
+    title: TTS API-Schlüssel
+    description: API-Schlüssel für OmniRoute TTS-Zugriff (in secrets.yaml gespeichert)
+  base_url:
+    title: TTS Basis-URL
+    description: Basis-URL für das OmniRoute TTS-Gateway
+  fallback_edge:
+    title: Fallback auf Edge TTS
+    description: Automatisches Failover auf Edge TTS bei Nichterreichbarkeit von OmniRoute
+      oder fehlendem Token
+  timeout:
+    title: Anforderungs-Timeout
+    description: Anforderungs-Timeout für die Remote-TTS-API in Sekunden
+  speculative_fallback_delay:
+    title: Spekulative Fallback-Verzögerung
+    description: Verzögerung in Sekunden vor dem spekulativen parallelen Start von
+      lokalem EdgeTTS

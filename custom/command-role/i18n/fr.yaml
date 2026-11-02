@@ -1,0 +1,6 @@
+name: Command Role
+description: 'Commande /role (alias : /instruct) pour instructions de session incompressibles,
+  règles et rôle système'
+slash:
+  role:
+    description: Définir le rôle de la session

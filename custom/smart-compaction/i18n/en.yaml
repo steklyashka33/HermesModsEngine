@@ -1,0 +1,22 @@
+name: Smart Compaction Dual-Trigger
+description: 'Intelligent dual-level context compaction (Dual-Trigger): proactive
+  live trimming of tool outputs and background idle compaction'
+config:
+  enabled:
+    title: Enable Dual-Trigger
+    description: Enable intelligent context compaction (Dual-Trigger)
+  idle_seconds:
+    title: Inactivity Timeout
+    description: Inactivity threshold (in seconds) for cold context compression between
+      turns
+  live_threshold_ratio:
+    title: Live Trimming Threshold
+    description: Ratio threshold of threshold_tokens to trigger live pruning of old
+      tool outputs (0.70 = 70%)
+  min_prune_chars:
+    title: Minimum Tool Size
+    description: Threshold of tool output character length for trimming
+  min_reclaim_tokens:
+    title: Minimum Reclaim Tokens
+    description: Minimum amount of reclaimed tokens required to confirm tool output
+      pruning

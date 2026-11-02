@@ -1,0 +1,18 @@
+targets:
+- file: tui_gateway/methods_slash.py
+  description: Процент кэша в Total tokens в /usage для TUI
+  old_block: "    rows += [(\"Prompt tokens:\", n(\"prompt\")), (\"Completion tokens:\"\
+    , n(\"completion\")),\n             (\"Total tokens:\", n(\"total\")), (\"API\
+    \ calls:\", n(\"calls\"))]\n    if usage.get(\"context_max\"):"
+  new_block: "    cr = int(getattr(agent, \"session_cache_read_tokens\", 0) or 0)\n\
+    \    cw = int(getattr(agent, \"session_cache_write_tokens\", 0) or 0)\n    c_tokens\
+    \ = cr + cw\n    inp = int(usage.get(\"input\") or 0)\n    out = int(usage.get(\"\
+    output\") or 0)\n    prompt_total = inp + c_tokens\n    if c_tokens > 0 and prompt_total\
+    \ > 0:\n        c_pct = round(c_tokens / prompt_total * 100)\n    elif usage.get(\"\
+    cache_hit_pct\") is not None:\n        c_pct = int(usage.get(\"cache_hit_pct\"\
+    ) or 0)\n    else:\n        c_pct = 0\n    tot = (inp + c_tokens + out) if (inp\
+    \ + c_tokens + out) > 0 else int(usage.get(\"total\") or 0)\n    total_val = f\"\
+    {tot:,} ({c_pct}% cache)\" if c_pct > 0 else f\"{tot:,}\"\n    rows += [(\"Prompt\
+    \ tokens:\", n(\"prompt\")), (\"Completion tokens:\", n(\"completion\")),\n  \
+    \           (\"Total tokens:\", total_val), (\"API calls:\", n(\"calls\"))]\n\
+    \    if usage.get(\"context_max\"):"

@@ -1,0 +1,39 @@
+name: Slash Commands UX Polish
+description: 'UX abrangente de comandos slash: formatação de /undo, /goal, /model,
+  /agents, /help e /commands, /compress [N], /handoff, /context, /usage, /status,
+  /insights (tokens reais e porcentagem de cache em todos os comandos)'
+slash:
+  handoff:
+    description: Transferir contexto da sessão para uma nova sessão limpa (preservando
+      o resumo de tarefas)
+  compress:
+    description: Compactar contexto da conversa (indique [N] para manter as últimas
+      N mensagens; --preview ou --dry-run para pré-visualização)
+gateway:
+  context:
+    threshold: 'Autocompactação em: {threshold} ({threshold_pct}%) — restam {to_go}
+      ({to_go_pct})'
+    over_threshold: ⚠️ **Limite de autocompactação excedido ({threshold}, {threshold_pct}%)**
+    category_row: '{glyph} {label}  ~  {tokens} tokens  ~  {pct}%'
+    compressions: 'Compactações nesta sessão: {count}'
+    compressions_total: 'Compactações no total: {count}'
+    last_savings: 'A última compactação liberou: {savings}% de contexto'
+    totals_header: 'Totais gerais ({calls} chamadas de API no total):'
+    totals_line: 'Entrada: {input} · Saída: {output} · Raciocínio: {reasoning}'
+    total_billed: 'Total: {total}'
+    total_billed_with_cache: 'Total: {total} ({cache_pct}% de cache)'
+    detail_after_first: _(Informações mais detalhadas estarão disponíveis após a primeira
+      resposta do agente)_
+  usage:
+    label_output_tokens: 'Tokens de saída: {count}'
+    label_total: 'Total: {total}'
+    label_total_with_cache: 'Total: {total} ({cache_pct}% de cache)'
+    label_api_calls: 'Chamadas de API: {count}'
+    header_tokens: 'Uso de tokens:'
+    tokens_line: 'Entrada: {input} · Saída: {output} · Raciocínio: {reasoning}'
+  status:
+    tokens_with_cache: '**Total de tokens de todos os tempos:** {tokens} ({cache_pct}%
+      de cache) _(isto não é a ocupação do contexto atual; use `/context`)_'
+cli:
+  usage:
+    cache_label: cache

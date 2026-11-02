@@ -1,0 +1,18 @@
+name: Smart Compaction Dual-Trigger
+description: Hermes智能双触发上下文压缩（Dual-Trigger）：工具输出的主动实时裁剪与空闲后台压缩
+config:
+  enabled:
+    title: 启用Dual-Trigger
+    description: 启用智能上下文压缩（Dual-Trigger）
+  idle_seconds:
+    title: 空闲超时
+    description: 轮次间冷上下文压缩的空闲阈值（秒）
+  live_threshold_ratio:
+    title: 实时裁剪阈值
+    description: 旧工具输出实时裁剪比例阈值（占threshold_tokens比例，0.70 = 70%）
+  min_prune_chars:
+    title: 工具最小字符数
+    description: 触发裁剪的工具输出最小字符长度
+  min_reclaim_tokens:
+    title: 最小回收Token
+    description: 确认工具输出裁剪所需释放的最小Token数量

@@ -1,0 +1,6 @@
+name: Command Role
+description: 'Команда /role (алиас: /instruct) для несжимаемых сессионных установок,
+  правил и роли агента'
+slash:
+  role:
+    description: Задать роль сессии

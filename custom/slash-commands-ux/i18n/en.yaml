@@ -1,0 +1,37 @@
+name: Slash Commands UX Polish
+description: 'Comprehensive slash commands UX: /undo, /goal, /model, /agents, /help
+  and /commands formatting, /compress [N], /handoff, /context, /usage, /status, /insights'
+slash:
+  handoff:
+    description: Hand off session context to a clean session (preserving task brief)
+  compress:
+    description: Compress conversation context (specify [N] to keep last N messages;
+      --preview or --dry-run for preview)
+gateway:
+  context:
+    threshold: 'Auto-compaction at: {threshold} ({threshold_pct}%) — {to_go} remaining
+      ({to_go_pct})'
+    over_threshold: ⚠️ **Auto-compaction threshold exceeded ({threshold}, {threshold_pct}%)**
+    category_row: '{glyph} {label}  ~  {tokens} tokens  ~  {pct}%'
+    compressions: 'Compressions this session: {count}'
+    compressions_total: 'Compressions all-time: {count}'
+    last_savings: 'Last compression saved: {savings}% context'
+    totals_header: 'All-time totals (cumulative across {calls} API calls):'
+    totals_line: 'Input: {input} · Output: {output} · Reasoning: {reasoning}'
+    total_billed: 'Total: {total}'
+    total_billed_with_cache: 'Total: {total} ({cache_pct}% cache)'
+    detail_after_first: _(More detailed information will be available after the first
+      agent response)_
+  usage:
+    label_output_tokens: 'Output tokens: {count}'
+    label_total: 'Total: {total}'
+    label_total_with_cache: 'Total: {total} ({cache_pct}% cache)'
+    label_api_calls: 'API calls: {count}'
+    header_tokens: 'Token usage:'
+    tokens_line: 'Input: {input} · Output: {output} · Reasoning: {reasoning}'
+  status:
+    tokens_with_cache: '**Total tokens all-time:** {tokens} ({cache_pct}% cache) _(this
+      is not current context occupancy; use `/context`)_'
+cli:
+  usage:
+    cache_label: cache

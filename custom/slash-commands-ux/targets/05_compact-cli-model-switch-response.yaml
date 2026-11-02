@@ -1,0 +1,16 @@
+targets:
+- file: hermes_cli/cli_model_switch_mixin.py
+  old_block: "    if mi:\n        if mi.max_output:\n            _cprint(f\"    {t('gateway.model.max_output_label',\
+    \ tokens=f'{mi.max_output:,}')}\")\n        _cprint(f\"    {t('gateway.model.capabilities_label',\
+    \ capabilities=mi.format_capabilities())}\")\n    cache_enabled = (\n        (base_url_host_matches(result.base_url\
+    \ or \"\", \"openrouter.ai\") and \"claude\" in result.new_model.lower())\n  \
+    \      or result.api_mode == \"anthropic_messages\")\n    if cache_enabled:\n\
+    \        _cprint(f\"    {t('gateway.model.prompt_caching_enabled')}\")\n    if\
+    \ result.warning_message:\n        _cprint(f\"    ⚠ {result.warning_message}\"\
+    )"
+  new_block: "    if mi and mi.max_output:\n        _cprint(f\"    {t('gateway.model.max_output_label',\
+    \ tokens=f'{mi.max_output:,}')}\")\n    cache_enabled = (\n        (base_url_host_matches(result.base_url\
+    \ or \"\", \"openrouter.ai\") and \"claude\" in result.new_model.lower())\n  \
+    \      or result.api_mode == \"anthropic_messages\")\n    if cache_enabled:\n\
+    \        _cprint(f\"    {t('gateway.model.prompt_caching_enabled')}\")"
+  description: compact-cli-model-switch-response

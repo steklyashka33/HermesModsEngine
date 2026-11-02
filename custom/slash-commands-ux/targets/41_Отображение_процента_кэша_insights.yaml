@@ -1,0 +1,38 @@
+targets:
+- file: agent/insights.py
+  description: Процент кэша в /insights терминала
+  old_block: "        lines += self._section(\"\U0001F4CB Overview\") + [\n      \
+    \      f\"  Sessions:          {o['total_sessions']:<12}  Messages:        {o['total_messages']:,}\"\
+    ,\n            f\"  Tool calls:        {o['total_tool_calls']:<12,}  User messages:\
+    \   {o['user_messages']:,}\",\n            f\"  Input tokens:      {o['total_input_tokens']:<12,}\
+    \  Output tokens:   {o['total_output_tokens']:,}\",\n            f\"  Total tokens:\
+    \      {o['total_tokens']:,}\",\n        ]"
+  new_block: "        lines += self._section(\"\U0001F4CB Overview\") + [\n      \
+    \      f\"  Sessions:          {o['total_sessions']:<12}  Messages:        {o['total_messages']:,}\"\
+    ,\n            f\"  Tool calls:        {o['total_tool_calls']:<12,}  User messages:\
+    \   {o['user_messages']:,}\",\n            f\"  Input tokens:      {o['total_input_tokens']:<12,}\
+    \  Output tokens:   {o['total_output_tokens']:,}\",\n        ]\n        ins_cache\
+    \ = o.get(\"total_cache_read_tokens\", 0) + o.get(\"total_cache_write_tokens\"\
+    , 0)\n        ins_prompt = o[\"total_input_tokens\"] + ins_cache\n        ins_cpct\
+    \ = round(ins_cache / ins_prompt * 100) if (ins_cache > 0 and ins_prompt > 0)\
+    \ else 0\n        ins_csfx = f\" ({ins_cpct}% cache)\" if ins_cpct > 0 else \"\
+    \"\n        ins_tot = o[\"total_input_tokens\"] + ins_cache + o[\"total_output_tokens\"\
+    ]\n        lines.append(f\"  Total tokens:      {ins_tot:,}{ins_csfx}\")"
+- file: agent/insights.py
+  description: Процент кэша в /insights шлюза
+  old_block: "        lines = [\n            f\"\U0001F4CA **Hermes Insights** — Last\
+    \ {report['days']} days\\n\",\n            f\"**Sessions:** {o['total_sessions']}\
+    \ | **Messages:** {o['total_messages']:,} | **Tool calls:** {o['total_tool_calls']:,}\"\
+    ,\n            f\"**Tokens:** {o['total_tokens']:,} (in: {o['total_input_tokens']:,}\
+    \ / out: {o['total_output_tokens']:,})\",\n        ]"
+  new_block: "        ins_cache_gw = o.get(\"total_cache_read_tokens\", 0) + o.get(\"\
+    total_cache_write_tokens\", 0)\n        ins_prompt_gw = o[\"total_input_tokens\"\
+    ] + ins_cache_gw\n        ins_cpct_gw = round(ins_cache_gw / ins_prompt_gw * 100)\
+    \ if (ins_cache_gw > 0 and ins_prompt_gw > 0) else 0\n        ins_csfx_gw = f\"\
+    \ ({ins_cpct_gw}% cache)\" if ins_cpct_gw > 0 else \"\"\n        ins_tot_gw =\
+    \ o[\"total_input_tokens\"] + ins_cache_gw + o[\"total_output_tokens\"]\n    \
+    \    lines = [\n            f\"\U0001F4CA **Hermes Insights** — Last {report['days']}\
+    \ days\\n\",\n            f\"**Sessions:** {o['total_sessions']} | **Messages:**\
+    \ {o['total_messages']:,} | **Tool calls:** {o['total_tool_calls']:,}\",\n   \
+    \         f\"**Tokens:** {ins_tot_gw:,}{ins_csfx_gw} (in: {o['total_input_tokens']:,}\
+    \ / out: {o['total_output_tokens']:,})\",\n        ]"

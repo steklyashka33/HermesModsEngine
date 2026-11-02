@@ -1,0 +1,8 @@
+name: Command Unlimited
+description: 'Commande /unlimited [on|off|status] : suppression des limites d''itérations
+  de l''agent et des sous-agents avec comptage global de l''arbre de session et réglage
+  de config.yaml'
+slash:
+  unlimited:
+    description: Activer ou désactiver le mode sans limites pour la session active
+      (itérations de l'agent et des sous-agents)

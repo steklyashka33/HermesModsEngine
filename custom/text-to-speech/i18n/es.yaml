@@ -1,0 +1,28 @@
+name: Text to Speech
+description: Módulo de síntesis de voz (TTS) mediante API con adaptación neuronal
+  al estilo conversacional
+config:
+  voice:
+    title: Voz de síntesis de voz
+    description: Voz de síntesis de habla para Gemini TTS
+  adaptation:
+    title: Neuroadaptación de texto
+    description: Adaptación neuronal de texto Markdown escrito a habla conversacional
+      antes de la síntesis
+  api_key:
+    title: Clave API de TTS
+    description: Clave API para acceso a OmniRoute TTS (se almacena en secrets.yaml)
+  base_url:
+    title: URL base de TTS
+    description: URL base de la puerta de enlace OmniRoute TTS
+  fallback_edge:
+    title: Respaldo con Edge TTS
+    description: Transición automática a Edge TTS cuando OmniRoute no esté disponible
+      o falte el token
+  timeout:
+    title: Tiempo de espera de solicitud
+    description: Tiempo de espera de solicitud a la API remota de TTS en segundos
+  speculative_fallback_delay:
+    title: Retardo de respaldo especulativo
+    description: Retardo en segundos antes del inicio paralelo especulativo de EdgeTTS
+      local

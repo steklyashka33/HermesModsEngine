@@ -1,0 +1,17 @@
+name: Registro de comandos de mods
+description: Registro nativo, cache e despacho de comandos slash declarativos de mods ativos do Hermes
+mods:
+  command_registry:
+    usage: "ℹ️ Uso: /{canonical_name} {hint}"
+    circuit_breaker_disabled: "⚠️ O mod '{mod_id}' está temporariamente desativado pelo Circuit Breaker devido a falhas repetidas."
+    handler_not_found: "⚠️ Manipulador de comando não encontrado: {handler_path}"
+    no_handler_configured: "⚠️ O comando /{canonical_name} não tem manipulador configurado (handler_script, python, shell)."
+    timeout_isolated: "⏱️ O comando /{canonical_name} excedeu o tempo limite. Mod '{mod_id}' isolado pelo Circuit Breaker."
+    timeout: "⏱️ O comando /{canonical_name} excedeu o tempo limite de execução (30s)."
+    error_isolated: "⚠️ Erro de execução em /{canonical_name}: {exc}. Mod '{mod_id}' isolado pelo Circuit Breaker."
+    error: "⚠️ Erro de execução em /{canonical_name}: {exc}"
+    module_spec_error: "⚠️ Falha ao carregar a especificação do módulo: {script_path}"
+    entrypoint_not_found: "⚠️ Função chamável '{entrypoint}' não encontrada no script {script_name}."
+    script_error: "⚠️ Erro de script (código de saída {code}): {error}"
+    shell_error: "⚠️ Erro de comando shell (código de saída {code}): {error}"
+    alias: "alias"

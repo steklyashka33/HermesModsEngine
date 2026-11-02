@@ -1,0 +1,3 @@
+name: Tool Video Analyze
+description: Регистрация инструмента video_analyze в core-тулсете и маршрутизация
+  через auxiliary.video

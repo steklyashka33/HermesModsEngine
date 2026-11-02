@@ -1,0 +1,44 @@
+targets:
+- file: hermes_cli/partial_compress.py
+  description: Синтаксис /compress [N] [инструкция] и 0 [инструкция]
+  old_block: "def parse_partial_compress_args(raw_args: str) -> tuple[bool, int, Optional[str]]:\n\
+    \    \"\"\"Parse the argument string after ``/compress`` into ``(partial, keep_last,\
+    \ focus_topic)``.\n\n    ``here [N]`` / ``up to here [N]`` / ``--keep N`` / ``-k\
+    \ N`` / ``--keep=N`` select the\n    boundary-aware form; anything else is a focus\
+    \ topic for full ``/compress <focus>``.\n    \"\"\"\n    text = (raw_args or \"\
+    \").strip()\n    if not text:\n        return False, DEFAULT_KEEP_LAST, None\n\
+    \n    lowered = text.lower()\n    if lowered.startswith(\"up to here\"):\n   \
+    \     lowered = lowered[len(\"up to \") :]\n        text = text[len(\"up to \"\
+    ) :]\n\n    tokens = lowered.split()\n    head = tokens[0] if tokens else \"\"\
+    \n\n    if head == \"here\":\n        keep = _coerce_keep(tokens[1]) if len(tokens)\
+    \ >= 2 else DEFAULT_KEEP_LAST\n        return True, keep, None\n    if head in\
+    \ (\"--keep\", \"-k\") and len(tokens) >= 2:\n        return True, _coerce_keep(tokens[1]),\
+    \ None\n    if head.startswith(\"--keep=\"):\n        return True, _coerce_keep(head.split(\"\
+    =\", 1)[1]), None\n\n    return False, DEFAULT_KEEP_LAST, text or None"
+  new_block: "def parse_partial_compress_args(raw_args: str) -> tuple[bool, int, Optional[str]]:\n\
+    \    \"\"\"Parse the argument string after ``/compress`` into ``(partial, keep_last,\
+    \ focus_topic)``.\n\n    Supports:\n    - [N]: keep last N user turns verbatim\n\
+    \    - [N] [instruction]: keep last N user turns verbatim, focus compression on\
+    \ instruction\n    - 0 [instruction]: full compression with custom instruction\n\
+    \    - [instruction]: full compression with custom instruction\n    - here [N]\
+    \ [instruction], --keep N, etc. for backwards compatibility\n    \"\"\"\n    text\
+    \ = (raw_args or \"\").strip()\n    if not text:\n        return False, DEFAULT_KEEP_LAST,\
+    \ None\n\n    lowered = text.lower()\n    if lowered.startswith(\"up to here\"\
+    ):\n        lowered = lowered[len(\"up to \") :]\n        text = text[len(\"up\
+    \ to \") :]\n\n    tokens = text.split()\n    first = tokens[0]\n    first_lower\
+    \ = first.lower()\n\n    if first == \"0\":\n        rest = \" \".join(tokens[1:]).strip()\
+    \ if len(tokens) > 1 else None\n        return False, 0, rest or None\n\n    if\
+    \ first.isdigit():\n        keep = _coerce_keep(first)\n        rest = \" \".join(tokens[1:]).strip()\
+    \ if len(tokens) > 1 else None\n        return True, keep, rest or None\n\n  \
+    \  if first_lower == \"here\":\n        if len(tokens) >= 2 and tokens[1].isdigit():\n\
+    \            keep = _coerce_keep(tokens[1])\n            rest = \" \".join(tokens[2:]).strip()\
+    \ if len(tokens) > 2 else None\n            return True, keep, rest or None\n\
+    \        rest = \" \".join(tokens[1:]).strip() if len(tokens) > 1 else None\n\
+    \        return True, DEFAULT_KEEP_LAST, rest or None\n\n    if first_lower in\
+    \ (\"--keep\", \"-k\") and len(tokens) >= 2 and tokens[1].isdigit():\n       \
+    \ keep = _coerce_keep(tokens[1])\n        rest = \" \".join(tokens[2:]).strip()\
+    \ if len(tokens) > 2 else None\n        return True, keep, rest or None\n\n  \
+    \  if first_lower.startswith(\"--keep=\"):\n        val = first.split(\"=\", 1)[1]\n\
+    \        keep = _coerce_keep(val)\n        rest = \" \".join(tokens[1:]).strip()\
+    \ if len(tokens) > 1 else None\n        return True, keep, rest or None\n\n  \
+    \  return False, DEFAULT_KEEP_LAST, text or None"

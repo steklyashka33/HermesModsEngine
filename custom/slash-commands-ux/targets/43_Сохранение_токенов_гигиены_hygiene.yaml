@@ -1,0 +1,17 @@
+targets:
+- file: gateway/run_turn_hygiene.py
+  description: Сохранение вычисленных токенов _new_tokens при гигиеническом сжатии
+    вместо 0
+  old_block: "        if _hyg_rotated or _hyg_in_place:\n            # Persisted (rotation)\
+    \ or persisted by archive_and_compact() (in-place): reset token count.\n     \
+    \       session_entry.last_prompt_tokens = 0\n            attempt.history = _compressed\n\
+    \            _new_count = len(_compressed)\n            _new_tokens = estimate_messages_tokens_rough(_compressed)\n\
+    \        else:"
+  new_block: "        if _hyg_rotated or _hyg_in_place:\n            # Persisted (rotation)\
+    \ or persisted by archive_and_compact() (in-place): retain new token count.\n\
+    \            _new_count = len(_compressed)\n            _new_tokens = estimate_messages_tokens_rough(_compressed)\n\
+    \            session_entry.last_prompt_tokens = _new_tokens\n            if hasattr(self,\
+    \ \"async_session_store\") and hasattr(self.async_session_store, \"update_session\"\
+    ):\n                await self.async_session_store.update_session(session_entry.session_key,\
+    \ last_prompt_tokens=_new_tokens)\n            attempt.history = _compressed\n\
+    \        else:"

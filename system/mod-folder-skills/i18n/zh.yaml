@@ -1,0 +1,2 @@
+name: 文件夹Mod技能发现与集成
+description: 支持带有协同技能的文件夹Mod：自动在skills_list、skill_view和系统提示词中注册

@@ -1,0 +1,24 @@
+name: Speech to Text
+description: 通过多模态API的语音识别（STT）模块，支持推测性并行回退到本地faster-whisper
+config:
+  fallback_whisper:
+    title: Whisper备用故障转移
+    description: 远程STT网关不可用时自动回退到本地faster-whisper
+  downscale_heavy_audio:
+    title: 压缩大音频文件
+    description: 通过ffmpeg自动将大于750KB的音频文件重压缩为紧凑的单声道Opus
+  api_key:
+    title: STT API密钥
+    description: 可选STT API密钥（默认从Hermes的config.yaml中原生继承）
+  base_url:
+    title: STT基础URL
+    description: OmniRoute STT网关基础URL（默认从Hermes的config.yaml继承）
+  model:
+    title: STT模型
+    description: 可选STT模型覆盖（默认从Hermes config.yaml的stt.openai.model继承）
+  timeout:
+    title: 请求超时
+    description: 远程STT API请求超时时间（秒）
+  speculative_fallback_delay:
+    title: 备用延迟
+    description: 推测性并行启动本地Whisper前的等待延迟（秒）

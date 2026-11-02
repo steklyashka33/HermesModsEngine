@@ -1,0 +1,39 @@
+name: Slash Commands UX Polish
+description: 'UX integral de comandos slash: formateo de /undo, /goal, /model, /agents,
+  /help y /commands, /compress [N], /handoff, /context, /usage, /status, /insights
+  (tokens reales y porcentaje de caché en todos los comandos)'
+slash:
+  handoff:
+    description: Transferir el contexto a una sesión limpia (conservando el resumen
+      de tareas)
+  compress:
+    description: Comprimir el contexto de la conversación (indique [N] para conservar
+      los últimos N mensajes; --preview o --dry-run para vista previa)
+gateway:
+  context:
+    threshold: 'Autocompresión a: {threshold} ({threshold_pct}%) — faltan {to_go}
+      ({to_go_pct})'
+    over_threshold: ⚠️ **Umbral de autocompresión superado ({threshold}, {threshold_pct}%)**
+    category_row: '{glyph} {label}  ~  {tokens} tokens  ~  {pct}%'
+    compressions: 'Compresiones en esta sesión: {count}'
+    compressions_total: 'Compresiones totales: {count}'
+    last_savings: 'La última compresión ahorró: {savings}% de contexto'
+    totals_header: 'Totales históricos (acumulado en {calls} llamadas a la API):'
+    totals_line: 'Entrada: {input} · Salida: {output} · Razonamiento: {reasoning}'
+    total_billed: 'Total: {total}'
+    total_billed_with_cache: 'Total: {total} ({cache_pct}% de caché)'
+    detail_after_first: _(Habrá información más detallada tras la primera respuesta
+      del agente)_
+  usage:
+    label_output_tokens: 'Tokens de salida: {count}'
+    label_total: 'Total: {total}'
+    label_total_with_cache: 'Total: {total} ({cache_pct}% de caché)'
+    label_api_calls: 'Llamadas a la API: {count}'
+    header_tokens: 'Uso de tokens:'
+    tokens_line: 'Entrada: {input} · Salida: {output} · Razonamiento: {reasoning}'
+  status:
+    tokens_with_cache: '**Tokens totales de todos los tiempos:** {tokens} ({cache_pct}%
+      de caché) _(no es la ocupación actual del contexto; usa `/context`)_'
+cli:
+  usage:
+    cache_label: caché

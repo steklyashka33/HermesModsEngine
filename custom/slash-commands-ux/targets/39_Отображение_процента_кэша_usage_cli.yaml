@@ -1,0 +1,23 @@
+targets:
+- description: Процент кэша в Всего токенов в выводе CLI /usage
+  file: hermes_cli/cli_info_mixin.py
+  new_block: "        if reasoning_tokens:\n            _label_row(\"cli.usage.label_reasoning_subset\"\
+    , f\"{reasoning_tokens:>10,}\")\n        _label_row(\"cli.usage.label_prompt_tokens_total\"\
+    , f\"{agent.session_prompt_tokens:>10,}\")\n        _label_row(\"cli.usage.label_completion_tokens\"\
+    , f\"{agent.session_completion_tokens:>10,}\")\n        cr = getattr(agent, \"\
+    session_cache_read_tokens\", 0) or 0\n        cw = getattr(agent, \"session_cache_write_tokens\"\
+    , 0) or 0\n        c_tokens = cr + cw\n        prompt_total = input_tokens + c_tokens\n\
+    \        cache_pct = round(c_tokens / prompt_total * 100) if (c_tokens > 0 and\
+    \ prompt_total > 0) else 0\n        cache_label = t(\"cli.usage.cache_label\"\
+    ) if t(\"cli.usage.cache_label\") != \"cli.usage.cache_label\" else \"кэш\"\n\
+    \        cache_suffix = f\" ({cache_pct}% {cache_label})\" if cache_pct > 0 else\
+    \ \"\"\n        total_tokens = (input_tokens + c_tokens + output_tokens) if (input_tokens\
+    \ + c_tokens + output_tokens) > 0 else (getattr(agent, \"session_total_tokens\"\
+    , 0) or 0)\n        _label_row(\"cli.usage.label_total_tokens\", f\"{total_tokens:>10,}{cache_suffix}\"\
+    )\n        _label_row(\"cli.usage.label_api_calls\", f\"{calls:>10,}\")"
+  old_block: "        if reasoning_tokens:\n            _label_row(\"cli.usage.label_reasoning_subset\"\
+    , f\"{reasoning_tokens:>10,}\")\n        _label_row(\"cli.usage.label_prompt_tokens_total\"\
+    , f\"{agent.session_prompt_tokens:>10,}\")\n        _label_row(\"cli.usage.label_completion_tokens\"\
+    , f\"{agent.session_completion_tokens:>10,}\")\n        _label_row(\"cli.usage.label_total_tokens\"\
+    , f\"{agent.session_total_tokens:>10,}\")\n        _label_row(\"cli.usage.label_api_calls\"\
+    , f\"{calls:>10,}\")"

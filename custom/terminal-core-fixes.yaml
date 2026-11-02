@@ -1,0 +1,143 @@
+id: terminal-core-fixes
+name: Terminal & PTY Core Fixes
+description: Terminal output draining via poll() for fd >= 1024 safety and suppression
+  of spurious SIGWINCH on key combinations
+version: 1.1.0
+author: Hermes Admin
+enabled: true
+targets:
+- file: tools/environments/base_output.py
+  description: Use select.poll() in _drain_fd_select to prevent stdout loss on fd
+    >= 1024
+  old_block: "    idle_after_exit = 0\n    while True:\n        if stop is not None\
+    \ and stop.is_set():\n            return\n        try:\n            ready, _,\
+    \ _ = select.select([fd], [], [], 0.1)\n        except (ValueError, OSError):\n\
+    \            return  # fd already closed"
+  new_block: "    idle_after_exit = 0\n    try:\n        poller = select.poll()\n\
+    \        poller.register(fd, select.POLLIN)\n    except (ValueError, OSError):\n\
+    \        return  # fd already closed or invalid\n    while True:\n        if stop\
+    \ is not None and stop.is_set():\n            return\n        try:\n         \
+    \   ready = poller.poll(100)\n        except (ValueError, OSError):\n        \
+    \    return  # fd already closed"
+  disabled: true
+  disabled_reason: 'Absorbed upstream (#94928): Hermes core uses waiter without FD_SETSIZE
+    cap'
+- file: tools/process_registry.py
+  description: Use select.poll() in ProcessRegistry._reader_loop for subprocess stdout
+    drainage
+  old_block: "            if fd is not None:\n                import select as _select\n\
+    \                session._reader_selectable = True\n            idle_after_exit\
+    \ = 0\n            drained_after_request = 0\n            while True:\n      \
+    \          if fd is not None:\n                    try:\n                    \
+    \    # Once a finish is requested, read only what is already buffered: the exited\n\
+    \                        # child's tail, never an orphaned grandchild's future\
+    \ writes.\n                        wait_s = 0 if session._reader_finish_requested.is_set()\
+    \ else 0.2\n                        ready, _, _ = _select.select([fd], [], [],\
+    \ wait_s)\n                    except (ValueError, OSError):\n               \
+    \         break  # fd already closed"
+  new_block: "            if fd is not None:\n                import select as _select\n\
+    \                session._reader_selectable = True\n                try:\n   \
+    \                 poller = _select.poll()\n                    poller.register(fd,\
+    \ _select.POLLIN)\n                except (ValueError, OSError):\n           \
+    \         poller = None\n            else:\n                poller = None\n  \
+    \          idle_after_exit = 0\n            drained_after_request = 0\n      \
+    \      while True:\n                if fd is not None and poller is not None:\n\
+    \                    try:\n                        # Once a finish is requested,\
+    \ read only what is already buffered: the exited\n                        # child's\
+    \ tail, never an orphaned grandchild's future writes.\n                      \
+    \  timeout_ms = 0 if session._reader_finish_requested.is_set() else 200\n    \
+    \                    ready = poller.poll(timeout_ms)\n                    except\
+    \ (ValueError, OSError):\n                        break  # fd already closed"
+  disabled: true
+  disabled_reason: 'Absorbed upstream (#94928): Hermes core uses fd_wait selector
+    without FD_SETSIZE cap'
+- file: hermes_cli/pty_bridge.py
+  description: Initialize cached PTY dimensions
+  old_block: '        os.set_blocking(self._fd, False)'
+  new_block: "        os.set_blocking(self._fd, False)\n        self._last_cols: Optional[int]\
+    \ = None\n        self._last_rows: Optional[int] = None"
+- file: hermes_cli/pty_bridge.py
+  description: Cache last_cols and last_rows to invoke TIOCSWINSZ ioctl only on actual
+    dimension changes
+  old_block: "        if self._closed:\n            return\n        # struct winsize:\
+    \ rows, cols, xpixel, ypixel (all unsigned short)\n        winsize = struct.pack(\"\
+    HHHH\", _clamp_dimension(rows, _MAX_ROWS), _clamp_dimension(cols, _MAX_COLS),\
+    \ 0, 0)\n        try:\n            fcntl.ioctl(self._fd, termios.TIOCSWINSZ, winsize)\n\
+    \        except OSError:\n            pass"
+  new_block: "        if self._closed:\n            return\n        clamped_rows =\
+    \ _clamp_dimension(rows, _MAX_ROWS)\n        clamped_cols = _clamp_dimension(cols,\
+    \ _MAX_COLS)\n        if (getattr(self, \"_last_cols\", None), getattr(self, \"\
+    _last_rows\", None)) == (clamped_cols, clamped_rows):\n            return\n  \
+    \      self._last_cols = clamped_cols\n        self._last_rows = clamped_rows\n\
+    \        # struct winsize: rows, cols, xpixel, ypixel (all unsigned short)\n \
+    \       winsize = struct.pack(\"HHHH\", clamped_rows, clamped_cols, 0, 0)\n  \
+    \      try:\n            fcntl.ioctl(self._fd, termios.TIOCSWINSZ, winsize)\n\
+    \        except OSError:\n            pass"
+i18n:
+  en:
+    name: Terminal & PTY Core Fixes
+    description: Terminal output draining via poll() for fd >= 1024 safety and suppression
+      of spurious SIGWINCH on key combinations
+  ru:
+    name: Terminal & PTY Core Fixes
+    description: Дренаж вывода терминала через poll() для защиты от fd >= 1024 и предотвращение
+      ложных SIGWINCH при комбинациях клавиш
+  es:
+    name: Terminal & PTY Core Fixes
+    description: Drenaje de salida de terminal mediante poll() para seguridad con
+      fd >= 1024 y supresión de SIGWINCH espurios en combinaciones de teclas
+  fr:
+    name: Terminal & PTY Core Fixes
+    description: Drainage de la sortie du terminal via poll() pour la sécurité fd
+      >= 1024 et suppression des faux signaux SIGWINCH lors des combinaisons de touches
+  zh:
+    name: Terminal & PTY Core Fixes
+    description: 通过poll()排出终端输出以确保fd >= 1024时的安全性，并抑制按键组合产生的误触发SIGWINCH信号
+  ar:
+    name: Terminal & PTY Core Fixes
+    description: تصريف مخرجات الطرفية عبر poll() لأمان fd >= 1024 ومنع إشارات SIGWINCH
+      الزائفة عند مجموعات المفاتيح
+  de:
+    name: Terminal & PTY Core Fixes
+    description: Terminal-Ausgabe-Draining via poll() für fd >= 1024-Sicherheit und
+      Unterdrückung fehlerhafter SIGWINCH-Signale bei Tastenkombinationen
+  pt:
+    name: Terminal & PTY Core Fixes
+    description: Drenagem de saída do terminal via poll() para segurança de fd >=
+      1024 e supressão de SIGWINCH espúrios em combinações de teclas
+tests:
+  test_drain_fd_select_high_descriptor: 'import os, codecs, resource
+
+    from unittest.mock import MagicMock
+
+    from tools.environments.base_output import _BoundedOutputCollector, _drain_fd_select
+
+    soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+
+    resource.setrlimit(resource.RLIMIT_NOFILE, (max(soft, 2048), hard))
+
+    r, w = os.pipe()
+
+    r_high = os.dup2(r, 1025)
+
+    os.close(r)
+
+    os.write(w, b"poll-test\n")
+
+    os.close(w)
+
+    proc = MagicMock()
+
+    proc.poll.return_value = 0
+
+    output = _BoundedOutputCollector(100)
+
+    decoder = codecs.getincrementaldecoder("utf-8")("replace")
+
+    _drain_fd_select(proc, r_high, output, decoder)
+
+    os.close(r_high)
+
+    assert "poll-test" in output.render()
+
+    '

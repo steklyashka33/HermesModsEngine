@@ -1,0 +1,31 @@
+name: Speech to Text
+description: Модуль распознавания речи (STT) через мультимодальный API со спекулятивным
+  параллельным фолбэком на локальный faster-whisper
+config:
+  fallback_whisper:
+    title: Фолбэк на Whisper
+    description: Автоматический переход на faster-whisper при недоступности удалённого
+      шлюза
+  downscale_heavy_audio:
+    title: Сжатие тяжёлого аудио
+    description: Автоматическое пересжатие аудиофайлов >750КБ через ffmpeg в компактный
+      моно-Opus
+  api_key:
+    title: API ключ STT
+    description: Опциональный API ключ STT (по умолчанию нативно наследуется из config.yaml
+      Hermes)
+  base_url:
+    title: Базовый URL STT
+    description: Базовый URL шлюза OmniRoute STT (по умолчанию наследуется из config.yaml
+      Hermes)
+  model:
+    title: Модель STT
+    description: Опциональный оверрайд модели STT (по умолчанию нативно наследуется
+      из stt.openai.model в config.yaml Hermes)
+  timeout:
+    title: Таймаут запроса
+    description: Таймаут запроса к удаленному API STT в секундах
+  speculative_fallback_delay:
+    title: Задержка фолбэка
+    description: Задержка в секундах до спекулятивного параллельного запуска локального
+      Whisper

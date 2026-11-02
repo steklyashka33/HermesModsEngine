@@ -1,0 +1,17 @@
+name: Registre des commandes de mods
+description: Enregistrement, mise en cache et exécution natifs des commandes slash déclaratives des mods Hermes actifs
+mods:
+  command_registry:
+    usage: "ℹ️ Utilisation: /{canonical_name} {hint}"
+    circuit_breaker_disabled: "⚠️ Le mod '{mod_id}' est temporairement désactivé par Circuit Breaker en raison d'échecs répétés."
+    handler_not_found: "⚠️ Gestionnaire de commande introuvable: {handler_path}"
+    no_handler_configured: "⚠️ La commande /{canonical_name} n'a pas de gestionnaire configuré (handler_script, python, shell)."
+    timeout_isolated: "⏱️ La commande /{canonical_name} a expiré. Mod '{mod_id}' isolé par Circuit Breaker."
+    timeout: "⏱️ La commande /{canonical_name} a dépassé le délai d'exécution (30s)."
+    error_isolated: "⚠️ Erreur d'exécution sur /{canonical_name}: {exc}. Mod '{mod_id}' isolé par Circuit Breaker."
+    error: "⚠️ Erreur d'exécution sur /{canonical_name}: {exc}"
+    module_spec_error: "⚠️ Impossible de charger la spécification du module: {script_path}"
+    entrypoint_not_found: "⚠️ Fonction appelable '{entrypoint}' introuvable dans le script {script_name}."
+    script_error: "⚠️ Erreur de script (code de sortie {code}): {error}"
+    shell_error: "⚠️ Erreur de commande shell (code de sortie {code}): {error}"
+    alias: "alias"

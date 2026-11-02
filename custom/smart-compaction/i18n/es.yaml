@@ -1,0 +1,23 @@
+name: Smart Compaction Dual-Trigger
+description: 'Compresión inteligente de contexto de doble nivel (Dual-Trigger): recorte
+  proactivo en vivo de salidas de herramientas y compresión en segundo plano por inactividad'
+config:
+  enabled:
+    title: Activar Dual-Trigger
+    description: Habilitar compresión inteligente de contexto (Dual-Trigger)
+  idle_seconds:
+    title: Tiempo de inactividad
+    description: Umbral de inactividad (en segundos) para compresión en frío del contexto
+      entre turnos
+  live_threshold_ratio:
+    title: Umbral de recorte en vivo
+    description: Proporción límite para recorte en vivo de salidas antiguas de herramientas
+      respecto a threshold_tokens (0.70 = 70%)
+  min_prune_chars:
+    title: Tamaño mínimo de herramienta
+    description: Longitud mínima en caracteres de la salida de herramienta para aplicar
+      recorte
+  min_reclaim_tokens:
+    title: Recuperación mínima
+    description: Cantidad mínima de tokens a liberar para confirmar el recorte de
+      herramientas

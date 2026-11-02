@@ -1,0 +1,162 @@
+id: voice-command-custom
+name: Voice Command Modes & On-Demand Speech Synthesis
+description: Mode switching for /voice (on=all, tts=voice_only, off=off) and on-demand
+  async speech synthesis for the latest agent response
+version: 1.3.0
+author: Hermes Admin
+enabled: true
+dependencies:
+- text-to-speech
+tests:
+  test_voice_mode_by_arg: 'from gateway.slash_commands import _VOICE_MODE_BY_ARG
+
+    assert _VOICE_MODE_BY_ARG[''on''][0] == ''all''
+
+    assert _VOICE_MODE_BY_ARG[''tts''][0] == ''voice_only''
+
+    '
+  test_voice_command_handler: 'from gateway.slash_commands import GatewaySlashCommandsMixin
+
+    assert hasattr(GatewaySlashCommandsMixin, ''_handle_voice_command'')
+
+    '
+targets:
+- file: gateway/slash_commands.py
+  old_block: "# /voice subcommand -> stored mode (None = auto-TTS disabled), confirmation\
+    \ i18n key.\n_VOICE_MODE_BY_ARG = {\n    **dict.fromkeys((\"on\", \"enable\"),\
+    \ (\"voice_only\", \"gateway.voice.enabled_voice_only\")),\n    **dict.fromkeys((\"\
+    off\", \"disable\"), (\"off\", \"gateway.voice.disabled_text\")),\n    \"tts\"\
+    : (\"all\", \"gateway.voice.tts_enabled\")}"
+  new_block: "# /voice subcommand -> stored mode (None = auto-TTS disabled), confirmation\
+    \ i18n key.\n_VOICE_MODE_BY_ARG = {\n    **dict.fromkeys((\"on\", \"enable\"),\
+    \ (\"all\", \"gateway.voice.tts_enabled\")),\n    **dict.fromkeys((\"off\", \"\
+    disable\"), (\"off\", \"gateway.voice.disabled_text\")),\n    \"tts\": (\"voice_only\"\
+    , \"gateway.voice.enabled_voice_only\")}"
+- file: gateway/slash_commands.py
+  old_block: "        # Toggle: off → on, on/all → off\n        turning_on = self._voice_mode.get(voice_key,\
+    \ \"off\") == \"off\"\n        _set_mode(\"voice_only\" if turning_on else \"\
+    off\")\n        toggle_line = t(\"gateway.voice.enabled_short\" if turning_on\
+    \ else \"gateway.voice.disabled_short\")\n        # Bare /voice still toggles,\
+    \ but append an explainer so users discover the on/off/tts/status\n        # subcommands\
+    \ (and, on Discord, live voice-channel join/leave). Toggle result shows first.\n\
+    \        supports_voice_channels = adapter is not None and hasattr(adapter, \"\
+    join_voice_channel\")\n        channels = t(\"gateway.voice.help_channels\") if\
+    \ supports_voice_channels else \"\"\n        return t(\"gateway.voice.help\",\
+    \ toggle=toggle_line, channels=channels)"
+  new_block: "        # On-demand speech synthesis: bare /voice or reply /voice\n\
+    \        session_entry = await self.async_session_store.get_or_create_session(event.source)\n\
+    \        try:\n            history = await self.async_session_store.load_transcript(session_entry.session_id)\n\
+    \        except Exception:\n            history = []\n\n        target_text =\
+    \ None\n        reply_to_id = event.reply_to_message_id\n        reply_to_text\
+    \ = (event.reply_to_text or \"\").strip()\n\n        # Check if reply_to_message\
+    \ is an artificial Telegram topic root anchor\n        raw_msg = getattr(event,\
+    \ \"raw_message\", None)\n        replied_msg = getattr(raw_msg, \"reply_to_message\"\
+    , None) if raw_msg else None\n\n        is_topic_anchor = False\n        if replied_msg:\n\
+    \            topic_created = getattr(replied_msg, \"forum_topic_created\", None)\
+    \ is not None\n            is_thread_root = (\n                getattr(raw_msg,\
+    \ \"message_thread_id\", None) is not None\n                and getattr(replied_msg,\
+    \ \"message_id\", None) == getattr(raw_msg, \"message_thread_id\", None)\n   \
+    \         )\n            is_source_thread_root = (\n                getattr(event.source,\
+    \ \"thread_id\", None) is not None\n                and str(getattr(replied_msg,\
+    \ \"message_id\", None)) == str(event.source.thread_id)\n            )\n     \
+    \       is_topic_anchor = bool(topic_created or is_thread_root or is_source_thread_root)\n\
+    \n        is_genuine_reply = bool((reply_to_id or reply_to_text) and not is_topic_anchor)\n\
+    \n        candidate_assistants = [m for m in history if m.get(\"role\") == \"\
+    assistant\" and (m.get(\"content\") or \"\").strip()]\n\n        if is_genuine_reply:\n\
+    \            if replied_msg and getattr(replied_msg, \"from_user\", None):\n \
+    \               if not getattr(replied_msg.from_user, \"is_bot\", False):\n  \
+    \                  return \"Озвучить можно только ответ ассистента.\"\n\n    \
+    \        if reply_to_text:\n                clean_reply_snippet = reply_to_text[:100].strip()\n\
+    \                for ast_msg in reversed(candidate_assistants):\n            \
+    \        content = (ast_msg.get(\"content\") or \"\").strip()\n              \
+    \      if clean_reply_snippet in content or content in reply_to_text:\n      \
+    \                  target_text = content\n                        break\n\n  \
+    \          if not target_text and candidate_assistants:\n                target_text\
+    \ = candidate_assistants[-1].get(\"content\")\n        else:\n            if candidate_assistants:\n\
+    \                target_text = candidate_assistants[-1].get(\"content\")\n\n \
+    \       if not target_text or not target_text.strip():\n            return \"\
+    Нет сообщений ассистента для озвучки.\"\n\n        # Non-blocking async background\
+    \ task so gateway turn finishes instantly without lag\n        adapter = self._delivery_adapter_for(event.source)\n\
+    \        if adapter and hasattr(adapter, \"_set_reaction\") and event.message_id:\n\
+    \            asyncio.create_task(adapter._set_reaction(event.source.chat_id, event.message_id,\
+    \ \"\U0001F399️\"))\n\n        async def _run_synthesis_and_deliver():\n     \
+    \       try:\n                await self._send_voice_reply(event, target_text)\n\
+    \            except Exception as exc:\n                logger.error(\"On-demand\
+    \ voice synthesis failed: %s\", exc, exc_info=True)\n                if adapter\
+    \ and hasattr(adapter, \"send_message\"):\n                    await adapter.send_message(\n\
+    \                        chat_id=event.source.chat_id,\n                     \
+    \   text=\"⚠️ Не удалось озвучить сообщение.\",\n                        metadata=dict(self._thread_metadata_for_source(event.source,\
+    \ event.message_id) or {})\n                    )\n\n        asyncio.create_task(_run_synthesis_and_deliver())\n\
+    \        return \"\U0001F399️ Озвучиваю ответ...\"\n\n"
+i18n:
+  en:
+    name: Voice Command Modes & On-Demand Speech Synthesis
+    description: Mode switching for /voice (on=all, tts=voice_only, off=off) and on-demand
+      async speech synthesis for the latest agent response
+    voice:
+      only_assistant: Only assistant responses can be voiced.
+      no_messages: No assistant messages to synthesize.
+      synthesis_failed: ⚠️ Failed to synthesize voice message.
+      synthesizing: 🎙️ Synthesizing response...
+  ru:
+    name: Voice Command Modes & On-Demand Speech Synthesis
+    description: Смена режимов /voice (on=all, tts=voice_only, off=off) и асинхронный
+      синтез речи последнего ответа агента
+    voice:
+      only_assistant: Озвучить можно только ответ ассистента.
+      no_messages: Нет сообщений ассистента для озвучки.
+      synthesis_failed: ⚠️ Не удалось озвучить сообщение.
+      synthesizing: 🎙️ Озвучиваю ответ...
+  es:
+    name: Voice Command Modes & On-Demand Speech Synthesis
+    description: Cambio de modos para /voice (on=todos, tts=solo_voz, off=desactivado)
+      y síntesis asíncrona de voz bajo demanda para la última respuesta del agente
+    voice:
+      only_assistant: Solo se pueden locutar las respuestas del asistente.
+      no_messages: No hay mensajes del asistente para locutar.
+      synthesis_failed: ⚠️ Error al locutar el mensaje.
+      synthesizing: 🎙️ Locutando respuesta...
+  fr:
+    name: Voice Command Modes & On-Demand Speech Synthesis
+    description: Changement de mode pour /voice (on=tous, tts=voix_seule, off=désactivé)
+      et synthèse vocale asynchrone à la demande pour la dernière réponse de l'agent
+    voice:
+      only_assistant: Seules les réponses de l'assistant peuvent être vocalisées.
+      no_messages: Aucun message de l'assistant à vocaliser.
+      synthesis_failed: ⚠️ Impossible de vocaliser le message.
+      synthesizing: 🎙️ Vocalisation de la réponse en cours...
+  zh:
+    name: Voice Command Modes & On-Demand Speech Synthesis
+    description: 命令 /voice 的模式切换（on=全部，tts=仅语音，off=关闭）以及对最新Agent回复的按需异步语音合成
+    voice:
+      only_assistant: 只能对助手的回复进行语音合成。
+      no_messages: 没有可用于语音合成的助手消息。
+      synthesis_failed: ⚠️ 无法合成语音消息。
+      synthesizing: 🎙️ 正在合成回复语音...
+  ar:
+    name: Voice Command Modes & On-Demand Speech Synthesis
+    description: تبديل أوضاع /voice (on=الكل، tts=صوت_فقط، off=إيقاف) والتركيب الصوتي
+      غير المتزامن عند الطلب لآخر رد من الوكيل
+    voice:
+      only_assistant: يمكن تحويل ردود المساعد فقط إلى صوت.
+      no_messages: لا توجد رسائل للمساعد للتحويل إلى صوت.
+      synthesis_failed: ⚠️ تعذر تحويل الرسالة إلى صوت.
+      synthesizing: 🎙️ جارٍ تركيب الرد الصوتي...
+  de:
+    name: Voice Command Modes & On-Demand Speech Synthesis
+    description: Modusumschaltung für /voice (on=alle, tts=nur_stimme, off=aus) und
+      asynchrone On-Demand-Sprachsynthese für die letzte Agentenantwort
+    voice:
+      only_assistant: Nur Antworten des Assistenten können vertont werden.
+      no_messages: Keine Assistenten-Nachrichten zur Sprachausgabe vorhanden.
+      synthesis_failed: ⚠️ Sprachnachricht konnte nicht erzeugt werden.
+      synthesizing: 🎙️ Erzeuge Sprachantwort...
+  pt:
+    name: Voice Command Modes & On-Demand Speech Synthesis
+    description: Alternância de modos para /voice (on=todos, tts=somente_voz, off=desligado)
+      e síntese assíncrona de fala sob demanda para a última resposta do agente
+    voice:
+      only_assistant: Apenas respostas do assistente podem ser sonorizadas.
+      no_messages: Nenhuma mensagem do assistente para sonorizar.
+      synthesis_failed: ⚠️ Não foi possível sonorizar a mensagem.
+      synthesizing: 🎙️ Sonorizando resposta...

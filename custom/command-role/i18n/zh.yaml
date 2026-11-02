@@ -1,0 +1,5 @@
+name: Command Role
+description: 命令 /role（别名：/instruct）用于不可压缩的会话指令、规则及系统角色设定
+slash:
+  role:
+    description: 设定会话角色

@@ -1,0 +1,339 @@
+targets:
+- file: agent/skill_utils.py
+  description: Add TIER_MODS and get_mod_skills_dirs to discovery search roots
+  old_block: |-
+    # Cross-directory precedence, lowest tier wins: trusted project > local profile > skills.create_dir >
+    # skills.external_dirs. Inside ONE tier two different skills sharing a name stay ambiguous — refused,
+    # never guessed (59da8ec4e) — while identical copies under one root resolve to the shallowest.
+    TIER_PROJECT, TIER_LOCAL, TIER_CREATE_DIR, TIER_EXTERNAL = range(4)
+    # Leading words of every same-tier refusal (skill_view error, preload/cron label) — one spelling.
+    AMBIGUOUS_SKILL_PREFIX = "Ambiguous skill name "
+    # (shadowed path, *sorted higher-tier paths) already judged: the identity check (it hashes both
+    # SKILL.md files) and its one-time warning run once per pairing, not on every catalog resolve.
+    _SHADOW_CHECKED: set[tuple[str, ...]] = set()
+
+
+    def get_skill_search_roots(local: Optional[Path] = None, *, include_project: bool = True) -> list[tuple[int, Path]]:
+        """``(tier, dir)`` for every skill root in precedence order — the ONE ordering the skills list,
+        prompt index, slash commands, skill_view, preload and cron share. *local* overrides the profile
+        skills dir (skills_tool passes its live root); that entry is kept even when missing."""
+        roots = [(TIER_PROJECT, d) for d in get_project_skills_dirs()] if include_project else []
+        roots.append((TIER_LOCAL, Path(local) if local is not None else get_skills_dir()))
+        create_dir = get_skill_create_dir()
+        if create_dir is not None and create_dir.is_dir():
+            roots.append((TIER_CREATE_DIR, create_dir))
+        roots += [(TIER_EXTERNAL, d) for d in get_external_skills_dirs()]
+        seen: set[Path] = set()
+        return [(t, d) for t, d in roots if not (d in seen or seen.add(d))]
+  new_block: |-
+    # Cross-directory precedence, lowest tier wins: trusted project > local profile > skills.create_dir >
+    # mods > skills.external_dirs. Inside ONE tier two different skills sharing a name stay ambiguous — refused,
+    # never guessed (59da8ec4e) — while identical copies under one root resolve to the shallowest.
+    TIER_PROJECT, TIER_LOCAL, TIER_CREATE_DIR, TIER_MODS, TIER_EXTERNAL = range(5)
+    # Leading words of every same-tier refusal (skill_view error, preload/cron label) — one spelling.
+    AMBIGUOUS_SKILL_PREFIX = "Ambiguous skill name "
+    # (shadowed path, *sorted higher-tier paths) already judged: the identity check (it hashes both
+    # SKILL.md files) and its one-time warning run once per pairing, not on every catalog resolve.
+    _SHADOW_CHECKED: set[tuple[str, ...]] = set()
+
+
+    def get_skill_search_roots(local: Optional[Path] = None, *, include_project: bool = True) -> list[tuple[int, Path]]:
+        """``(tier, dir)`` for every skill root in precedence order — the ONE ordering the skills list,
+        prompt index, slash commands, skill_view, preload and cron share. *local* overrides the profile
+        skills dir (skills_tool passes its live root); that entry is kept even when missing."""
+        roots = [(TIER_PROJECT, d) for d in get_project_skills_dirs()] if include_project else []
+        roots.append((TIER_LOCAL, Path(local) if local is not None else get_skills_dir()))
+        create_dir = get_skill_create_dir()
+        if create_dir is not None and create_dir.is_dir():
+            roots.append((TIER_CREATE_DIR, create_dir))
+        roots += [(TIER_MODS, d) for d in get_mod_skills_dirs()]
+        roots += [(TIER_EXTERNAL, d) for d in get_external_skills_dirs()]
+        seen: set[Path] = set()
+        return [(t, d) for t, d in roots if not (d in seen or seen.add(d))]
+- file: agent/skill_utils.py
+  description: Add get_mod_skills_dirs function and cache
+  old_block: |-
+    _EXTERNAL_DIRS_CACHE: dict[tuple[str, int, int, int, int], list[Path]] = {}
+
+
+    def _external_dirs_cache_clear() -> None:
+  new_block: |-
+    _EXTERNAL_DIRS_CACHE: dict[tuple[str, int, int, int, int], list[Path]] = {}
+    _MOD_SKILLS_CACHE: dict[tuple, list[Path]] = {}
+
+
+    def _mod_skills_dirs_cache_clear() -> None:
+        """Test hook — drop the in-process mod skills cache."""
+        _MOD_SKILLS_CACHE.clear()
+
+
+    def _get_mod_skills_cache_key(mods_dir: Path) -> tuple:
+        """Compute mtime signature of mods_dir and all its folder mods."""
+        try:
+            entries: list[Any] = [mods_dir.stat().st_mtime_ns]
+            for e in sorted(mods_dir.iterdir()):
+                if e.is_dir() and not e.name.startswith((".", "_")) and not e.name.endswith(".disabled"):
+                    manifest = e / "mod.yaml"
+                    if not manifest.exists():
+                        manifest = e / f"{e.name}.yaml"
+                    m_mtime = manifest.stat().st_mtime_ns if manifest.exists() else 0
+                    s_dir = e / "skills"
+                    s_mtime = s_dir.stat().st_mtime_ns if s_dir.is_dir() else 0
+                    entries.append((e.name, m_mtime, s_mtime))
+            return tuple(entries)
+        except OSError:
+            return (0,)
+
+
+    def get_mod_skills_dirs() -> list[Path]:
+        """Discover skills directories inside active (enabled: true) folder mods under HERMES_HOME/mods.
+        Safe against mod engine failures, missing engine, or malformed manifests.
+        """
+        try:
+            from hermes_constants import get_hermes_home
+            mods_dir = get_hermes_home() / "mods"
+            if not mods_dir.is_dir():
+                return []
+
+            cache_key = _get_mod_skills_cache_key(mods_dir)
+            cached = _MOD_SKILLS_CACHE.get(cache_key)
+            if cached is not None:
+                return list(cached)
+
+            dirs: list[Path] = []
+            for entry in sorted(mods_dir.iterdir()):
+                if entry.name.startswith((".", "_")) or entry.name.endswith(".disabled"):
+                    continue
+                if not entry.is_dir():
+                    continue
+                skills_sub = entry / "skills"
+                if not skills_sub.is_dir():
+                    continue
+                try:
+                    if not skills_sub.resolve().is_relative_to(entry.resolve()):
+                        continue
+                except OSError:
+                    continue
+
+                manifest = entry / "mod.yaml"
+                if not manifest.exists():
+                    manifest = entry / f"{entry.name}.yaml"
+                if not manifest.exists():
+                    continue
+
+                try:
+                    data = yaml_load(manifest.read_text(encoding="utf-8"))
+                    if isinstance(data, dict) and data.get("enabled", True) is False:
+                        continue
+                except Exception:
+                    continue
+
+                dirs.append(skills_sub)
+
+            _MOD_SKILLS_CACHE[cache_key] = list(dirs)
+            return list(dirs)
+        except Exception as exc:
+            logger.debug("Failed to discover mod skills dirs: %s", exc)
+            return []
+
+
+    def _external_dirs_cache_clear() -> None:
+- file: agent/skill_utils.py
+  description: Add get_mod_skills_dirs to normalize_skill_lookup_name
+  old_block: |2-
+        trusted_roots = [primary_root]
+        for getter in (get_project_skills_dirs, get_external_skills_dirs):
+            try:
+                trusted_roots.extend(getter())
+            except Exception:
+                pass
+  new_block: |2-
+        trusted_roots = [primary_root]
+        for getter in (get_project_skills_dirs, get_mod_skills_dirs, get_external_skills_dirs):
+            try:
+                trusted_roots.extend(getter())
+            except Exception:
+                pass
+- file: agent/skill_utils.py
+  description: Add get_mod_skills_dirs to is_external_skill_path
+  old_block: |-
+    def is_external_skill_path(path) -> bool:
+        """True when ``path`` lives under an external or trusted project skills dir.
+        Those are externally owned: autonomous lifecycle maintenance treats them as
+        read-only (user-directed tool calls may still edit them)."""
+        candidate = _resolve_for_skill_ownership(path)
+        roots: list[Path] = list(get_external_skills_dirs())
+        try:
+            roots.extend(get_project_skills_dirs())
+        except Exception:
+            pass
+        return any(candidate.is_relative_to(_resolve_for_skill_ownership(root)) for root in roots)
+  new_block: |-
+    def is_external_skill_path(path) -> bool:
+        """True when ``path`` lives under an external or trusted project skills dir.
+        Those are externally owned: autonomous lifecycle maintenance treats them as
+        read-only (user-directed tool calls may still edit them)."""
+        candidate = _resolve_for_skill_ownership(path)
+        roots: list[Path] = list(get_external_skills_dirs())
+        try:
+            roots.extend(get_project_skills_dirs())
+        except Exception:
+            pass
+        try:
+            roots.extend(get_mod_skills_dirs())
+        except Exception:
+            pass
+        return any(candidate.is_relative_to(_resolve_for_skill_ownership(root)) for root in roots)
+- file: agent/skill_utils.py
+  description: Include mods tier in shadowed skill log message
+  old_block: |2-
+                        logger.warning("Skill '%s' at %s is shadowed by a higher-precedence copy "
+                                       "(project > local > create_dir > external_dirs)", name, e["path"])
+  new_block: |2-
+                        logger.warning("Skill '%s' at %s is shadowed by a higher-precedence copy "
+                                       "(project > local > create_dir > mods > external_dirs)", name, e["path"])
+- file: tools/skills_tool.py
+  description: Invalidate mod skills cache on clear_skills_cache
+  old_block: |-
+    def clear_skills_cache() -> None:
+        """Drop the scanned catalog so the next listing re-scans (explicit reloads must not wait out the TTL)."""
+        _SKILLS_CACHE.clear()
+  new_block: |-
+    def clear_skills_cache() -> None:
+        """Drop the scanned catalog so the next listing re-scans (explicit reloads must not wait out the TTL)."""
+        _SKILLS_CACHE.clear()
+        with suppress(Exception):
+            from agent.skill_utils import _mod_skills_dirs_cache_clear
+            _mod_skills_dirs_cache_clear()
+- file: tools/skills_tool.py
+  description: Include mod skill dirs in category resolution
+  old_block: |-
+    def _get_category_from_path(skill_path: Path) -> Optional[str]:
+        """``~/.hermes/skills/mlops/axolotl/SKILL.md`` -> ``"mlops"``; active profile dir first
+        (respects test monkeypatching), then skills.external_dirs."""
+        dirs_to_check = [_skills_dir()]
+        with suppress(Exception):
+            from agent.skill_utils import get_external_skills_dirs
+            dirs_to_check.extend(get_external_skills_dirs())
+        for skills_dir in dirs_to_check:
+            with suppress(ValueError):
+                if len(parts := skill_path.relative_to(skills_dir).parts) >= 3:
+                    return parts[0]
+        return None
+  new_block: |-
+    def _get_category_from_path(skill_path: Path) -> Optional[str]:
+        """``~/.hermes/skills/mlops/axolotl/SKILL.md`` -> ``"mlops"``; active profile dir first
+        (respects test monkeypatching), then mod skills, then skills.external_dirs."""
+        dirs_to_check = [_skills_dir()]
+        with suppress(Exception):
+            from agent.skill_utils import get_external_skills_dirs, get_mod_skills_dirs
+            dirs_to_check.extend(get_mod_skills_dirs())
+            dirs_to_check.extend(get_external_skills_dirs())
+        for skills_dir in dirs_to_check:
+            with suppress(ValueError):
+                if len(parts := skill_path.relative_to(skills_dir).parts) >= 3:
+                    return parts[0]
+        return None
+- file: tools/skills_tool.py
+  description: Respect frontmatter category in _skill_catalog
+  old_block: |2-
+                        "name": frontmatter.get("name", skill_md.parent.name)[:MAX_NAME_LENGTH],
+                        "description": _truncate_description(description),
+                        "category": _get_category_from_path(skill_md), "tier": tier, "root": scan_dir,
+  new_block: |2-
+                        "name": frontmatter.get("name", skill_md.parent.name)[:MAX_NAME_LENGTH],
+                        "description": _truncate_description(description),
+                        "category": frontmatter.get("category") or _get_category_from_path(skill_md), "tier": tier, "root": scan_dir,
+- file: agent/prompt_builder.py
+  description: Respect frontmatter category in _build_snapshot_entry
+  old_block: |2-
+        skill_name = skill_file.parent.name  # == parts[-2] whenever a parent component exists
+        category = "general" if len(parts) < 2 else "/".join(parts[:-2]) if len(parts) > 2 else parts[0]
+        platforms = frontmatter.get("platforms") or []
+  new_block: |2-
+        skill_name = skill_file.parent.name  # == parts[-2] whenever a parent component exists
+        category = frontmatter.get("category") or ("general" if len(parts) < 2 else "/".join(parts[:-2]) if len(parts) > 2 else parts[0])
+        platforms = frontmatter.get("platforms") or []
+- file: hermes_cli/skills_hub.py
+  description: Add TIER_MODS to skills_hub root_labels
+  old_block: |2-
+        from agent.skill_utils import TIER_CREATE_DIR, TIER_EXTERNAL, TIER_PROJECT, get_disabled_skill_names
+        from agent.skill_commands import skill_command_collision_note
+        c = console or _console
+        ensure_hub_dirs()
+        hub_installed = {e["name"]: e for e in HubLockFile().list_installed()}
+        builtin_names = set(_read_manifest())
+        # Rows are what skill_view loads: shadowed copies hidden, same-tier duplicates under their exact path.
+        all_skills = [{**s, "name": s["load_name"]} for s in _skill_catalog(skip_disabled=True) if s["load_name"]]
+        root_labels = {TIER_PROJECT: "project", TIER_CREATE_DIR: "create_dir", TIER_EXTERNAL: "external"}
+  new_block: |2-
+        from agent.skill_utils import TIER_CREATE_DIR, TIER_EXTERNAL, TIER_MODS, TIER_PROJECT, get_disabled_skill_names
+        from agent.skill_commands import skill_command_collision_note
+        c = console or _console
+        ensure_hub_dirs()
+        hub_installed = {e["name"]: e for e in HubLockFile().list_installed()}
+        builtin_names = set(_read_manifest())
+        # Rows are what skill_view loads: shadowed copies hidden, same-tier duplicates under their exact path.
+        all_skills = [{**s, "name": s["load_name"]} for s in _skill_catalog(skip_disabled=True) if s["load_name"]]
+        root_labels = {TIER_PROJECT: "project", TIER_CREATE_DIR: "create_dir", TIER_MODS: "mod", TIER_EXTERNAL: "external"}
+- file: tools/credential_files.py
+  description: Add mod skills to sandbox credential mount roots
+  old_block: |2-
+        try:
+            from agent.skill_utils import get_external_skills_dirs, get_project_skills_dirs
+        except ImportError:
+            return
+        for label, dirs in (("external_skills", get_external_skills_dirs()), ("project_skills", get_project_skills_dirs())):
+            yield from ((d, f"{base}/{label}/{idx}") for idx, d in enumerate(dirs) if d.is_dir())
+  new_block: |2-
+        try:
+            from agent.skill_utils import get_external_skills_dirs, get_mod_skills_dirs, get_project_skills_dirs
+        except ImportError:
+            return
+        for label, dirs in (("mod_skills", get_mod_skills_dirs()), ("external_skills", get_external_skills_dirs()), ("project_skills", get_project_skills_dirs())):
+            yield from ((d, f"{base}/{label}/{idx}") for idx, d in enumerate(dirs) if d.is_dir())
+- file: hermes_cli/commands_platforms.py
+  description: Add get_mod_skills_dirs to platform command collection
+  old_block: |2-
+        from agent.skill_utils import (
+            get_disabled_skill_names, get_external_skills_dirs, get_project_skills_dirs)
+        from tools.skills_tool import SKILLS_DIR
+
+        try:
+            disabled = get_disabled_skill_names(platform=platform)
+        except Exception:
+            disabled = set()
+        hub_dir = (SKILLS_DIR / ".hub").resolve()
+        roots = [SKILLS_DIR.resolve()]
+        for getter in (get_external_skills_dirs, get_project_skills_dirs):
+  new_block: |2-
+        from agent.skill_utils import (
+            get_disabled_skill_names, get_external_skills_dirs, get_mod_skills_dirs, get_project_skills_dirs)
+        from tools.skills_tool import SKILLS_DIR
+
+        try:
+            disabled = get_disabled_skill_names(platform=platform)
+        except Exception:
+            disabled = set()
+        hub_dir = (SKILLS_DIR / ".hub").resolve()
+        roots = [SKILLS_DIR.resolve()]
+        for getter in (get_external_skills_dirs, get_project_skills_dirs, get_mod_skills_dirs):
+- file: tools/skills_sync.py
+  description: Add get_mod_skills_dirs to _build_external_skill_index
+  old_block: |2-
+        for ext_dir in get_external_skills_dirs():
+            for skill_md in _iter_skill_mds(ext_dir):
+                external_names.update({skill_md.parent.name, read_skill_name(skill_md, "")})
+        external_names.discard("")
+  new_block: |2-
+        for ext_dir in get_external_skills_dirs():
+            for skill_md in _iter_skill_mds(ext_dir):
+                external_names.update({skill_md.parent.name, read_skill_name(skill_md, "")})
+        try:
+            from agent.skill_utils import get_mod_skills_dirs
+            for mod_dir in get_mod_skills_dirs():
+                for skill_md in _iter_skill_mds(mod_dir):
+                    external_names.update({skill_md.parent.name, read_skill_name(skill_md, "")})
+        except Exception:
+            pass
+        external_names.discard("")

@@ -1,0 +1,22 @@
+targets:
+- file: gateway/slash_commands_model.py
+  old_block: "        if mi and mi.max_output:\n            lines.append(t(\"gateway.model.max_output_label\"\
+    , tokens=f\"{mi.max_output:,}\"))\n        if mi:\n            lines.append(t(\"\
+    gateway.model.capabilities_label\", capabilities=mi.format_capabilities()))\n\
+    \        openrouter_claude = (\n            base_url_host_matches(result.base_url\
+    \ or \"\", \"openrouter.ai\") and \"claude\" in result.new_model.lower()\n   \
+    \     )\n        if not picker and (openrouter_claude or result.api_mode == \"\
+    anthropic_messages\"):\n            lines.append(t(\"gateway.model.prompt_caching_enabled\"\
+    ))\n        if result.warning_message:\n            lines.append(t(\"gateway.model.warning_prefix\"\
+    , warning=result.warning_message))\n        if getattr(result, \"usage_notice\"\
+    , \"\"):\n            lines.append(f\"⚠️ {result.usage_notice}\")\n        if\
+    \ ctx.persist_global and global_error is not None:"
+  new_block: "        if mi and mi.max_output:\n            lines.append(t(\"gateway.model.max_output_label\"\
+    , tokens=f\"{mi.max_output:,}\"))\n        openrouter_claude = (\n           \
+    \ base_url_host_matches(result.base_url or \"\", \"openrouter.ai\") and \"claude\"\
+    \ in result.new_model.lower()\n        )\n        if not picker and (openrouter_claude\
+    \ or result.api_mode == \"anthropic_messages\"):\n            lines.append(t(\"\
+    gateway.model.prompt_caching_enabled\"))\n        if getattr(result, \"usage_notice\"\
+    , \"\"):\n            lines.append(f\"⚠️ {result.usage_notice}\")\n        if\
+    \ ctx.persist_global and global_error is not None:"
+  description: compact-model-switch-response

@@ -1,0 +1,22 @@
+name: Smart Compaction Dual-Trigger
+description: 'Интеллектуальное двухуровневое сжатие контекста Hermes (Dual-Trigger):
+  упреждающая Live-подрезка тулов и фоновое сжатие по бездействию'
+config:
+  enabled:
+    title: Включение Dual-Trigger
+    description: Включение интеллектуального сжатия контекста (Dual-Trigger)
+  idle_seconds:
+    title: Таймаут неактивности
+    description: Порог неактивности (в секундах) для холодного сжатия контекста между
+      ходами
+  live_threshold_ratio:
+    title: Порог live-подрезки
+    description: Порог live-подрезки старых результатов тулов в долях от threshold_tokens
+      (0.70 = 70%)
+  min_prune_chars:
+    title: Минимальный размер тула
+    description: Порог длины вывода инструмента в символах для подрезки
+  min_reclaim_tokens:
+    title: Минимальное высвобождение
+    description: Минимальное количество высвобождаемых токенов для подтверждения подрезки
+      тулов

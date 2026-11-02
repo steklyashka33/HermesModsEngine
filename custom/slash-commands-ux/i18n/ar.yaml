@@ -1,0 +1,37 @@
+name: Slash Commands UX Polish
+description: 'تجربة مستخدم شاملة لأوامر الشرطة المائلة: تنسيق /undo و/goal و/model
+  و/agents و/help و/commands و/compress [N] و/handoff و/context و/usage و/status و/insights
+  (رموز دقيقة ونسبة التخزين المؤقت عبر جميع الأوامر)'
+slash:
+  handoff:
+    description: تسليم سياق الجلسة إلى جلسة جديدة نظيفة (مع الحفاظ على ملخص المهام)
+  compress:
+    description: ضغط سياق المحادثة (حدد [N] للاحتفاظ بآخر N من الرسائل؛ --preview
+      أو --dry-run للمعاينة)
+gateway:
+  context:
+    threshold: 'الضغط التلقائي عند: {threshold} ({threshold_pct}%) — المتبقي {to_go}
+      ({to_go_pct})'
+    over_threshold: ⚠️ **تم تجاوز عتبة الضغط التلقائي ({threshold}, {threshold_pct}%)**
+    category_row: '{glyph} {label}  ~  {tokens} رمز  ~  {pct}%'
+    compressions: 'عمليات الضغط في هذه الجلسة: {count}'
+    compressions_total: 'إجمالي عمليات الضغط: {count}'
+    last_savings: 'آخر ضغط وفر: {savings}% من السياق'
+    totals_header: 'الإجمالي طوال الوقت (إجمالي {calls} استدعاء API):'
+    totals_line: 'المدخلات: {input} · المخرجات: {output} · التفكير: {reasoning}'
+    total_billed: 'الإجمالي: {total}'
+    total_billed_with_cache: 'الإجمالي: {total} ({cache_pct}% تخزين مؤقت)'
+    detail_after_first: _（ستتوفر معلومات أكثر تفصيلاً بعد أول رد من الوكيل）_
+  usage:
+    label_output_tokens: 'رموز المخرجات: {count}'
+    label_total: 'الإجمالي: {total}'
+    label_total_with_cache: 'الإجمالي: {total} ({cache_pct}% تخزين مؤقت)'
+    label_api_calls: 'استدعاءات API: {count}'
+    header_tokens: 'استخدام الرموز:'
+    tokens_line: 'المدخلات: {input} · المخرجات: {output} · التفكير: {reasoning}'
+  status:
+    tokens_with_cache: '**إجمالي الرموز طوال الوقت:** {tokens} ({cache_pct}% تخزين
+      مؤقت) _(هذا ليس حجم السياق الحالي؛ استخدم `/context`)_'
+cli:
+  usage:
+    cache_label: تخزين مؤقت

@@ -1,0 +1,25 @@
+name: Text to Speech
+description: وحدة تركيب الكلام الصوتي (TTS) عبر واجهة برمجة التطبيقات مع تكيف عصبي
+  مع الأسلوب الحواري
+config:
+  voice:
+    title: صوت تركيب الكلام
+    description: صوت توليد الكلام لـ Gemini TTS
+  adaptation:
+    title: التكيف العصبي للنص
+    description: تكيف عصبي للنص المكتوب بصيغة Markdown إلى كلام منطوق قبل التوليد
+  api_key:
+    title: مفتاح API لـ TTS
+    description: مفتاح API للوصول إلى OmniRoute TTS (يُحفظ في secrets.yaml)
+  base_url:
+    title: عنوان URL الأساسي لـ TTS
+    description: عنوان URL الأساسي لبوابة OmniRoute TTS
+  fallback_edge:
+    title: التحويل الاحتياطي إلى Edge TTS
+    description: التحويل التلقائي إلى Edge TTS عند عدم توفر OmniRoute أو غياب الرمز
+  timeout:
+    title: مهلة الطلب
+    description: مهلة طلب API البعيد لـ TTS بالثواني
+  speculative_fallback_delay:
+    title: مهلة التراجع التخميني
+    description: التأخير بالثواني قبل الإطلاق الموازي التخميني لـ EdgeTTS المحلي

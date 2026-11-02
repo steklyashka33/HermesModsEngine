@@ -1,0 +1,12 @@
+id: command-role
+name: Command Role
+version: 1.2.0
+description: 'Command /role (alias: /instruct) for uncompressible session instructions,
+  rules, and system role'
+author: Hermes Admin
+enabled: true
+dependencies:
+- command-unlimited
+- command-close
+- command-faster
+- slash-commands-ux

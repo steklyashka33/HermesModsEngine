@@ -1,0 +1,8 @@
+id: command-unlimited
+name: Command Unlimited
+version: 1.3.0
+description: 'Command /unlimited [on|off|status]: remove turn and subagent iteration
+  limits with global session tree counting and config.yaml tuning'
+author: Hermes Admin
+enabled: true
+dependencies: []

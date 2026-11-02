@@ -1,0 +1,8 @@
+id: mod-manager
+name: Mod Manager
+description: Telegram slash command /mods (/mod) for mod inspection and management
+version: 1.2.0
+author: Engine
+enabled: true
+dependencies:
+- mod-command-registry

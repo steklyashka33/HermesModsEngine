@@ -1,0 +1,27 @@
+targets:
+- file: gateway/slash_commands_status.py
+  description: Передача session_id и context_length и вывод статистики компрессора
+    из state.db в /context
+  old_block: "            # Full view — compression / throughput need the live agent.\n\
+    \            lines += _context_compressor_lines(agent, ctx, used) if ctx is not\
+    \ None else [\n                t(\"gateway.context.detail_after_first\")]"
+  new_block: "            # Full view — compressor / throughput lines from live agent\
+    \ or state.db\n            comp_lines = _context_compressor_lines(agent, ctx,\
+    \ used, session_id=session_entry.session_id, context_length=context_length)\n\
+    \            lines += comp_lines if comp_lines else [t(\"gateway.context.detail_after_first\"\
+    )]"
+- file: gateway/slash_commands_status.py
+  description: Статистика компрессора при fallback в /context
+  old_block: "        approx, count = _transcript_estimate(history)\n        return\
+    \ \"\\n\".join([\n            t(\"gateway.context.header\"), \"\",\n         \
+    \   t(\"gateway.context.estimated\", count=_fmt(approx), messages=count),\n  \
+    \          t(\"gateway.context.detail_after_first\"),\n        ])"
+  new_block: "        approx, count = _transcript_estimate(history)\n        sid =\
+    \ session_entry.session_id\n        comp_lines = _context_compressor_lines(agent,\
+    \ ctx, approx, session_id=sid, context_length=context_length)\n        if comp_lines:\n\
+    \            return \"\\n\".join([\n                t(\"gateway.context.header\"\
+    ), \"\",\n                t(\"gateway.context.estimated\", count=_fmt(approx),\
+    \ messages=count),\n            ] + comp_lines)\n        return \"\\n\".join([\n\
+    \            t(\"gateway.context.header\"), \"\",\n            t(\"gateway.context.estimated\"\
+    , count=_fmt(approx), messages=count),\n            t(\"gateway.context.detail_after_first\"\
+    ),\n        ])"

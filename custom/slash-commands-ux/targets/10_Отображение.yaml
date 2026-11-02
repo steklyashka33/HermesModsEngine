@@ -1,0 +1,9 @@
+targets:
+- file: gateway/slash_commands_status.py
+  description: Отображение модели через алиас в /context
+  old_block: "            lines = [\n                t(\"gateway.context.header\"\
+    ), \"\",\n                t(\"gateway.context.model\", model=model_name or \"\
+    ?\"),"
+  new_block: "            lines = [\n                t(\"gateway.context.header\"\
+    ), \"\",\n                t(\"gateway.context.model\", model=_reverse_alias_for_display(model_name)\
+    \ or \"?\"),"

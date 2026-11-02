@@ -1,0 +1,27 @@
+name: Text to Speech
+description: Модуль синтеза устной речи (TTS) через API с авто-адаптацией текста под
+  естественную речь
+config:
+  voice:
+    title: Голос синтеза речи
+    description: Голос синтеза речи Gemini TTS
+  adaptation:
+    title: Нейроадаптация текста
+    description: Нейросетевая адаптация письменного Markdown-текста в устную речь
+      перед синтезом
+  api_key:
+    title: API ключ TTS
+    description: API ключ для доступа к OmniRoute TTS (сохраняется в secrets.yaml)
+  base_url:
+    title: Базовый URL TTS
+    description: Базовый URL шлюза OmniRoute TTS
+  fallback_edge:
+    title: Фолбэк на Edge TTS
+    description: Автоматический переход на Edge TTS при недоступности OmniRoute или
+      отсутствии токена
+  timeout:
+    title: Таймаут запроса
+    description: Таймаут запроса к удаленному API TTS в секундах
+  speculative_fallback_delay:
+    title: Спекулятивная задержка фолбэка
+    description: Задержка в секундах до спекулятивного параллельного запуска локального EdgeTTS

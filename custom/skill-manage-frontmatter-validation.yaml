@@ -1,0 +1,60 @@
+id: skill-manage-frontmatter-validation
+name: Skill Manage Frontmatter Validation
+description: 'Validate YAML frontmatter when write_file targets SKILL.md (PR #142078)'
+version: 1.0.1
+author: Hermes Admin
+enabled: true
+targets:
+- file: tools/skill_manager_tool.py
+  description: Validate frontmatter when write_file writes SKILL.md
+  old_block: "    if err := _validate_content_size(file_content, label=file_path):\n\
+    \        return _err(err)\n    skill_dir, guard = _locate_for_write(name, \"write_file\"\
+    , \" Create it first with action='create'.\")"
+  new_block: "    if err := _validate_content_size(file_content, label=file_path):\n\
+    \        return _err(err)\n    parts = Path(file_path).parts\n    if (parts and\
+    \ parts[-1] == \"SKILL.md\") and (err := _validate_frontmatter(file_content)):\n\
+    \        return _err(f\"Invalid SKILL.md structure: {err}\")\n    skill_dir, guard\
+    \ = _locate_for_write(name, \"write_file\", \" Create it first with action='create'.\"\
+    )"
+i18n:
+  en:
+    name: Skill Manage Frontmatter Validation
+    description: 'Validate YAML frontmatter when write_file targets SKILL.md (PR #142078)'
+  ru:
+    name: Skill Manage Frontmatter Validation
+    description: Валидация YAML frontmatter при сохранении SKILL.md через write_file
+  es:
+    name: Skill Manage Frontmatter Validation
+    description: 'Validación de frontmatter YAML al guardar SKILL.md mediante write_file
+      (PR #142078)'
+  fr:
+    name: Skill Manage Frontmatter Validation
+    description: 'Validation du frontmatter YAML lors de l''enregistrement de SKILL.md
+      via write_file (PR #142078)'
+  zh:
+    name: Skill Manage Frontmatter Validation
+    description: '当write_file写入SKILL.md时自动验证YAML frontmatter（PR #142078）'
+  ar:
+    name: Skill Manage Frontmatter Validation
+    description: 'التحقق من صحة واجهة YAML الأمامية عند استهداف SKILL.md عبر write_file
+      (PR #142078)'
+  de:
+    name: Skill Manage Frontmatter Validation
+    description: 'Validierung des YAML-Frontmatters beim Speichern von SKILL.md über
+      write_file (PR #142078)'
+  pt:
+    name: Skill Manage Frontmatter Validation
+    description: 'Validação do frontmatter YAML ao salvar SKILL.md via write_file
+      (PR #142078)'
+tests:
+  test_frontmatter_validation_on_write_file: "import tempfile\nfrom pathlib import\
+    \ Path\nfrom unittest.mock import patch\nfrom tools.skill_manager_tool import\
+    \ _create_skill, _write_file\nfrom tests.tools.test_skill_manager_tool import\
+    \ VALID_SKILL_CONTENT\nwith tempfile.TemporaryDirectory() as td:\n    root = Path(td)\n\
+    \    with patch(\"tools.skill_manager_tool.SKILLS_DIR\", root), \\\n         patch(\"\
+    agent.skill_utils.get_all_skills_dirs\", return_value=[root]):\n        _create_skill(\"\
+    test-skill\", VALID_SKILL_CONTENT)\n        res = _write_file(\"test-skill\",\
+    \ \"SKILL.md\", \"invalid\")\n        assert not res.get(\"success\"), \"Should\
+    \ reject invalid frontmatter\"\n        res_ok = _write_file(\"test-skill\", \"\
+    SKILL.md\", VALID_SKILL_CONTENT)\n        assert res_ok.get(\"success\"), \"Should\
+    \ accept valid SKILL.md\"\n"

@@ -1,0 +1,127 @@
+id: multimodal-fallback
+name: Multimodal Fallback & Tool Images
+description: Wrap tool image results in user envelope and generate text descriptions
+  for non-vision models
+version: 1.1.0
+author: Hermes Admin
+enabled: true
+targets:
+- file: agent/transports/chat_completions.py
+  old_block: "        strip_reasoning = frozenset({\"reasoning_content\", \"reasoning\"\
+    , \"reasoning_details\"}) - carriers\n        mistral_ids = _route_requires_mistral_tool_ids(provider,\
+    \ kwargs.get(\"model\"), kwargs.get(\"base_url\"))\n        sanitized_pairs =\
+    \ [(m, _sanitize_message(m, strip_extra_content, strip_reasoning, native_type,\n\
+    \                                                 mistral_tool_ids=mistral_ids))\n\
+    \                           for m in messages]\n        if all(s is None for _,\
+    \ s in sanitized_pairs):\n            return messages\n        return [m if s\
+    \ is None else s for m, s in sanitized_pairs]"
+  new_block: "        strip_reasoning = frozenset({\"reasoning_content\", \"reasoning\"\
+    , \"reasoning_details\"}) - carriers\n        mistral_ids = _route_requires_mistral_tool_ids(provider,\
+    \ kwargs.get(\"model\"), kwargs.get(\"base_url\"))\n        sanitized_pairs =\
+    \ [(m, _sanitize_message(m, strip_extra_content, strip_reasoning, native_type,\n\
+    \                                                 mistral_tool_ids=mistral_ids))\n\
+    \                           for m in messages]\n        out_messages = [m if s\
+    \ is None else s for m, s in sanitized_pairs]\n\n        # Extract multimodal\
+    \ media (images/videos) from role='tool' messages into a trailing role='user'\
+    \ message\n        # so models and bridges that only accept media in user messages\
+    \ (e.g. Gemini, Antigravity)\n        # receive pixels directly in their native\
+    \ context instead of dropping them from functionResponse.\n        _media_types\
+    \ = (\"image_url\", \"input_image\", \"video_url\", \"input_video\")\n       \
+    \ has_tool_media = any(\n            isinstance(m, dict) and m.get(\"role\") ==\
+    \ \"tool\" and isinstance(m.get(\"content\"), list) and any(\n               \
+    \ isinstance(p, dict) and p.get(\"type\") in _media_types\n                for\
+    \ p in m[\"content\"]\n            )\n            for m in out_messages\n    \
+    \    )\n        if not has_tool_media:\n            return out_messages\n\n  \
+    \      final_messages: list[dict[str, Any]] = []\n        i = 0\n        while\
+    \ i < len(out_messages):\n            msg = out_messages[i]\n            if isinstance(msg,\
+    \ dict) and msg.get(\"role\") == \"tool\":\n                tool_batch: list[dict[str,\
+    \ Any]] = []\n                batch_media: list[dict[str, Any]] = []\n       \
+    \         while i < len(out_messages) and isinstance(out_messages[i], dict) and\
+    \ out_messages[i].get(\"role\") == \"tool\":\n                    tmsg = out_messages[i]\n\
+    \                    content = tmsg.get(\"content\")\n                    if isinstance(content,\
+    \ list):\n                        media_parts = [p for p in content if isinstance(p,\
+    \ dict) and p.get(\"type\") in _media_types]\n                        if media_parts:\n\
+    \                            batch_media.extend(media_parts)\n               \
+    \             texts = [p.get(\"text\", \"\") for p in content if isinstance(p,\
+    \ dict) and p.get(\"type\") == \"text\"]\n                            clean_text\
+    \ = \"\\n\".join(t for t in texts if t) or \"Media loaded into context.\"\n  \
+    \                          tmsg = {**tmsg, \"content\": clean_text}\n        \
+    \            tool_batch.append(tmsg)\n                    i += 1\n           \
+    \     final_messages.extend(tool_batch)\n                if batch_media:\n   \
+    \                 final_messages.append({\n                        \"role\": \"\
+    user\",\n                        \"content\": [\n                            {\"\
+    type\": \"text\", \"text\": \"[Media attached natively from tool results for inspection]\"\
+    },\n                            *batch_media\n                        ]\n    \
+    \                })\n            else:\n                final_messages.append(msg)\n\
+    \                i += 1\n        return final_messages"
+  description: chat-completions-tool-image-user-envelope
+- file: agent/message_sanitization.py
+  old_block: "    if _provider_model_key(agent) not in agent._image_rejecting_models:\n\
+    \        return False\n    return isinstance(api_messages, list) and _strip_images_from_messages(api_messages)"
+  new_block: "    if _provider_model_key(agent) not in agent._image_rejecting_models:\n\
+    \        return False\n    if not isinstance(api_messages, list):\n        return\
+    \ False\n    # If the agent has fallback description capabilities, convert images\
+    \ to detailed descriptions\n    if hasattr(agent, \"_preprocess_anthropic_content\"\
+    ):\n        try:\n            changed = False\n            for msg in api_messages:\n\
+    \                if isinstance(msg, dict) and isinstance(msg.get(\"content\"),\
+    \ list):\n                    if any(isinstance(p, dict) and p.get(\"type\") in\
+    \ _IMAGE_PART_TYPES for p in msg[\"content\"]):\n                        role\
+    \ = str(msg.get(\"role\", \"user\") or \"user\")\n                        msg[\"\
+    content\"] = agent._preprocess_anthropic_content(msg[\"content\"], role)\n   \
+    \                     changed = True\n            if changed:\n              \
+    \  return True\n        except Exception:\n            pass\n    return _strip_images_from_messages(api_messages)"
+  description: non-vision-fallback-to-aux-description
+i18n:
+  en:
+    name: Multimodal Fallback & Tool Images
+    description: Wrap tool image results in user envelope and generate text descriptions
+      for non-vision models
+  ru:
+    name: Multimodal Fallback & Tool Images
+    description: Оборачивание картинок от инструментов в user envelope и генерация
+      текстовых описаний для non-vision моделей
+  es:
+    name: Multimodal Fallback & Tool Images
+    description: Envoltura de imágenes de herramientas en sobre de usuario y generación
+      de descripciones de texto para modelos sin visión
+  fr:
+    name: Multimodal Fallback & Tool Images
+    description: Encapsulation des images d'outils dans une enveloppe utilisateur
+      et génération de descriptions textuelles pour les modèles sans vision
+  zh:
+    name: Multimodal Fallback & Tool Images
+    description: 将工具图像结果封装至用户信封中，并为非视觉模型生成文本描述
+  ar:
+    name: Multimodal Fallback & Tool Images
+    description: تغليف نتائج صور الأدوات في مظروف المستخدم وتوليد أوصاف نصية للنماذج
+      غير البصرية
+  de:
+    name: Multimodal Fallback & Tool Images
+    description: Verpacken von Werkzeug-Bildergebnissen in Benutzerhülle und Generierung
+      von Textbeschreibungen für Nicht-Vision-Modelle
+  pt:
+    name: Multimodal Fallback & Tool Images
+    description: Encapsulamento de imagens de ferramentas em envelope de usuário e
+      geração de descrições textuais para modelos sem visão
+tests:
+  test_multimodal_fallback_envelope: 'from agent.transports.chat_completions import
+    ChatCompletionsTransport
+
+    assert hasattr(ChatCompletionsTransport, "convert_messages")
+
+    from agent.message_sanitization import strip_images_for_rejecting_model
+
+    assert callable(strip_images_for_rejecting_model)
+
+    '
+  test_tool_media_extraction: "from agent.transports.chat_completions import ChatCompletionsTransport\n\
+    transport = ChatCompletionsTransport()\nraw_msgs = [\n    {\"role\": \"user\"\
+    , \"content\": \"check image\"},\n    {\"role\": \"assistant\", \"content\": \"\
+    running tool\", \"tool_calls\": [{\"id\": \"t1\", \"function\": {\"name\": \"\
+    browser_vision\"}}]},\n    {\"role\": \"tool\", \"tool_call_id\": \"t1\", \"content\"\
+    : [\n        {\"type\": \"text\", \"text\": \"analysis done\"},\n        {\"type\"\
+    : \"image_url\", \"image_url\": {\"url\": \"data:image/png;base64,abc\"}}\n  \
+    \  ]}\n]\nconverted = transport.convert_messages(raw_msgs, provider=\"openai\"\
+    )\nassert any(m.get(\"role\") == \"user\" and isinstance(m.get(\"content\"), list)\
+    \ and any(p.get(\"type\") == \"image_url\" for p in m.get(\"content\", [])) for\
+    \ m in converted)\n"

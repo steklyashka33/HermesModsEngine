@@ -1,0 +1,92 @@
+id: mod-update-integration
+name: Mod Update Integration
+description: Automatic reapplication of mod engine patches on Hermes updates (/update
+  and hermes update)
+version: 1.2.0
+author: Engine
+enabled: true
+tests:
+  test_slash_commands_update_hook: |
+    import inspect
+    from gateway import slash_commands
+    source = inspect.getsource(slash_commands)
+    assert "_reapply_cmd" in source or "_mods_runner" in source
+  test_cli_update_maintenance_hook: |
+    import inspect
+    from hermes_cli import update_cmd_maint
+    source = inspect.getsource(update_cmd_maint)
+    assert "_reapply_hermes_mods" in source
+    assert "mods_reapply" in source
+targets:
+- file: gateway/slash_commands.py
+  description: Automatically run runner.py apply in detached /update command
+  old_block: "    hermes_cmd_str = \" \".join(shlex.quote(part) for part in hermes_cmd)\n\
+    \    update_cmd = (\n        f\"PYTHONUNBUFFERED=1 {hermes_cmd_str} update --gateway\"\
+    \n        f\" > {shlex.quote(str(output_path))} 2>&1; \"\n        # Avoid `status=$?`:\
+    \ `status` is read-only in zsh and this template is reused in\n        # macOS/zsh\
+    \ operator wrappers, so keep it zsh-safe even though bash runs it here.\n    \
+    \    # Temp + mv: the gateway watcher polls the exit code and reads an empty file\
+    \ as failure.\n        f\"rc=$?; printf '%s' \\\"$rc\\\" > {shlex.quote(str(exit_code_path)\
+    \ + '.tmp')}\"\n        f\" && mv -f {shlex.quote(str(exit_code_path) + '.tmp')}\
+    \ {shlex.quote(str(exit_code_path))}\")\n"
+  new_block: "    hermes_cmd_str = \" \".join(shlex.quote(part) for part in hermes_cmd)\n\
+    \    _mods_runner = Path(os.environ.get(\"HERMES_MODS_DIR\", Path(os.environ.get(\"\
+    HERMES_HOME\", Path.home() / \".hermes\")) / \"mods\")) / \"runner.py\"\n    _reapply_cmd\
+    \ = f\"{shlex.quote(sys.executable)} {shlex.quote(str(_mods_runner))} apply\"\n\
+    \    update_cmd = (\n        f\"PYTHONUNBUFFERED=1 {hermes_cmd_str} update --gateway\"\
+    \n        f\" > {shlex.quote(str(output_path))} 2>&1; \"\n        f\"rc=$?; \"\
+    \n        f\"if [ \\\"$rc\\\" -eq 0 ]; then \"\n        f\"printf '\\\\n→ Re-applying\
+    \ Hermes mods engine...\\\\n' >> {shlex.quote(str(output_path))} 2>&1; \"\n  \
+    \      f\"{_reapply_cmd} >> {shlex.quote(str(output_path))} 2>&1; \"\n       \
+    \ f\"fi; \"\n        f\"printf '%s' \\\"$rc\\\" > {shlex.quote(str(exit_code_path)\
+    \ + '.tmp')}\"\n        f\" && mv -f {shlex.quote(str(exit_code_path) + '.tmp')}\
+    \ {shlex.quote(str(exit_code_path))}\")\n"
+- file: hermes_cli/update_cmd_maint.py
+  description: Reapply mods during post-update maintenance step
+  old_block: "    owed_step(\"config_migration\", lambda: _check_and_apply_config_migration(\n\
+    \        assume_yes=assume_yes, gateway_mode=gateway_mode, pre_update_snapshot_id=pre_update_snapshot_id,\n\
+    \    ))\n\n    print()\n    update_complete = _print_verified_update_completion(completion_message\
+    \ or _update_complete_message(pre_update_version))\n"
+  new_block: "    owed_step(\"config_migration\", lambda: _check_and_apply_config_migration(\n\
+    \        assume_yes=assume_yes, gateway_mode=gateway_mode, pre_update_snapshot_id=pre_update_snapshot_id,\n\
+    \    ))\n\n    def _reapply_hermes_mods() -> None:\n        runner_path = Path(os.environ.get(\"\
+    HERMES_MODS_DIR\", Path(os.environ.get(\"HERMES_HOME\", Path.home() / \".hermes\"\
+    )) / \"mods\")) / \"runner.py\"\n        if runner_path.is_file():\n         \
+    \   print(\"→ Re-applying Hermes mods engine...\")\n            try:\n       \
+    \         subprocess.run([sys.executable, str(runner_path), \"apply\"], check=False)\n\
+    \            except Exception as exc:\n                print(f\"  ⚠ Failed to\
+    \ re-apply mods: {exc}\", file=sys.stderr)\n\n    owed_step(\"mods_reapply\",\
+    \ _reapply_hermes_mods)\n\n    print()\n    update_complete = _print_verified_update_completion(completion_message\
+    \ or _update_complete_message(pre_update_version))\n"
+i18n:
+  en:
+    name: Mod Update Integration
+    description: Automatic reapplication of mod engine patches on Hermes updates (/update
+      and hermes update)
+  ru:
+    name: Интеграция с обновлениями
+    description: Автоматическое перенакатывание модов движка при обновлении Hermes
+      (/update и hermes update)
+  es:
+    name: Integración de actualizaciones de mods
+    description: Reaplicación automática de parches del motor de mods tras actualizaciones
+      de Hermes (/update y hermes update)
+  fr:
+    name: Intégration des mises à jour de mods
+    description: Réapplication automatique des correctifs du moteur de mods lors des
+      mises à jour de Hermes (/update et hermes update)
+  zh:
+    name: Mod更新集成
+    description: 在Hermes更新（/update 与 hermes update）时自动重新应用Mod引擎补丁
+  ar:
+    name: تكامل تحديثات التعديلات
+    description: إعادة التطبيق التلقائي لتصحيحات محرك التعديلات عند تحديثات Hermes
+      (/update وhermes update)
+  de:
+    name: Mod-Update-Integration
+    description: Automatisches erneutes Anwenden von Mod-Engine-Patches bei Hermes-Updates
+      (/update und hermes update)
+  pt:
+    name: Integração de atualizações de mods
+    description: Reaplicação automática de patches do mecanismo de mods em atualizações
+      do Hermes (/update e hermes update)

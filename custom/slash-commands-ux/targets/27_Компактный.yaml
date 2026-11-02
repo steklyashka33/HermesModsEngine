@@ -1,0 +1,35 @@
+targets:
+- file: agent/context_breakdown.py
+  description: Компактный формат строк категорий расхода контекста без адаптивных
+    широких пробелов
+  old_block: "def render_context_category_lines(payload: dict[str, Any]) -> list[str]:\n\
+    \    \"\"\"Render the 'Estimated usage by category' table as plain-text lines.\"\
+    \"\"\n    categories = payload.get(\"categories\") or []\n    context_max = int(payload.get(\"\
+    context_max\") or 0)\n    estimated_total = int(payload.get(\"estimated_total\"\
+    ) or 0)\n    denom = context_max or estimated_total\n\n    lines = [t(\"gateway.context.category_header\"\
+    )]\n    if not categories:\n        return [*lines, t(\"gateway.context.no_data_yet\"\
+    )]\n    free_label = t(\"gateway.context.free_space\")\n    width = max(len(free_label),\
+    \ *(len(str(cat.get(\"label\") or \"\")) for cat in categories))\n    for cat\
+    \ in categories:\n        tokens, label = int(cat.get(\"tokens\") or 0), str(cat.get(\"\
+    label\") or cat.get(\"id\") or \"\")\n        lines.append(t(\"gateway.context.category_row\"\
+    , glyph=_glyph(cat), label=f\"{label:<{width}}\",\n                       tokens=f\"\
+    {tokens:>9,}\", pct=f\"{tokens / denom * 100 if denom else 0.0:>5.1f}\"))\n  \
+    \  if context_max > 0:\n        free = max(0, context_max - estimated_total)\n\
+    \        lines.append(t(\"gateway.context.category_row\", glyph=_FREE_GLYPH, label=f\"\
+    {free_label:<{width}}\",\n                       tokens=f\"{free:>9,}\", pct=f\"\
+    {free / context_max * 100:>5.1f}\"))\n    return lines"
+  new_block: "def render_context_category_lines(payload: dict[str, Any]) -> list[str]:\n\
+    \    \"\"\"Render the 'Estimated usage by category' table as plain-text lines.\"\
+    \"\"\n    categories = payload.get(\"categories\") or []\n    context_max = int(payload.get(\"\
+    context_max\") or 0)\n    estimated_total = int(payload.get(\"estimated_total\"\
+    ) or 0)\n    denom = context_max or estimated_total\n\n    lines = [t(\"gateway.context.category_header\"\
+    )]\n    if not categories:\n        return [*lines, t(\"gateway.context.no_data_yet\"\
+    )]\n    free_label = t(\"gateway.context.free_space\")\n    for cat in categories:\n\
+    \        tokens, label = int(cat.get(\"tokens\") or 0), str(cat.get(\"label\"\
+    ) or cat.get(\"id\") or \"\")\n        lines.append(t(\"gateway.context.category_row\"\
+    , glyph=_glyph(cat), label=label,\n                       tokens=f\"{tokens:,}\"\
+    , pct=f\"{tokens / denom * 100 if denom else 0.0:.1f}\"))\n    if context_max\
+    \ > 0:\n        free = max(0, context_max - estimated_total)\n        lines.append(t(\"\
+    gateway.context.category_row\", glyph=_FREE_GLYPH, label=free_label,\n       \
+    \                tokens=f\"{free:,}\", pct=f\"{free / context_max * 100:.1f}\"\
+    ))\n    return lines"

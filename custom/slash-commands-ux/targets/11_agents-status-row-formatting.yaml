@@ -1,0 +1,123 @@
+targets:
+- file: gateway/slash_commands_status.py
+  description: agents-status-row-formatting
+  old_block: "        agent_rows: list[dict] = []\n        for session_key, agent\
+    \ in (getattr(self, \"_running_agents\", {}) or {}).items():\n            pending\
+    \ = agent is _AGENT_PENDING_SENTINEL\n            agent_rows.append({\n      \
+    \          \"session_key\": session_key,\n                \"elapsed\": max(0,\
+    \ int(now - float(running_started.get(session_key, now)))),\n                \"\
+    state\": t(\"gateway.agents.state_starting\") if pending else t(\"gateway.agents.state_running\"\
+    ),\n                \"session_id\": \"\" if pending else str(getattr(agent, \"\
+    session_id\", \"\") or \"\"),\n                \"model\": \"\" if pending else\
+    \ str(getattr(agent, \"model\", \"\") or \"\"),\n            })\n        agent_rows.sort(key=lambda\
+    \ row: row[\"elapsed\"], reverse=True)\n        procs = _quiet_sync(process_registry.list_sessions,\
+    \ [])\n        running_processes = [p for p in procs if p.get(\"status\") == \"\
+    running\"]\n        background_tasks = [task for task in (getattr(self, \"_background_tasks\"\
+    , set()) or set())\n                            if hasattr(task, \"done\") and\
+    \ not task.done()]\n\n        # Background (async) delegations — delegate_task(background=true).\n\
+    \        # Live per-child activity comes from the registry's progress sampler\
+    \ (#51690): api calls, current\n        # tool, seconds since last activity.\n\
+    \        from tools.async_delegation import list_async_delegations\n        delegations\
+    \ = [d for d in _quiet_sync(list_async_delegations, [])\n                    \
+    \   if d.get(\"status\") in (\"running\", \"stalling\", \"finalizing\")]\n\n \
+    \       def _agent_row(idx_row):\n            idx, row = idx_row\n           \
+    \ current = t(\"gateway.agents.this_chat\") if row[\"session_key\"] == current_session_key\
+    \ else \"\"\n            sid = f\" · `{row['session_id']}`\" if row[\"session_id\"\
+    ] else \"\"\n            model = f\" · `{row['model']}`\" if row[\"model\"] else\
+    \ \"\"\n            return [f\"{idx}. `{row['session_key']}` · {row['state']}\
+    \ · \"\n                    f\"{format_uptime_short(row['elapsed'])}{sid}{model}{current}\"\
+    ]\n\n        def _proc_row(proc):\n            cmd = _clip(\" \".join(str(proc.get(\"\
+    command\", \"\")).split()), 90)\n            return [f\"- `{proc.get('session_id',\
+    \ '?')}` · \"\n                    f\"{format_uptime_short(int(proc.get('uptime_seconds',\
+    \ 0)))} · `{cmd}`\"]\n\n        lines = [t(\"gateway.agents.header\"), \"\", t(\"\
+    gateway.agents.active_agents\", count=len(agent_rows))]\n        lines += _capped_rows(list(enumerate(agent_rows,\
+    \ 1)), _agent_row)\n        lines += [\"\", t(\"gateway.agents.running_processes\"\
+    , count=len(running_processes))]\n        lines += _capped_rows(running_processes,\
+    \ _proc_row)\n        lines += [\"\", t(\"gateway.agents.async_jobs\", count=len(background_tasks))]\n\
+    \        if delegations:\n            lines += [\"\", t(\"gateway.agents.background_delegations\"\
+    , count=len(delegations))]\n            lines += _capped_rows(delegations, _agents_delegation_lines)"
+  new_block: "        agent_rows: list[dict] = []\n        for session_key, agent\
+    \ in (getattr(self, \"_running_agents\", {}) or {}).items():\n            pending\
+    \ = agent is _AGENT_PENDING_SENTINEL\n            session_id = \"\" if pending\
+    \ else str(getattr(agent, \"session_id\", \"\") or \"\")\n            model_name\
+    \ = \"\"\n            api_call_count = 0\n            used_tokens = 0\n      \
+    \      ctx_len = 0\n\n            # 1. Resolve model: check session override\n\
+    \            if hasattr(self, \"_rehydrate_session_model_override\"):\n      \
+    \          try:\n                    self._rehydrate_session_model_override(session_key)\n\
+    \                except Exception:\n                    pass\n            override\
+    \ = None\n            if hasattr(self, \"_session_model_override\"):\n       \
+    \         try:\n                    override = self._session_model_override(session_key)\n\
+    \                except Exception:\n                    pass\n            if not\
+    \ override and getattr(self, \"session_store\", None):\n                store\
+    \ = self.session_store\n                try:\n                    if hasattr(store,\
+    \ \"get_model_override\"):\n                        override = store.get_model_override(session_key)\n\
+    \                except Exception:\n                    pass\n               \
+    \ if not override:\n                    try:\n                        if hasattr(store,\
+    \ \"get_session_metadata\"):\n                            override = store.get_session_metadata(session_key,\
+    \ \"model_override\")\n                    except Exception:\n               \
+    \         pass\n            if isinstance(override, dict):\n                model_name\
+    \ = _clean_str(override.get(\"model\"))\n            elif isinstance(override,\
+    \ str):\n                model_name = _clean_str(override)\n\n            # 2.\
+    \ Check SessionDB row\n            if not model_name and not pending and session_id\
+    \ and self._session_db:\n                srow = await _quiet(lambda: self._session_db.get_session(session_id))\n\
+    \                if isinstance(srow, dict):\n                    model_name =\
+    \ _clean_str(srow.get(\"model\"))\n\n            # 3. Fallback to configured gateway\
+    \ model\n            if not model_name:\n                from gateway.run import\
+    \ _load_gateway_config, _resolve_gateway_model\n                user_config =\
+    \ _quiet_sync(_load_gateway_config, {})\n                model_name = _clean_str(_resolve_gateway_model(user_config))\n\
+    \n            # 4. Fallback to agent.model if still empty\n            if not\
+    \ model_name and not pending:\n                model_name = _clean_str(getattr(agent,\
+    \ \"model\", \"\") or \"\")\n\n            display_model = _reverse_alias_for_display(model_name)\n\
+    \n            # Count iterations for CURRENT task/turn only\n            turn_iters\
+    \ = None\n            if not pending and agent is not None:\n                turn_iters\
+    \ = _current_turn_iters_from_agent(agent)\n            if turn_iters is None and\
+    \ session_id:\n                turn_iters = await _quiet(lambda: asyncio.to_thread(_current_turn_iters_from_db,\
+    \ session_id))\n\n            api_call_count = int(turn_iters or 0)\n\n      \
+    \      if not pending and agent is not None:\n                cc = getattr(agent,\
+    \ \"context_compressor\", None)\n                if cc:\n                    used_tokens\
+    \ = _int_value(getattr(cc, \"last_prompt_tokens\", 0))\n                    ctx_len\
+    \ = _int_value(getattr(cc, \"context_length\", 0))\n\n            if not ctx_len\
+    \ and model_name:\n                from agent.model_metadata import get_model_context_length\n\
+    \                ctx_len = _int_value(\n                    await _quiet(lambda:\
+    \ asyncio.to_thread(get_model_context_length, model_name))\n                )\n\
+    \n            agent_rows.append({\n                \"session_key\": session_key,\n\
+    \                \"elapsed\": max(0, int(now - float(running_started.get(session_key,\
+    \ now)))),\n                \"state\": t(\"gateway.agents.state_starting\") if\
+    \ pending else t(\"gateway.agents.state_running\"),\n                \"session_id\"\
+    : session_id,\n                \"model\": display_model,\n                \"api_call_count\"\
+    : api_call_count,\n                \"used_tokens\": used_tokens,\n           \
+    \     \"ctx_len\": ctx_len,\n            })\n        agent_rows.sort(key=lambda\
+    \ row: row[\"elapsed\"], reverse=True)\n        procs = _quiet_sync(process_registry.list_sessions,\
+    \ [])\n        running_processes = [p for p in procs if p.get(\"status\") == \"\
+    running\"]\n        background_tasks = [task for task in (getattr(self, \"_background_tasks\"\
+    , set()) or set())\n                            if hasattr(task, \"done\") and\
+    \ not task.done()]\n\n        # Background (async) delegations — delegate_task(background=true).\n\
+    \        # Live per-child activity comes from the registry's progress sampler\
+    \ (#51690): api calls, current\n        # tool, seconds since last activity.\n\
+    \        from tools.async_delegation import list_async_delegations\n        delegations\
+    \ = [d for d in _quiet_sync(list_async_delegations, [])\n                    \
+    \   if d.get(\"status\") in (\"running\", \"stalling\", \"finalizing\")]\n\n \
+    \       def _agent_row(idx_row):\n            idx, row = idx_row\n           \
+    \ this_chat_label = t('gateway.agents.this_chat').lstrip(\" · \")\n          \
+    \  current = f\" • {this_chat_label}\" if row[\"session_key\"] == current_session_key\
+    \ else \"\"\n            topic_label = _human_topic_label(row[\"session_key\"\
+    ])\n            state = row[\"state\"]\n            elapsed = format_uptime_short(row[\"\
+    elapsed\"])\n            iters = f\"{row['api_call_count']} итераций\"\n     \
+    \       display_m = _reverse_alias_for_display(row[\"model\"]) if row.get(\"model\"\
+    ) else \"\"\n            model = f\"`{display_m}`\" if display_m else \"неизвестно\"\
+    \n            \n            if row[\"ctx_len\"] > 0:\n                ctx_str\
+    \ = f\"({_format_tokens_compact(row['used_tokens'])} / {_format_tokens_compact(row['ctx_len'])})\"\
+    \n            else:\n                ctx_str = f\"({_format_tokens_compact(row['used_tokens'])})\"\
+    \n            \n            return [f\"**{idx}. {topic_label}** • {state} • {elapsed}\
+    \ • {iters} • {model} • {ctx_str}{current}\"]\n\n        def _proc_row(proc):\n\
+    \            cmd = _clip(\" \".join(str(proc.get(\"command\", \"\")).split()),\
+    \ 90)\n            return [f\"• `{proc.get('session_id', '?')}` · \"\n       \
+    \             f\"{format_uptime_short(int(proc.get('uptime_seconds', 0)))} · `{cmd}`\"\
+    ]\n\n        lines = [t(\"gateway.agents.header\"), \"\", t(\"gateway.agents.active_agents\"\
+    , count=len(agent_rows))]\n        lines += _capped_rows(list(enumerate(agent_rows,\
+    \ 1)), _agent_row)\n        lines += [\"\", t(\"gateway.agents.running_processes\"\
+    , count=len(running_processes))]\n        lines += _capped_rows(running_processes,\
+    \ _proc_row)\n        lines += [\"\", t(\"gateway.agents.async_jobs\", count=len(background_tasks))]\n\
+    \        if delegations:\n            lines += [\"\", t(\"gateway.agents.background_delegations\"\
+    , count=len(delegations))]\n            lines += _capped_rows(list(enumerate(delegations,\
+    \ 1)), lambda item: _agents_delegation_lines(item, current_session_key))"

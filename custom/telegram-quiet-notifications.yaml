@@ -1,0 +1,575 @@
+name: Telegram Quiet Notifications
+version: 2.3.0
+description: 'Quiet-first Telegram notification policy: mute routine slash command
+  replies and topic seeds, preserve audible alerts for urgent events'
+dependencies:
+- telegram-ux
+- output-hygiene
+config:
+  audible_commands:
+    type: bool
+    default: false
+    description: 'Enable notification sound for slash command replies (default: false
+      — quiet mode)'
+tests:
+  test_quiet_notifications_default_mute: 'from plugins.platforms.telegram.adapter
+    import TelegramAdapter
+
+    adapter = object.__new__(TelegramAdapter)
+
+    adapter._notifications_mode = ''quiet''
+
+    res = adapter._notification_kwargs({})
+
+    assert res == {''disable_notification'': True}
+
+    '
+  test_quiet_notifications_audible_turn_final: 'from plugins.platforms.telegram.adapter
+    import TelegramAdapter
+
+    adapter = object.__new__(TelegramAdapter)
+
+    adapter._notifications_mode = ''quiet''
+
+    res = adapter._notification_kwargs({''agent_turn_final'': True})
+
+    assert res == {}
+
+    '
+  test_quiet_notifications_force_notify: 'from plugins.platforms.telegram.adapter
+    import TelegramAdapter
+
+    adapter = object.__new__(TelegramAdapter)
+
+    adapter._notifications_mode = ''quiet''
+
+    res = adapter._notification_kwargs({''force_notify'': True})
+
+    assert res == {}
+
+    '
+  test_quiet_notifications_command_reply_safe: 'from plugins.platforms.telegram.adapter
+    import TelegramAdapter
+
+    adapter = object.__new__(TelegramAdapter)
+
+    adapter._notifications_mode = ''quiet''
+
+    adapter._audible_commands = False
+
+    res = adapter._notification_kwargs({''is_command_reply'': True, ''command'': ''/close''})
+
+    assert res == {''disable_notification'': True}
+
+    res = adapter._notification_kwargs({''is_command_reply'': True, ''command'': None})
+
+    assert res == {''disable_notification'': True}
+
+    adapter._audible_commands = True
+
+    res = adapter._notification_kwargs({''is_command_reply'': True, ''command'': ''voice''})
+
+    assert res == {}
+
+    adapter._audible_commands = None
+
+    res = adapter._notification_kwargs({''is_command_reply'': True, ''command'': ''status''})
+
+    assert res == {''disable_notification'': True}
+
+    '
+  test_quiet_notifications_none_and_non_dict_metadata: 'from plugins.platforms.telegram.adapter
+    import TelegramAdapter
+
+    adapter = object.__new__(TelegramAdapter)
+
+    adapter._notifications_mode = ''quiet''
+
+    assert adapter._notification_kwargs(None) == {''disable_notification'': True}
+
+    assert adapter._notification_kwargs(''not-a-dict'') == {''disable_notification'':
+    True}
+
+    assert adapter._notification_kwargs(12345) == {''disable_notification'': True}
+
+    '
+  test_quiet_notifications_cron_semantics: 'from plugins.platforms.telegram.adapter
+    import TelegramAdapter
+
+    adapter = object.__new__(TelegramAdapter)
+
+    adapter._notifications_mode = ''quiet''
+
+    assert adapter._notification_kwargs({''job_id'': ''job1'', ''notify'': False})
+    == {''disable_notification'': True}
+
+    assert adapter._notification_kwargs({''origin'': ''cron'', ''notify_delivery'':
+    False}) == {''disable_notification'': True}
+
+    assert adapter._notification_kwargs({''job_id'': ''job1''}) == {}
+
+    '
+  test_quiet_notifications_system_alerts: 'from plugins.platforms.telegram.adapter
+    import TelegramAdapter
+
+    adapter = object.__new__(TelegramAdapter)
+
+    adapter._notifications_mode = ''quiet''
+
+    assert adapter._notification_kwargs({''is_system_restart'': True}) == {}
+
+    assert adapter._notification_kwargs({''is_update_notification'': True}) == {}
+
+    assert adapter._notification_kwargs({''is_fatal_alert'': True}) == {}
+
+    assert adapter._notification_kwargs({''is_approval_prompt'': True}) == {}
+
+    assert adapter._notification_kwargs({''is_clarify_prompt'': True}) == {}
+
+    '
+targets:
+- file: plugins/platforms/telegram/adapter.py
+  description: 'Строгая quiet-first политика уведомлений: системный шум и команды
+    мютятся (disable_notification=True), звук строго для финальных ответов, approval,
+    clarify, cron, рестартов и обновлений'
+  old_block: "    def _notification_kwargs(self, metadata: Optional[dict[str, Any]])\
+    \ -> dict[str, Any]:\n        \"\"\"In \"important\" mode return disable_notification=True\
+    \ unless ``notify`` or ``is_approval_prompt`` (#132516).\"\"\"\n        if getattr(self,\
+    \ \"_notifications_mode\", \"important\") != \"important\" or (metadata or {}).get(\"\
+    notify\") \\\n                or (metadata or {}).get(\"is_approval_prompt\"):\n\
+    \            return {}\n        return {\"disable_notification\": True}"
+  new_block: "    def _notification_kwargs(self, metadata: Optional[dict[str, Any]])\
+    \ -> dict[str, Any]:\n        \"\"\"Determine disable_notification for outgoing\
+    \ Telegram messages.\n\n        Quiet-first policy: All messages are muted (disable_notification=True)\
+    \ by default,\n        UNLESS explicitly belonging to an audible category:\n \
+    \       1. Final agent response to a user request (agent_turn_final / final_turn\
+    \ / turn_final)\n        2. Interactive approval prompts & human input (is_approval_prompt\
+    \ / is_clarify_prompt / confirm_action)\n        3. Scheduled cron job outputs\
+    \ (job_id / cron_job / origin='cron')\n        4. Fatal / emergency alerts (is_fatal_alert)\n\
+    \        5. Explicit force_notify / audible override\n        \"\"\"\n       \
+    \ mode = getattr(self, \"_notifications_mode\", \"quiet\")\n        if mode ==\
+    \ \"all\":\n            return {}\n\n        meta = metadata if isinstance(metadata,\
+    \ dict) else {}\n        if mode == \"important\" and (meta.get(\"notify\") or\
+    \ meta.get(\"is_approval_prompt\")) and not meta.get(\"is_command_reply\"):\n\
+    \            return {}\n        # 1. Explicit force override always rings\n  \
+    \      if meta.get(\"force_notify\") or meta.get(\"sound\") or meta.get(\"audible\"\
+    ):\n            return {}\n\n        # 2. Explicit quiet override always mutes\n\
+    \        if meta.get(\"quiet\") or meta.get(\"silent\") or meta.get(\"disable_notification\"\
+    ):\n            return {\"disable_notification\": True}\n\n        # 3. Interactive\
+    \ human prompts, approvals and alerts ring\n        if (\n            meta.get(\"\
+    is_approval_prompt\")\n            or meta.get(\"is_clarify_prompt\")\n      \
+    \      or meta.get(\"confirm_action\")\n            or meta.get(\"is_fatal_alert\"\
+    )\n            or meta.get(\"is_system_restart\")\n            or meta.get(\"\
+    is_update_notification\")\n        ):\n            return {}\n\n        # 4. Scheduled\
+    \ cron jobs ring (unless explicitly muted)\n        if meta.get(\"job_id\") or\
+    \ meta.get(\"cron_job\") or meta.get(\"origin\") == \"cron\":\n            if\
+    \ meta.get(\"notify\") is False or meta.get(\"notify_delivery\") is False:\n \
+    \               return {\"disable_notification\": True}\n            return {}\n\
+    \n        # 5. Final turn of agent response rings\n        if meta.get(\"agent_turn_final\"\
+    ) or meta.get(\"final_turn\") or meta.get(\"turn_final\"):\n            return\
+    \ {}\n\n        # 6. Slash commands: check audible_commands whitelist\n      \
+    \  if meta.get(\"is_command_reply\") or meta.get(\"command\"):\n            cmd\
+    \ = str(meta.get(\"command\") or \"\").lstrip(\"/\").strip().lower()\n       \
+    \     audible_cmds = getattr(self, \"_audible_commands\", False)\n           \
+    \ default_whitelist = {\"voice\", \"listen\", \"tts\", \"status\", \"agents\"\
+    , \"usage\"}\n            if isinstance(audible_cmds, bool):\n               \
+    \ if audible_cmds and cmd in default_whitelist:\n                    return {}\n\
+    \                return {\"disable_notification\": True}\n            elif isinstance(audible_cmds,\
+    \ (set, list, tuple)):\n                if cmd in audible_cmds:\n            \
+    \        return {}\n                return {\"disable_notification\": True}\n\
+    \            return {\"disable_notification\": True}\n\n        # Default quiet-first\
+    \ fallback: mute\n        return {\"disable_notification\": True}"
+- file: plugins/platforms/telegram/adapter.py
+  description: Разрешение quiet-first режима по умолчанию и чтение настройки audible_commands
+    из config.yaml
+  old_block: "def _resolve_notifications_mode() -> str:\n    \"\"\"Notification mode\
+    \ (all/important) from env, else config.yaml display.platforms.telegram.notifications.\"\
+    \"\"\n    mode = os.getenv(\"HERMES_TELEGRAM_NOTIFICATIONS\", \"\")\n    if not\
+    \ mode:\n        try:\n            from gateway.config import load_gateway_config\n\
+    \            from gateway.run import cfg_get\n            _raw = cfg_get(load_gateway_config(),\
+    \ \"display\", \"platforms\", \"telegram\", \"notifications\")\n            if\
+    \ _raw not in {None, \"\"}:\n                mode = str(_raw).strip().lower()\n\
+    \        except Exception:\n            pass\n    mode = mode or \"important\"\
+    \n    if mode not in {\"all\", \"important\"}:\n        logger.warning(\"Unknown\
+    \ telegram notifications mode '%s', defaulting to 'important' (valid: all, important)\"\
+    , mode)\n        mode = \"important\"\n    return mode\n\n\ndef _build_adapter(config):\n\
+    \    \"\"\"Construct TelegramAdapter and apply the notification mode.\"\"\"\n\
+    \    adapter = TelegramAdapter(config)\n    try:\n        adapter._notifications_mode\
+    \ = _resolve_notifications_mode()\n    except Exception:\n        adapter._notifications_mode\
+    \ = \"important\"\n    return adapter"
+  new_block: "def _resolve_notifications_mode() -> str:\n    \"\"\"Notification mode\
+    \ (all/quiet) from env, else config.yaml display.platforms.telegram.notifications.\"\
+    \"\"\n    mode = os.getenv(\"HERMES_TELEGRAM_NOTIFICATIONS\", \"\")\n    if not\
+    \ mode:\n        try:\n            from gateway.config import load_gateway_config\n\
+    \            from gateway.run import cfg_get\n            _raw = cfg_get(load_gateway_config(),\
+    \ \"display\", \"platforms\", \"telegram\", \"notifications\")\n            if\
+    \ _raw not in {None, \"\"}:\n                mode = str(_raw).strip().lower()\n\
+    \        except Exception:\n            pass\n    mode = (mode or \"quiet\").strip().lower()\n\
+    \    if mode in {\"important\", \"smart\", \"default\", \"quiet\"}:\n        mode\
+    \ = \"quiet\"\n    elif mode != \"all\":\n        logger.warning(\"Unknown telegram\
+    \ notifications mode '%s', defaulting to 'quiet' (valid: all, quiet)\", mode)\n\
+    \        mode = \"quiet\"\n    return mode\n\n\ndef _build_adapter(config):\n\
+    \    \"\"\"Construct TelegramAdapter and apply the notification mode.\"\"\"\n\
+    \    adapter = TelegramAdapter(config)\n    try:\n        adapter._notifications_mode\
+    \ = _resolve_notifications_mode()\n    except Exception:\n        adapter._notifications_mode\
+    \ = \"quiet\"\n    try:\n        from hermes_cli.config import load_config_readonly\n\
+    \        cfg = load_config_readonly() or {}\n        mod_opts = cfg.get(\"mods\"\
+    , {}).get(\"telegram-quiet-notifications\", {})\n        adapter._audible_commands\
+    \ = bool(mod_opts.get(\"audible_commands\", False))\n    except Exception:\n \
+    \       adapter._audible_commands = False\n    return adapter"
+- file: plugins/platforms/telegram/adapter.py
+  description: Бесшумная отправка seed-сообщения топика (📌 topic)
+  old_block: "                # Seed message: Telegram's client hides empty topics\
+    \ until they contain one.\n                try:\n                    await _await_with_thread_deadline(\n\
+    \                        self._bot.send_message(\n                           \
+    \ chat_id=normalize_telegram_chat_id(chat_id), message_thread_id=thread_id, text=f\"\
+    \\U0001f4cc {topic_name}\"),\n                        timeout=_TEXT_SEND_DEADLINE,\
+    \ label=\"telegram-send\", dump_on_blocked_loop=False)\n                except\
+    \ Exception as seed_err:"
+  new_block: "                # Seed message: Telegram's client hides empty topics\
+    \ until they contain one.\n                try:\n                    await _await_with_thread_deadline(\n\
+    \                        self._bot.send_message(\n                           \
+    \ chat_id=normalize_telegram_chat_id(chat_id), message_thread_id=thread_id, text=f\"\
+    \\U0001f4cc {topic_name}\",\n                            disable_notification=True),\n\
+    \                        timeout=_TEXT_SEND_DEADLINE, label=\"telegram-send\"\
+    , dump_on_blocked_loop=False)\n                except Exception as seed_err:"
+- file: plugins/platforms/telegram/adapter.py
+  description: Применение политики уведомлений к контрольным сообщениям и промптам
+    аппрува
+  old_block: "    async def _send_control_message(\n        self, chat_id: str, text:\
+    \ str, *, parse_mode: Any, thread_id: Optional[str], metadata: Optional[dict[str,\
+    \ Any]],\n        reply_markup: Any = None, reply_to_mode: Optional[str] = None):\n\
+    \        \"\"\"Send a control-style message (prompt/picker) with topic routing\
+    \ + thread fallback.\"\"\"\n        reply_to_id = self._reply_to_message_id_for_send(None,\
+    \ metadata, reply_to_mode=reply_to_mode)\n        kwargs: dict[str, Any] = {\n\
+    \            \"chat_id\": normalize_telegram_chat_id(chat_id), \"text\": text,\
+    \ \"parse_mode\": parse_mode, **self._link_preview_kwargs()}\n        if reply_markup\
+    \ is not None:\n            kwargs[\"reply_markup\"] = reply_markup\n        kwargs[\"\
+    reply_to_message_id\"] = reply_to_id\n        kwargs.update(self._thread_kwargs_for_send(\n\
+    \            chat_id, thread_id, metadata, reply_to_message_id=reply_to_id, reply_to_mode=reply_to_mode))\n\
+    \        return await self._send_message_with_thread_fallback(**kwargs)\n\n  \
+    \  async def _send_prompt(self, what: str, chat_id: str, metadata: Optional[dict[str,\
+    \ Any]], build, *,\n                           parse_mode: Any = None, thread_id:\
+    \ Any = None, reply_to_mode: Any = None) -> SendResult:\n        \"\"\"Shared\
+    \ control-prompt shell: not-connected guard, ``build()`` → ``(text, keyboard,\
+    \ on_sent)`` (or a\n        SendResult to return as-is), routed send, state hook,\
+    \ redacted failure log.\"\"\"\n        if not self._bot:\n            return SendResult(success=False,\
+    \ error=\"Not connected\")\n        try:\n            built = build()\n      \
+    \      if isinstance(built, SendResult):\n                return built\n     \
+    \       text, keyboard, on_sent = built\n            msg = await self._send_control_message(\n\
+    \                chat_id, text, parse_mode=parse_mode if parse_mode is not None\
+    \ else ParseMode.MARKDOWN_V2,\n                reply_markup=keyboard, thread_id=thread_id,\
+    \ metadata=metadata, reply_to_mode=reply_to_mode)"
+  new_block: "    async def _send_control_message(\n        self, chat_id: str, text:\
+    \ str, *, parse_mode: Any, thread_id: Optional[str], metadata: Optional[dict[str,\
+    \ Any]],\n        reply_markup: Any = None, reply_to_mode: Optional[str] = None):\n\
+    \        \"\"\"Send a control-style message (prompt/picker) with topic routing\
+    \ + thread fallback.\"\"\"\n        reply_to_id = self._reply_to_message_id_for_send(None,\
+    \ metadata, reply_to_mode=reply_to_mode)\n        lp = self._link_preview_kwargs()\
+    \ if hasattr(self, \"_link_preview_kwargs\") else {}\n        kwargs: dict[str,\
+    \ Any] = {\n            \"chat_id\": normalize_telegram_chat_id(chat_id), \"text\"\
+    : text, \"parse_mode\": parse_mode, **(lp if isinstance(lp, dict) else {})}\n\
+    \        if reply_markup is not None:\n            kwargs[\"reply_markup\"] =\
+    \ reply_markup\n        kwargs[\"reply_to_message_id\"] = reply_to_id\n      \
+    \  tk = self._thread_kwargs_for_send(\n            chat_id, thread_id, metadata,\
+    \ reply_to_message_id=reply_to_id, reply_to_mode=reply_to_mode)\n        if isinstance(tk,\
+    \ dict):\n            kwargs.update(tk)\n        notif_kw = self._notification_kwargs(metadata)\
+    \ if hasattr(self, \"_notification_kwargs\") else {}\n        if isinstance(notif_kw,\
+    \ dict):\n            kwargs.update(notif_kw)\n        return await self._send_message_with_thread_fallback(**kwargs)\n\
+    \n    async def _send_prompt(self, what: str, chat_id: str, metadata: Optional[dict[str,\
+    \ Any]], build, *,\n                           parse_mode: Any = None, thread_id:\
+    \ Any = None, reply_to_mode: Any = None) -> SendResult:\n        \"\"\"Shared\
+    \ control-prompt shell: not-connected guard, ``build()`` → ``(text, keyboard,\
+    \ on_sent)`` (or a\n        SendResult to return as-is), routed send, state hook,\
+    \ redacted failure log.\"\"\"\n        if not self._bot:\n            return SendResult(success=False,\
+    \ error=\"Not connected\")\n        try:\n            built = build()\n      \
+    \      if isinstance(built, SendResult):\n                return built\n     \
+    \       text, keyboard, on_sent = built\n            prompt_meta = dict(metadata)\
+    \ if isinstance(metadata, dict) else {}\n            if what in (\"send_exec_approval\"\
+    , \"send_slash_confirm\", \"send_clarify\", \"send_update_prompt\"):\n       \
+    \         prompt_meta[\"is_approval_prompt\"] = True\n            msg = await\
+    \ self._send_control_message(\n                chat_id, text, parse_mode=parse_mode\
+    \ if parse_mode is not None else ParseMode.MARKDOWN_V2,\n                reply_markup=keyboard,\
+    \ thread_id=thread_id, metadata=prompt_meta, reply_to_mode=reply_to_mode)\n  \
+    \          if on_sent is not None:\n                on_sent(msg)\n           \
+    \ return SendResult(success=True, message_id=str(msg.message_id))\n        except\
+    \ Exception as e:\n            logger.error(\"[%s] Failed to send Telegram %s\
+    \ prompt: %s\", self.name, what, _redact_telegram_error_text(e), exc_info=True)\n\
+    \            return SendResult(success=False, error=_redact_telegram_error_text(e))"
+- file: gateway/platforms/base.py
+  description: Маркировка ответов слэш-команд как is_command_reply (тихие по умолчанию)
+  old_block: "        result = await self._send_with_retry(\n            chat_id=event.source.chat_id,\
+    \ content=text, reply_to=_reply_anchor_for_event(event),\n            metadata=_mark_notify_metadata(thread_meta))"
+  new_block: "        cmd_meta = dict(thread_meta) if isinstance(thread_meta, dict)\
+    \ else {}\n        cmd_meta[\"is_command_reply\"] = True\n        if log_cmd:\n\
+    \            cmd_meta[\"command\"] = log_cmd\n        result = await self._send_with_retry(\n\
+    \            chat_id=event.source.chat_id, content=text, reply_to=_reply_anchor_for_event(event),\n\
+    \            metadata=cmd_meta)"
+- file: gateway/platforms/base.py
+  description: Изоляция финального звука только для реальных ходов агента и громкий
+    алерт при фатальной ошибке хода
+  old_block: "    async def _send_final_text(\n        self, event: MessageEvent,\
+    \ session_key: str, text_content: str, metadata: dict[str, Any],\n        is_ephemeral_response:\
+    \ bool, ephemeral_ttl: int, record_delivery: Callable) -> None:\n        \"\"\"\
+    \n    Normal-lane final: the ledger bracket plus the message-id owner's ephemeral\
+    \ delete.\"\"\"\n        text_metadata = dict(metadata) if isinstance(metadata,\
+    \ dict) else {}\n        is_command = bool(event.get_command())\n        if is_command:\n\
+    \            text_metadata[\"is_command_reply\"] = True\n            text_metadata[\"\
+    command\"] = event.get_command()\n            text_metadata.pop(\"agent_turn_final\"\
+    , None)\n        else:\n            text_metadata[\"agent_turn_final\"] = True\n\
+    \        result, delivery_adapter = await self.send_final_ledgered(\n        \
+    \    event, session_key, text_content, text_metadata,\n            reply_to=_reply_anchor_for_event(event),\
+    \ is_ephemeral_response=is_ephemeral_response)\n        record_delivery(result)\n\
+    \        if ephemeral_ttl and ephemeral_ttl > 0 and result.success and result.message_id:\n\
+    \            delivery_adapter._schedule_ephemeral_delete(event.source.chat_id,\
+    \ result.message_id, ephemeral_ttl)\n\n    async def _notify_turn_error(self,\
+    \ event: MessageEvent, e: BaseException) -> Optional[dict]:\n        \"\"\"Tell\
+    \ the user a turn failed rather than leaving radio silence (last resort:\n   \
+    \     a failing notice is logged, never raised). Returns the thread metadata used.\"\
+    \"\"\n        _thread_metadata = None\n        try:\n            _thread_metadata\
+    \ = _thread_metadata_for_event(event)"
+  new_block: "    async def _send_final_text(\n        self, event: MessageEvent,\
+    \ session_key: str, text_content: str, metadata: dict[str, Any],\n        is_ephemeral_response:\
+    \ bool, ephemeral_ttl: int, record_delivery: Callable) -> None:\n        \"\"\"\
+    \n    Normal-lane final: the ledger bracket plus the message-id owner's ephemeral\
+    \ delete.\"\"\"\n        text_metadata = dict(metadata) if isinstance(metadata,\
+    \ dict) else {}\n        is_command = bool(event.get_command())\n        if is_command:\n\
+    \            text_metadata[\"is_command_reply\"] = True\n            text_metadata[\"\
+    command\"] = event.get_command()\n            text_metadata.pop(\"agent_turn_final\"\
+    , None)\n        else:\n            text_metadata[\"agent_turn_final\"] = True\n\
+    \        result, delivery_adapter = await self.send_final_ledgered(\n        \
+    \    event, session_key, text_content, text_metadata,\n            reply_to=_reply_anchor_for_event(event),\
+    \ is_ephemeral_response=is_ephemeral_response)\n        record_delivery(result)\n\
+    \        if ephemeral_ttl and ephemeral_ttl > 0 and getattr(result, \"success\"\
+    , False) and getattr(result, \"message_id\", None):\n            delivery_adapter._schedule_ephemeral_delete(event.source.chat_id,\
+    \ result.message_id, ephemeral_ttl)\n\n    async def _notify_turn_error(self,\
+    \ event: MessageEvent, e: BaseException) -> Optional[dict]:\n        \"\"\"Tell\
+    \ the user a turn failed rather than leaving radio silence (last resort:\n   \
+    \     a failing notice is logged, never raised). Returns the thread metadata used.\"\
+    \"\"\n        _thread_metadata = None\n        try:\n            tm = _thread_metadata_for_event(event)\n\
+    \            _thread_metadata = dict(tm) if isinstance(tm, dict) else {}\n   \
+    \         _thread_metadata[\"is_fatal_alert\"] = True\n            _thread_metadata[\"\
+    force_notify\"] = True"
+- file: gateway/platforms/base.py
+  description: Разделение метаданных финального ответа между командами и агентом
+  old_block: "                text_content, media_files = extracted.text_content,\
+    \ extracted.media_files\n                # Final content gets notify=True; typing\
+    \ metadata stays unmarked (thread-strict).\n                _final_thread_metadata\
+    \ = _mark_notify_metadata(_thread_metadata)"
+  new_block: "                text_content, media_files = extracted.text_content,\
+    \ extracted.media_files\n                # Final content gets notify=True; typing\
+    \ metadata stays unmarked (thread-strict).\n                is_command = bool(event.get_command())\n\
+    \                _final_thread_metadata = _mark_notify_metadata(_thread_metadata)\n\
+    \                if is_command:\n                    _final_thread_metadata[\"\
+    is_command_reply\"] = True\n                    _final_thread_metadata[\"command\"\
+    ] = event.get_command()\n                else:\n                    _final_thread_metadata[\"\
+    agent_turn_final\"] = True"
+- file: gateway/stream_consumer.py
+  description: Маркировка финального чанка стриминга флагом agent_turn_final
+  old_block: "        if final:\n            meta[\"notify\"] = True"
+  new_block: "        if final:\n            meta[\"notify\"] = True\n           \
+    \ meta[\"agent_turn_final\"] = True"
+- file: gateway/run_voice.py
+  description: Маркировка голосовых сообщений агента флагом agent_turn_final
+  old_block: "        thread_meta = dict(self._thread_metadata_for_source(event.source,\
+    \ reply_anchor) or {})\n        thread_meta[\"notify\"] = True"
+  new_block: "        thread_meta = dict(self._thread_metadata_for_source(event.source,\
+    \ reply_anchor) or {})\n        thread_meta[\"notify\"] = True\n        thread_meta[\"\
+    agent_turn_final\"] = True"
+- file: gateway/run_notifications.py
+  description: Маркировка post-stream вложений флагом agent_turn_final
+  old_block: "            _thread_meta = (\n                dict(thread_metadata)\n\
+    \                if thread_metadata is not None\n                else self._thread_metadata_for_source(event.source,\
+    \ self._reply_anchor_for_event(event))\n            )\n            chat_id = event.source.chat_id"
+  new_block: "            _thread_meta = (\n                dict(thread_metadata)\n\
+    \                if thread_metadata is not None\n                else self._thread_metadata_for_source(event.source,\
+    \ self._reply_anchor_for_event(event))\n            )\n            _thread_meta[\"\
+    agent_turn_final\"] = True\n            chat_id = event.source.chat_id"
+- file: gateway/run_notifications.py
+  description: Маркировка unledgered queued-final fallback флагом agent_turn_final
+  old_block: "        else:\n            result = await adapter.send(source.chat_id,\
+    \ text_content, metadata=metadata)"
+  new_block: "        else:\n            fallback_md = dict(metadata) if metadata\
+    \ else {}\n            fallback_md[\"agent_turn_final\"] = True\n            result\
+    \ = await adapter.send(source.chat_id, text_content, metadata=fallback_md)"
+- file: gateway/run_notifications.py
+  description: Звуковое оповещение о завершении перезапуска шлюза (is_system_restart)
+  old_block: "            metadata = self._pending_marker_metadata(platform, chat_id,\
+    \ data, transport.adapter)\n            if data.get(\"delivered_via_upstream_relay\"\
+    ) is True:"
+  new_block: "            metadata = dict(self._pending_marker_metadata(platform,\
+    \ chat_id, data, transport.adapter) or {})\n            metadata[\"force_notify\"\
+    ] = True\n            metadata[\"is_system_restart\"] = True\n            if data.get(\"\
+    delivered_via_upstream_relay\") is True:"
+- file: gateway/run_notifications_update.py
+  description: Звуковое оповещение о завершении обновления шлюза (is_update_notification)
+  old_block: "                metadata = self._pending_marker_metadata(platform, chat_id,\
+    \ pending, adapter)\n                # Fallback session key if not stored (old\
+    \ pending files)"
+  new_block: "                metadata = dict(self._pending_marker_metadata(platform,\
+    \ chat_id, pending, adapter) or {})\n                metadata[\"force_notify\"\
+    ] = True\n                metadata[\"is_update_notification\"] = True\n      \
+    \          # Fallback session key if not stored (old pending files)"
+- file: gateway/run_notifications.py
+  description: Поддержка extra_metadata в _send_home_channel_message
+  old_block: "    async def _send_home_channel_message(self, platform, home, transport,\
+    \ message: str, failure_fmt: str) -> bool:\n        \"\"\"Best-effort send to\
+    \ one home channel; True on success, failures logged with ``failure_fmt``.\"\"\
+    \"\n        from gateway.run import _non_conversational_metadata\n        try:\n\
+    \            metadata = self._thread_metadata_for_target(platform, home.chat_id,\
+    \ home.thread_id, adapter=transport.adapter)\n            if transport.is_relay:\n\
+    \                metadata = dict(metadata or {})\n                if home.user_id:\n\
+    \                    metadata[\"user_id\"] = home.user_id\n                if\
+    \ home.scope_id:\n                    metadata[\"scope_id\"] = home.scope_id\n\
+    \            send_metadata = _non_conversational_metadata(metadata, platform=platform)\n\
+    \            if send_metadata is not None or transport.is_relay:\n           \
+    \     result = await transport.send(platform, str(home.chat_id), message, metadata=send_metadata)\n\
+    \            else:\n                result = await transport.adapter.send(str(home.chat_id),\
+    \ message)"
+  new_block: "    async def _send_home_channel_message(\n        self, platform, home,\
+    \ transport, message: str, failure_fmt: str,\n        extra_metadata: Optional[dict[str,\
+    \ Any]] = None,\n    ) -> bool:\n        \"\"\"Best-effort send to one home channel;\
+    \ True on success, failures logged with ``failure_fmt``.\"\"\"\n        from gateway.run\
+    \ import _non_conversational_metadata\n        try:\n            metadata = dict(self._thread_metadata_for_target(platform,\
+    \ home.chat_id, home.thread_id, adapter=transport.adapter) or {})\n          \
+    \  if extra_metadata:\n                metadata.update(extra_metadata)\n     \
+    \       if transport.is_relay:\n                if home.user_id:\n           \
+    \         metadata[\"user_id\"] = home.user_id\n                if home.scope_id:\n\
+    \                    metadata[\"scope_id\"] = home.scope_id\n            send_metadata\
+    \ = _non_conversational_metadata(metadata, platform=platform)\n            if\
+    \ send_metadata is not None or transport.is_relay:\n                result = await\
+    \ transport.send(platform, str(home.chat_id), message, metadata=send_metadata)\n\
+    \            else:\n                result = await transport.adapter.send(str(home.chat_id),\
+    \ message, metadata=metadata)"
+- file: gateway/run_notifications.py
+  description: Звуковое оповещение хоум-канала о выходе шлюза в онлайн
+  old_block: "            if await self._send_home_channel_message(\n            \
+    \    platform, home, transport, message, \"Home-channel startup notification failed\
+    \ for %s:%s: %s\",\n            ):"
+  new_block: "            if await self._send_home_channel_message(\n            \
+    \    platform, home, transport, message, \"Home-channel startup notification failed\
+    \ for %s:%s: %s\",\n                extra_metadata={\"is_system_restart\": True,\
+    \ \"force_notify\": True},\n            ):"
+- file: gateway/run_notifications.py
+  description: Звуковое оповещение хоум-канала об аварии базы данных state.db
+  old_block: "        for platform, _platform_cfg, home, transport in self._home_channel_transports():\n\
+    \            await present_notification(\n                lambda: self._send_home_channel_message(\n\
+    \                    platform, home, transport, message, \"state.db warning notification\
+    \ failed for %s:%s: %s\"),\n                platform=platform)"
+  new_block: "        for platform, _platform_cfg, home, transport in self._home_channel_transports():\n\
+    \            await present_notification(\n                lambda: self._send_home_channel_message(\n\
+    \                    platform, home, transport, message, \"state.db warning notification\
+    \ failed for %s:%s: %s\",\n                    extra_metadata={\"is_fatal_alert\"\
+    : True, \"force_notify\": True}),\n                platform=platform)"
+- file: gateway/run_startup.py
+  description: Звуковое оповещение при доставке восстановленного финального ответа
+    после рестарта
+  old_block: "            content = row[\"content\"]\n            if row.get(\"needs_marker\"\
+    ):\n                content = row.get(\"marker\", RECOVERED_MARKER) + content\n\
+    \            metadata = {\"thread_id\": row[\"thread_id\"]} if row.get(\"thread_id\"\
+    ) else None\n            try:\n                result = await adapter.send(chat_id=row[\"\
+    chat_id\"], content=content, metadata=metadata)"
+  new_block: "            content = row[\"content\"]\n            if row.get(\"needs_marker\"\
+    ):\n                content = row.get(\"marker\", RECOVERED_MARKER) + content\n\
+    \            metadata = {\"thread_id\": row[\"thread_id\"]} if row.get(\"thread_id\"\
+    ) else {}\n            metadata[\"agent_turn_final\"] = True\n            metadata[\"\
+    force_notify\"] = True\n            try:\n                result = await adapter.send(chat_id=row[\"\
+    chat_id\"], content=content, metadata=metadata)"
+- file: gateway/platforms/webhook.py
+  description: Звуковое оповещение при доставке внешних вебхуков в Telegram
+  old_block: "            thread_id = extra.get(\"message_thread_id\") or extra.get(\"\
+    thread_id\")  # Telegram forum topics\n            result = await adapter.send(chat_id,\
+    \ content, metadata={\"thread_id\": thread_id} if thread_id else None)"
+  new_block: "            thread_id = extra.get(\"message_thread_id\") or extra.get(\"\
+    thread_id\")  # Telegram forum topics\n            wb_meta = {\"thread_id\": thread_id}\
+    \ if thread_id else {}\n            wb_meta[\"is_webhook_delivery\"] = True\n\
+    \            if extra.get(\"notify\", True) is not False:\n                wb_meta[\"\
+    force_notify\"] = True\n            else:\n                wb_meta[\"disable_notification\"\
+    ] = True\n            result = await adapter.send(chat_id, content, metadata=wb_meta)"
+- file: cron/scheduler_delivery.py
+  description: Включение job_id в media_metadata для синхронного звукового режима
+    медиа-вложений cron
+  old_block: '        media_metadata = {"direct_messages_topic_id": str(thread_id),
+    "notify": t.notify_delivery}'
+  new_block: "        media_metadata = {\n            \"direct_messages_topic_id\"\
+    : str(thread_id), \"job_id\": job[\"id\"],\n            \"notify\": t.notify_delivery,\n\
+    \        }"
+- file: cron/scheduler_delivery.py
+  description: Включение job_id в non-topic media_metadata cron
+  old_block: "        media_metadata = {\"notify\": t.notify_delivery}\n        if\
+    \ thread_id:"
+  new_block: "        media_metadata = {\"job_id\": job[\"id\"], \"notify\": t.notify_delivery}\n\
+    \        if thread_id:"
+id: telegram-quiet-notifications
+i18n:
+  en:
+    name: Telegram Quiet Notifications
+    description: 'Quiet-first Telegram notification policy: mute routine slash command
+      replies and topic seeds, preserve audible alerts for urgent events'
+    config:
+      audible_commands:
+        title: Audible Slash Commands
+        description: Whether to play sound for slash command replies (default false
+          - quiet mode)
+  ru:
+    name: Telegram Quiet Notifications
+    description: 'Комплексный аудит и мют системного шума в Telegram: тихий режим
+      по умолчанию для всех команд и служебных сообщений'
+    config:
+      audible_commands:
+        title: Звук для слэш-команд
+        description: Включать ли звук для ответов на слэш-команды (по умолчанию выключено
+          — тихий режим)
+  es:
+    name: Telegram Quiet Notifications
+    description: 'Política de notificaciones silenciosas en Telegram: silenciar respuestas
+      rutinarias a comandos slash y preservar alertas sonoras para eventos urgentes'
+    config:
+      audible_commands:
+        title: Sonido para comandos slash
+        description: 'Activar sonido para respuestas a comandos slash (desactivado
+          por defecto: modo silencioso)'
+  fr:
+    name: Telegram Quiet Notifications
+    description: 'Politique de notifications silencieuses sur Telegram : couper le
+      son des réponses de routine aux commandes slash et conserver les alertes pour
+      les urgences'
+    config:
+      audible_commands:
+        title: Son pour les commandes slash
+        description: 'Activer le son pour les réponses aux commandes slash (désactivé
+          par défaut : mode silencieux)'
+  zh:
+    name: Telegram Quiet Notifications
+    description: Telegram静音优先通知策略：静音常规斜杠命令回复与话题创建，保留紧急事件的声音提醒
+    config:
+      audible_commands:
+        title: 斜杠命令提示音
+        description: 是否为斜杠命令回复开启声音提示（默认关闭：静音模式）
+  ar:
+    name: Telegram Quiet Notifications
+    description: 'سياسة الإشعارات الصامتة أولاً في تيليجرام: كتم ردود أوامر الشرطة
+      المائلة الروتينية والحفاظ على التنبيهات الصوتية للأحداث العاجلة'
+    config:
+      audible_commands:
+        title: صوت أوامر الشرطة المائلة
+        description: ما إذا كان سيتم تشغيل الصوت للردود على أوامر الشرطة المائلة (معطل
+          افتراضيًا — وضع صامت)
+  de:
+    name: Telegram Quiet Notifications
+    description: 'Stille Benachrichtigungsrichtlinie für Telegram: Stummschalten von
+      Routine-Slash-Befehlen und Beibehalten von Tönen für dringende Ereignisse'
+    config:
+      audible_commands:
+        title: Ton für Slash-Befehle
+        description: Ob Ton für Antworten auf Slash-Befehle abgespielt werden soll
+          (standardmäßig aus — lautloser Modus)
+  pt:
+    name: Telegram Quiet Notifications
+    description: 'Política de notificações silenciosas no Telegram: silenciar respostas
+      rotineiras de comandos slash e preservar alertas sonoros para eventos urgentes'
+    config:
+      audible_commands:
+        title: Som para comandos slash
+        description: 'Ativar som para respostas a comandos slash (desativado por padrão:
+          modo silencioso)'

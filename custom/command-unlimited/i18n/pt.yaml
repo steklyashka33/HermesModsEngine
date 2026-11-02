@@ -1,0 +1,7 @@
+name: Command Unlimited
+description: 'Comando /unlimited [on|off|status]: remoção de limites de iterações
+  do agente e subagentes com contagem global da árvore de sessões e ajuste no config.yaml'
+slash:
+  unlimited:
+    description: Ativar ou desativar o modo ilimitado para a sessão atual (iterações
+      do agente e subagentes)

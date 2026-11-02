@@ -1,0 +1,7 @@
+id: smart-compaction
+name: Smart Compaction Dual-Trigger
+description: 'Intelligent dual-level context compaction (Dual-Trigger): proactive
+  live trimming of tool outputs and background idle compaction'
+version: 1.4.0
+author: Hermes Admin
+enabled: true

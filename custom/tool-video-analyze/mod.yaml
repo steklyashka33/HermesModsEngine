@@ -1,0 +1,6 @@
+id: tool-video-analyze
+name: Tool Video Analyze
+description: Registration of video_analyze tool in core toolset and routing via auxiliary.video
+version: 1.4.0
+author: Hermes Admin
+enabled: true

@@ -1,0 +1,31 @@
+name: Speech to Text
+description: Spracherkennungsmodul (STT) über multimodale API mit spekulativem parallelem
+  Fallback auf lokales faster-whisper
+config:
+  fallback_whisper:
+    title: Fallback auf Whisper
+    description: Automatisches Failover auf faster-whisper bei Nichterreichbarkeit
+      des Remote-STT-Gateways
+  downscale_heavy_audio:
+    title: Schwere Audiodateien komprimieren
+    description: Automatische Neukomprimierung von Audiodateien >750KB über ffmpeg
+      in kompaktes Mono-Opus
+  api_key:
+    title: STT API-Schlüssel
+    description: Optionaler STT API-Schlüssel (wird standardmäßig nativ aus Hermes
+      config.yaml geerbt)
+  base_url:
+    title: STT Basis-URL
+    description: OmniRoute STT Gateway Basis-URL (wird standardmäßig aus Hermes config.yaml
+      geerbt)
+  model:
+    title: STT-Modell
+    description: Optionaler STT-Modell-Override (wird standardmäßig aus stt.openai.model
+      in Hermes config.yaml geerbt)
+  timeout:
+    title: Anforderungs-Timeout
+    description: Anforderungs-Timeout für die Remote-STT-API in Sekunden
+  speculative_fallback_delay:
+    title: Fallback-Verzögerung
+    description: Verzögerung in Sekunden vor dem spekulativen parallelen Start des
+      lokalen Whisper

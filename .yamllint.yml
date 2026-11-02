@@ -1,0 +1,24 @@
+---
+extends: default
+
+rules:
+  indentation:
+    indent-sequences: whatever
+  line-length: disable
+  truthy: disable
+  comments:
+    level: warning
+  document-start: disable
+  braces:
+    max-spaces-inside: 1
+    level: warning
+  brackets:
+    max-spaces-inside: 1
+    level: warning
+  octal-values:
+    forbid-implicit-octal: true
+    forbid-explicit-octal: true
+
+ignore: |
+  .git/
+  custom/

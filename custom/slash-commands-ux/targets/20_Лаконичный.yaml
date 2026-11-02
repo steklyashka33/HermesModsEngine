@@ -1,0 +1,12 @@
+targets:
+- file: hermes_cli/slash_exec.py
+  description: Лаконичный блок команд навыков в /help без простыни
+  old_block: "        if skill_cmds:\n            lines.append(t(\"gateway.help.skill_header\"\
+    , count=len(skill_cmds)))\n            sorted_cmds = sorted(skill_cmds)  # first\
+    \ 10, then point to /commands for the rest\n            lines.extend(f\"`{cmd}`\
+    \ — {skill_cmds[cmd]['description']}\"\n                         for cmd in sorted_cmds[:10])\n\
+    \            if len(sorted_cmds) > 10:\n                lines.append(t(\"gateway.help.more_use_commands\"\
+    , count=len(sorted_cmds) - 10))"
+  new_block: "        if skill_cmds:\n            lines.append(\"\")\n           \
+    \ lines.append(t(\"gateway.help.skill_header\", count=len(skill_cmds)))\n    \
+    \        lines.append(\"Для их просмотра используйте `/commands`.\")"

@@ -1,0 +1,328 @@
+name: Command Faster
+version: 1.3.0
+description: 'Command /faster: instant acceleration of the current task and active
+  subagents (in-flight and background) with duplicate protection'
+targets:
+- file: hermes_cli/commands.py
+  description: CommandDef faster для сессии
+  old_block: "    CommandDef(\"steer\", \"Inject a message after the next tool call\
+    \ without interrupting\", \"Session\",\n               aliases=(\"s\",), args_hint=\"\
+    <prompt>\", busy_policy=\"dispatch\", busy_handler=\"steer\"),"
+  new_block: "    CommandDef(\"steer\", \"Inject a message after the next tool call\
+    \ without interrupting\", \"Session\",\n               aliases=(\"s\",), args_hint=\"\
+    <prompt>\", busy_policy=\"dispatch\", busy_handler=\"steer\"),\n    CommandDef(\"\
+    faster\", \"Accelerate the current task and active subagents (in-flight)\", \"\
+    Session\",\n               args_hint=\"[note]\", busy_policy=\"dispatch\", busy_handler=\"\
+    faster\"),"
+- file: gateway/run_busy.py
+  description: Регистрация /faster в _IDLE_COMMANDS
+  old_block: '        "approvals", "model", "codex-runtime", "personality", "suggestions",
+    "save", "retry",'
+  new_block: '        "approvals", "model", "codex-runtime", "personality", "suggestions",
+    "save", "retry", "faster",'
+- file: gateway/run_busy.py
+  description: Маршрутизация busy-хэндлера _busy_faster_command
+  old_block: "    # busy_handler key (hermes_cli/commands.py CommandDef) → mid-run\
+    \ variant ``_busy_<key>_command``.\n    _BUSY_SPECIAL_HANDLERS: dict[str, str]\
+    \ = {\n        k: f\"_busy_{k}_command\" for k in (\"start\", \"stop\", \"new\"\
+    , \"queue\", \"steer\", \"egress\", \"goal\", \"loop\")\n    }"
+  new_block: "    # busy_handler key (hermes_cli/commands.py CommandDef) → mid-run\
+    \ variant ``_busy_<key>_command``.\n    _BUSY_SPECIAL_HANDLERS: dict[str, str]\
+    \ = {\n        k: f\"_busy_{k}_command\" for k in (\"start\", \"stop\", \"new\"\
+    , \"queue\", \"steer\", \"faster\", \"egress\", \"goal\", \"loop\")\n    }"
+- file: gateway/run_busy.py
+  description: Устойчивая рассылка steer родительскому агенту и субагентам
+  old_block: "    def _steer_running_agent(self, running_agent: Any, text: str) ->\
+    \ bool:\n        \"\"\"``running_agent.steer(text)`` plus fan-out to its active\
+    \ subagents (see\n        :meth:`_steer_active_subagents`); True when the parent\
+    \ or any child queued it.\"\"\"\n        accepted = bool(running_agent.steer(text))\n\
+    \        return bool(self._steer_active_subagents(running_agent, text)) or accepted"
+  new_block: "    def _steer_running_agent(self, running_agent: Any, text: str) ->\
+    \ bool:\n        \"\"\"``running_agent.steer(text)`` plus fan-out to its active\
+    \ subagents (see\n        :meth:`_steer_active_subagents`); True when the parent\
+    \ or any child queued it.\"\"\"\n        accepted = False\n        try:\n    \
+    \        accepted = bool(running_agent.steer(text))\n        except Exception\
+    \ as exc:\n            logger.warning(\"Steering into parent agent failed: %s\"\
+    , exc)\n        children_steered = bool(self._steer_active_subagents(running_agent,\
+    \ text))\n        return children_steered or accepted"
+- file: gateway/run_busy.py
+  description: Хэндлер _busy_faster_command с лаконичным ответом и поиском фоновых
+    субагентов
+  old_block: "        target = (t(\"gateway.steer.target_subagents\") if self._agent_has_active_subagents(running_agent)\n\
+    \                  else t(\"gateway.steer.target_run\"))\n        return t(\"\
+    gateway.steer.queued\", target=target, preview=preview)"
+  new_block: "        target = (t(\"gateway.steer.target_subagents\") if self._agent_has_active_subagents(running_agent)\n\
+    \                  else t(\"gateway.steer.target_run\"))\n        return t(\"\
+    gateway.steer.queued\", target=target, preview=preview)\n\n    @staticmethod\n\
+    \    def _steer_session_subagents(session_id: str, session_key: str, text: str)\
+    \ -> int:\n        \"\"\"Steer any active subagent belonging to this session,\
+    \ whether synchronous or background.\"\"\"\n        from tools.delegate_tool_registry\
+    \ import _active_subagents, _active_subagents_lock\n        from tools.async_delegation\
+    \ import _records, _records_lock\n\n        active_deleg_ids = set()\n       \
+    \ with _records_lock:\n            for deleg_id, rec in _records.items():\n  \
+    \              if rec.get(\"status\") in {\"running\", \"dispatched\", \"pending\"\
+    }:\n                    rec_skey = rec.get(\"session_key\")\n                \
+    \    rec_orig = rec.get(\"origin_session_id\")\n                    rec_parent\
+    \ = rec.get(\"parent_session_id\")\n                    if (\n               \
+    \         (session_key and rec_skey == session_key)\n                        or\
+    \ (session_id and rec_orig == session_id)\n                        or (session_id\
+    \ and rec_parent == session_id)\n                    ):\n                    \
+    \    active_deleg_ids.add(deleg_id)\n\n        candidates = []\n        with _active_subagents_lock:\n\
+    \            for sid, rec in _active_subagents.items():\n                if rec.get(\"\
+    status\") != \"running\":\n                    continue\n                owner_sid\
+    \ = str(rec.get(\"owner_agent_session_id\") or \"\")\n                owner_sess\
+    \ = str(rec.get(\"owner_session_id\") or \"\")\n                rec_deleg_id =\
+    \ str(rec.get(\"delegation_id\") or \"\")\n\n                if (\n          \
+    \          (session_id and owner_sid == session_id)\n                    or (session_id\
+    \ and owner_sess == session_id)\n                    or (session_key and owner_sess\
+    \ == session_key)\n                    or (rec_deleg_id and rec_deleg_id in active_deleg_ids)\n\
+    \                ):\n                    agent = rec.get(\"agent\")\n        \
+    \            if agent is not None and hasattr(agent, \"steer\"):\n           \
+    \             candidates.append((sid, agent))\n\n        steered = 0\n       \
+    \ for sid, agent in candidates:\n            try:\n                if agent.steer(text):\n\
+    \                    steered += 1\n            except Exception as exc:\n    \
+    \            logger.warning(\"Steering subagent %s failed: %s\", sid, exc)\n \
+    \       return steered\n\n    async def _busy_faster_command(self, event: MessageEvent,\
+    \ quick_key: str, source):\n        \"\"\"Handle /faster mid-run — inject urgent\
+    \ wrap-up/acceleration directive into running agent and active subagents.\"\"\"\
+    \n        from gateway.run import _AGENT_PENDING_SENTINEL\n\n        note = (event.get_command_args()\
+    \ or \"\").strip()\n        user_note = f\"\\n\\nДОПОЛНИТЕЛЬНОЕ ТРЕБОВАНИЕ ПОЛЬЗОВАТЕЛЯ:\\\
+    n{note}\" if note else \"\"\n        faster_directive = (\n            \"[ТРЕБОВАНИЕ\
+    \ УСКОРЕНИЯ — FAST DIRECTIVE]\\n\"\n            \"Пользователь просит максимально\
+    \ ускориться: быстрее доделывать задачу и скорее выдавать готовый результат!\\\
+    n\\n\"\n            \"УКАЗАНИЯ ДЛЯ АГЕНТА И ВСЕХ СУБАГЕНТОВ:\\n\"\n          \
+    \  \"1. Не отвлекайтесь на второстепенные ветки, лишний рефакторинг и несвязанные\
+    \ проверки.\\n\"\n            \"2. Двигайтесь по прямому кратчайшему пути к решению\
+    \ поставленной задачи.\\n\"\n            \"3. Побыстрее доделывайте текущую работу\
+    \ и отдавайте готовый результат.\"\n            f\"{user_note}\"\n        )\n\n\
+    \        _state = self._peek_session_state(quick_key)\n        running_agent =\
+    \ _state.turn.agent if _state else None\n\n        if running_agent is _AGENT_PENDING_SENTINEL:\n\
+    \            return \"⏳ Агент только запускается — задача сразу выполняется на\
+    \ полной скорости.\"\n\n        session_entry = getattr(_state, \"entry\", None)\n\
+    \        session_id = getattr(session_entry, \"session_id\", \"\") or getattr(running_agent,\
+    \ \"session_id\", \"\")\n\n        steered_parent = False\n        if running_agent\
+    \ and hasattr(running_agent, \"steer\"):\n            steer_payload = faster_directive\n\
+    \            if hasattr(self, \"_steer_text_with_origin\") and callable(self._steer_text_with_origin):\n\
+    \                try:\n                    steer_payload = self._steer_text_with_origin(faster_directive,\
+    \ event)\n                except Exception as exc:\n                    logger.debug(\"\
+    Faster steer text origin resolution skipped: %s\", exc)\n                    steer_payload\
+    \ = faster_directive\n            try:\n                steered_parent = self._steer_running_agent(running_agent,\
+    \ steer_payload)\n            except Exception as exc:\n                logger.warning(\"\
+    Faster command steering failed for session %s: %s\", quick_key, exc)\n\n     \
+    \   steered_subagents = self._steer_session_subagents(session_id, quick_key, faster_directive)\n\
+    \n        if not (steered_parent or steered_subagents > 0):\n            return\
+    \ \"ℹ️ Сейчас нет активных запущенных задач.\"\n\n        note_line = f\"\\n•\
+    \ Указание: _{note}_\" if note else \"\"\n        return f\"⚡ **Работа ускорена.\
+    \ Скоро будет ответ!**{note_line}\""
+- file: gateway/slash_commands_session.py
+  description: Хэндлер _handle_faster_command для вызова в покое (idle subagents)
+  old_block: "    # ------------------------------------------------------------------\
+    \ /retry, /undo\n\n    async def _handle_retry_command(self, event: MessageEvent)\
+    \ -> str:"
+  new_block: "    # ---------------------------------------------------------------------\
+    \ /faster\n\n    async def _handle_faster_command(self, event: MessageEvent) ->\
+    \ str:\n        \"\"\"Handle /faster when idle (e.g. background subagents are\
+    \ executing).\"\"\"\n        source = event.source\n        session_store = getattr(self,\
+    \ \"async_session_store\", None)\n        session_entry = await session_store.get_or_create_session(source)\
+    \ if session_store else None\n        session_key = self._session_key_for_source(source)\
+    \ if hasattr(self, \"_session_key_for_source\") else getattr(source, \"session_key\"\
+    , \"\")\n        session_id = getattr(session_entry, \"session_id\", \"\") if\
+    \ session_entry else \"\"\n\n        note = (event.get_command_args() or \"\"\
+    ).strip()\n        user_note = f\"\\n\\nДОПОЛНИТЕЛЬНОЕ ТРЕБОВАНИЕ ПОЛЬЗОВАТЕЛЯ:\\\
+    n{note}\" if note else \"\"\n        faster_directive = (\n            \"[ТРЕБОВАНИЕ\
+    \ УСКОРЕНИЯ — FAST DIRECTIVE]\\n\"\n            \"Пользователь просит максимально\
+    \ ускориться: быстрее доделывать задачу и скорее выдавать готовый результат!\\\
+    n\\n\"\n            \"УКАЗАНИЯ ДЛЯ АГЕНТА И ВСЕХ СУБАГЕНТОВ:\\n\"\n          \
+    \  \"1. Не отвлекайтесь на второстепенные ветки, лишний рефакторинг и несвязанные\
+    \ проверки.\\n\"\n            \"2. Двигайтесь по прямому кратчайшему пути к решению\
+    \ поставленной задачи.\\n\"\n            \"3. Побыстрее доделывайте текущую работу\
+    \ и отдавайте готовый результат.\"\n            f\"{user_note}\"\n        )\n\n\
+    \        from gateway.run_busy import GatewayBusySessionMixin\n        steered\
+    \ = GatewayBusySessionMixin._steer_session_subagents(session_id, session_key,\
+    \ faster_directive)\n        if steered > 0:\n            note_line = f\"\\n•\
+    \ Указание: _{note}_\" if note else \"\"\n            return f\"⚡ **Работа ускорена.\
+    \ Скоро будет ответ!**{note_line}\"\n        return \"ℹ️ Сейчас нет активных запущенных\
+    \ задач.\"\n\n    # ------------------------------------------------------------------\
+    \ /retry, /undo\n\n    async def _handle_retry_command(self, event: MessageEvent)\
+    \ -> str:"
+- file: agent/turn_finalizer.py
+  description: Исключение директивы ускорения /faster из pending_steer при завершении
+    хода (защита от дублей)
+  old_block: "    # A /steer landing after the final assistant turn has no tool batch\
+    \ to drain into;\n    # hand it back so it becomes the next user turn instead\
+    \ of being lost. A gateway transfer\n    # (ticketed) stays buffered: the claim's\
+    \ settlement returns it to its own queue place.\n    _leftover_steer = (getattr(agent,\
+    \ \"_drain_leftover_steer\", None) or agent._drain_pending_steer)()\n    if _leftover_steer:\n\
+    \        result[\"pending_steer\"] = _leftover_steer"
+  new_block: "    # A /steer landing after the final assistant turn has no tool batch\
+    \ to drain into;\n    # hand it back so it becomes the next user turn instead\
+    \ of being lost. A gateway transfer\n    # (ticketed) stays buffered: the claim's\
+    \ settlement returns it to its own queue place.\n    # Ephemeral faster directives\
+    \ are ONLY for in-flight acceleration and must NEVER spawn a new ghost turn.\n\
+    \    _leftover_steer = (getattr(agent, \"_drain_leftover_steer\", None) or agent._drain_pending_steer)()\n\
+    \    if _leftover_steer:\n        if \"[FAST DIRECTIVE]\" in _leftover_steer or\
+    \ \"[ТРЕБОВАНИЕ УСКОРЕНИЯ\" in _leftover_steer:\n            logger.debug(\"Discarding\
+    \ leftover ephemeral faster directive on turn finish: %s\", _leftover_steer[:60])\n\
+    \        else:\n            result[\"pending_steer\"] = _leftover_steer"
+- file: gateway/run_busy.py
+  description: Сброс эфемерных директив /faster перед запуском следующего хода (защита
+    от повторного ответа)
+  old_block: "        leftover_steer = (result.get(\"pending_steer\") or \"\").strip()\
+    \ if result else None\n        if leftover_steer:"
+  new_block: "        leftover_steer = (result.get(\"pending_steer\") or \"\").strip()\
+    \ if result else None\n        if leftover_steer and (\"[FAST DIRECTIVE]\" in\
+    \ leftover_steer or \"[ТРЕБОВАНИЕ УСКОРЕНИЯ\" in leftover_steer):\n          \
+    \  logger.info(\"Dropping leftover ephemeral faster directive to prevent duplicate\
+    \ turn\")\n            leftover_steer = None\n        if leftover_steer:"
+- file: hermes_cli/cli_info_mixin.py
+  description: Поддержка inline-перехвата /faster во время работы агента в CLI
+  old_block: '        return self._busy_inline_command(text, has_images, ("steer",
+    "queue"))'
+  new_block: '        return self._busy_inline_command(text, has_images, ("steer",
+    "queue", "faster"))'
+- file: hermes_cli/cli_loops_mixin.py
+  description: Реализация команды _cmd_faster в CLI для мгновенного ускорения
+  old_block: "        else:\n            self._pending_input.put(payload)\n      \
+    \      _cprint(f\"  {t('cli.steer.no_agent_queued', preview=_preview(payload))}\"\
+    )"
+  new_block: "        else:\n            self._pending_input.put(payload)\n      \
+    \      _cprint(f\"  {t('cli.steer.no_agent_queued', preview=_preview(payload))}\"\
+    )\n\n    def _cmd_faster(self, cmd_original: str):\n        from cli import _cprint,\
+    \ _slash_args\n        note = _slash_args(cmd_original).strip()\n        user_note\
+    \ = f\"\\n\\nДОПОЛНИТЕЛЬНОЕ ТРЕБОВАНИЕ ПОЛЬЗОВАТЕЛЯ:\\n{note}\" if note else \"\
+    \"\n        faster_directive = (\n            \"[ТРЕБОВАНИЕ УСКОРЕНИЯ — FAST DIRECTIVE]\\\
+    n\"\n            \"Пользователь просит максимально ускориться: быстрее доделывать\
+    \ задачу и скорее выдавать готовый результат!\\n\\n\"\n            \"УКАЗАНИЯ\
+    \ ДЛЯ АГЕНТА И ВСЕХ СУБАГЕНТОВ:\\n\"\n            \"1. Не отвлекайтесь на второстепенные\
+    \ ветки, лишний рефакторинг и несвязанные проверки.\\n\"\n            \"2. Двигайтесь\
+    \ по прямому кратчайшему пути к решению поставленной задачи.\\n\"\n          \
+    \  \"3. Побыстрее доделывайте текущую работу и отдавайте готовый результат.\"\n\
+    \            f\"{user_note}\"\n        )\n        steered = False\n        if\
+    \ self._agent_running and self.agent is not None and hasattr(self.agent, \"steer\"\
+    ):\n            try:\n                steered = bool(self.agent.steer(faster_directive))\n\
+    \            except Exception as exc:\n                _cprint(f\"  [red]Ошибка\
+    \ ускорения: {exc}[/]\")\n        steered_sub = 0\n        try:\n            from\
+    \ gateway.run_busy import GatewayBusySessionMixin\n            sid = str(getattr(self.agent,\
+    \ \"session_id\", None) or getattr(self, \"session_id\", \"\") or \"\")\n    \
+    \        skey = str(getattr(self, \"session_id\", \"\") or \"\")\n           \
+    \ steered_sub = GatewayBusySessionMixin._steer_session_subagents(sid, skey, faster_directive)\n\
+    \        except Exception:\n            pass\n        if steered or steered_sub\
+    \ > 0:\n            note_line = f\"\\n• Указание: {note}\" if note else \"\"\n\
+    \            _cprint(f\"  [bold green]⚡ Работа ускорена. Скоро будет ответ![/]{note_line}\"\
+    )\n        else:\n            _cprint(\"  [dim]ℹ️ Сейчас нет активных запущенных\
+    \ задач.[/]\")\n\n    _handle_faster_command = _cmd_faster"
+- file: tui_gateway/methods_slash.py
+  description: define-format-live-faster-output
+  old_block: '    return str(response.get("result", {}).get("output") or "")'
+  new_block: "    return str(response.get(\"result\", {}).get(\"output\") or \"\"\
+    )\n\n\ndef _format_live_faster_output(sid: str, session: Optional[dict], arg:\
+    \ str) -> str:\n    \"\"\"Accelerate running agent and subagents in the live desktop/TUI\
+    \ session.\"\"\"\n    note = (arg or \"\").strip()\n    user_note = f\"\\n\\nДОПОЛНИТЕЛЬНОЕ\
+    \ ТРЕБОВАНИЕ ПОЛЬЗОВАТЕЛЯ:\\n{note}\" if note else \"\"\n    faster_directive\
+    \ = (\n        \"[ТРЕБОВАНИЕ УСКОРЕНИЯ — FAST DIRECTIVE]\\n\"\n        \"Пользователь\
+    \ просит максимально ускориться: быстрее доделывать задачу и скорее выдавать готовый\
+    \ результат!\\n\\n\"\n        \"УКАЗАНИЯ ДЛЯ АГЕНТА И ВСЕХ СУБАГЕНТОВ:\\n\"\n\
+    \        \"1. Не отвлекайтесь на второстепенные ветки, лишний рефакторинг и несвязанные\
+    \ проверки.\\n\"\n        \"2. Двигайтесь по прямому кратчайшему пути к решению\
+    \ поставленной задачи.\\n\"\n        \"3. Побыстрее доделывайте текущую работу\
+    \ и отдавайте готовый результат.\"\n        f\"{user_note}\"\n    )\n    steered\
+    \ = False\n    agent = session.get(\"agent\") if session else None\n    if agent\
+    \ is not None and hasattr(agent, \"steer\"):\n        try:\n            steered\
+    \ = bool(agent.steer(faster_directive))\n        except Exception as exc:\n  \
+    \          logger.warning(\"Desktop live /faster steering failed: %s\", exc)\n\
+    \n    steered_sub = 0\n    try:\n        from gateway.run_busy import GatewayBusySessionMixin\n\
+    \        sess_id = str((session.get(\"session_id\") if session else None) or sid\
+    \ or \"\")\n        sess_key = str((session.get(\"session_key\") if session else\
+    \ None) or \"\")\n        steered_sub = GatewayBusySessionMixin._steer_session_subagents(sess_id,\
+    \ sess_key, faster_directive)\n    except Exception:\n        pass\n\n    if steered\
+    \ or steered_sub > 0:\n        note_line = f\"\\n• Указание: _{note}_\" if note\
+    \ else \"\"\n        return f\"⚡ **Работа ускорена. Скоро будет ответ!**{note_line}\"\
+    \n    return \"ℹ️ Сейчас нет активных запущенных задач.\""
+- file: tui_gateway/methods_slash.py
+  description: register-faster-in-live-slash-output
+  old_block: _LIVE_SLASH_OUTPUT = {
+  new_block: "_LIVE_SLASH_OUTPUT = {\n    \"faster\": (None, _format_live_faster_output),"
+tests:
+  test_command_faster_registry: 'from hermes_cli.commands import COMMAND_REGISTRY,
+    resolve_command
+
+    cmd = resolve_command("faster")
+
+    assert cmd is not None, "/faster command must be registered"
+
+    assert cmd.name == "faster"
+
+    assert cmd.busy_policy == "dispatch"
+
+    assert cmd.busy_handler == "faster"
+
+    '
+  test_gateway_run_busy_faster_support: 'from gateway.run_busy import GatewayBusySessionMixin
+
+    assert "faster" in GatewayBusySessionMixin._BUSY_SPECIAL_HANDLERS
+
+    assert hasattr(GatewayBusySessionMixin, "_busy_faster_command")
+
+    '
+i18n:
+  en:
+    name: Command Faster
+    description: 'Command /faster: instant acceleration of the current task and active
+      subagents (in-flight and background) with duplicate protection'
+    slash:
+      faster:
+        description: Accelerate execution of current task and active subagents (while
+          in-flight)
+  ru:
+    name: Command Faster
+    description: 'Команда /faster: мгновенное ускорение текущей задачи и активных
+      субагентов (во время работы и в фоне) с защитой от дублирования ответов'
+    slash:
+      faster:
+        description: Ускорить выполнение текущей задачи и активных субагентов (во
+          время работы)
+  es:
+    name: Command Faster
+    description: 'Comando /faster: aceleración instantánea de la tarea actual y subagentes
+      activos (en ejecución y en segundo plano) con protección contra duplicados'
+    slash:
+      faster:
+        description: Acelerar la ejecución de la tarea actual y subagentes activos
+          (en curso)
+  fr:
+    name: Command Faster
+    description: 'Commande /faster : accélération instantanée de la tâche en cours
+      et des sous-agents actifs (en vol et en arrière-plan) avec protection contre
+      les doublons'
+    slash:
+      faster:
+        description: Accélérer l'exécution de la tâche en cours et des sous-agents
+          actifs (en cours d'exécution)
+  zh:
+    name: Command Faster
+    description: 命令 /faster：即时加速当前任务及活跃子Agent（运行中及后台），并防止重复回复
+    slash:
+      faster:
+        description: 加速当前任务及活跃子Agent的执行（运行中）
+  ar:
+    name: Command Faster
+    description: 'أمر /faster: تسريع فوري للمهمة الحالية والوكلاء الفرعيين النشطين
+      (أثناء العمل وفي الخلفية) مع حماية ضد التكرار'
+    slash:
+      faster:
+        description: تسريع تنفيذ المهمة الحالية والوكلاء الفرعيين النشطين (أثناء العمل)
+  de:
+    name: Command Faster
+    description: 'Befehl /faster: sofortige Beschleunigung der aktuellen Aufgabe und
+      aktiver Subagenten (laufend und im Hintergrund) mit Schutz vor Duplikaten'
+    slash:
+      faster:
+        description: Ausführung der aktuellen Aufgabe und aktiver Subagenten beschleunigen
+          (während der Laufzeit)
+  pt:
+    name: Command Faster
+    description: 'Comando /faster: aceleração instantânea da tarefa atual e subagentes
+      ativos (em andamento e em segundo plano) com proteção contra duplicações'
+    slash:
+      faster:
+        description: Acelerar a execução da tarefa atual e subagentes ativos (em andamento)

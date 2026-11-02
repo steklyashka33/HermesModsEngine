@@ -1,0 +1,3 @@
+name: Serveurs MCP déclaratifs dans Hermes Mods
+description: Intégration déclarative de serveurs MCP dans les manifestes de mods avec
+  interpolation de variables et pont transparent vers le runtime

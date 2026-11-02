@@ -1,0 +1,2612 @@
+{
+  "command-close": {
+    "en": {
+      "name": "Command Close",
+      "description": "Command /close and /topic close for closing Telegram topics and safe session archiving"
+    },
+    "ru": {
+      "name": "Command Close",
+      "description": "Команда /close и /topic close для закрытия топиков Telegram и безопасной архивации сессий"
+    },
+    "es": {
+      "name": "Command Close",
+      "description": "Comando /close y /topic close para cerrar temas de Telegram y archivar sesiones de forma segura"
+    },
+    "fr": {
+      "name": "Command Close",
+      "description": "Commande /close et /topic close pour fermer les sujets Telegram et archiver les sessions en toute sécurité"
+    },
+    "zh": {
+      "name": "Command Close",
+      "description": "用于关闭Telegram话题和安全归档会话的命令 /close 和 /topic close"
+    },
+    "ar": {
+      "name": "Command Close",
+      "description": "أمر /close و/topic close لإغلاق مواضيع تيليجرام وأرشفة الجلسات بأمان"
+    },
+    "de": {
+      "name": "Command Close",
+      "description": "Befehl /close und /topic close zum Schließen von Telegram-Themen und sicheren Archivieren von Sitzungen"
+    },
+    "pt": {
+      "name": "Command Close",
+      "description": "Comando /close e /topic close para fechar tópicos do Telegram e arquivar sessões com segurança"
+    }
+  },
+  "command-control": {
+    "en": {
+      "name": "Command Control",
+      "description": "Telegram command menu management (whitelist, blacklist) and low-latency mod commands connection",
+      "config": {
+        "blacklist": {
+          "title": "Menu Blacklist",
+          "description": "List of commands hidden exclusively from Telegram menu"
+        },
+        "whitelist": {
+          "title": "Menu Whitelist",
+          "description": "List of commands placed into Telegram menu with top priority (Tier 0)"
+        }
+      }
+    },
+    "ru": {
+      "name": "Command Control",
+      "description": "Управление меню Telegram (whitelist, blacklist) и подключение команд модов в меню Telegram с низким latency",
+      "config": {
+        "blacklist": {
+          "title": "Черный список меню",
+          "description": "Список команд, скрываемых только из меню Telegram"
+        },
+        "whitelist": {
+          "title": "Белый список меню",
+          "description": "Список команд, которые в первую очередь (Tier 0) попадают в меню Telegram"
+        }
+      }
+    },
+    "es": {
+      "name": "Command Control",
+      "description": "Gestión del menú de comandos de Telegram (lista blanca, lista negra) y conexión de comandos de mods de baja latencia",
+      "config": {
+        "blacklist": {
+          "title": "Lista negra del menú",
+          "description": "Lista de comandos ocultos únicamente del menú de Telegram"
+        },
+        "whitelist": {
+          "title": "Lista blanca del menú",
+          "description": "Lista de comandos que ingresan prioritariamente (Tier 0) al menú de Telegram"
+        }
+      }
+    },
+    "fr": {
+      "name": "Command Control",
+      "description": "Gestion du menu de commandes Telegram (liste blanche, liste noire) et intégration à faible latence des commandes de mods",
+      "config": {
+        "blacklist": {
+          "title": "Liste noire du menu",
+          "description": "Liste des commandes masquées uniquement du menu Telegram"
+        },
+        "whitelist": {
+          "title": "Liste blanche du menu",
+          "description": "Liste des commandes prioritaires (Tier 0) ajoutées au menu Telegram"
+        }
+      }
+    },
+    "zh": {
+      "name": "Command Control",
+      "description": "Telegram命令菜单管理（白名单、黑名单）与低延迟Mod命令连接",
+      "config": {
+        "blacklist": {
+          "title": "菜单黑名单",
+          "description": "仅在Telegram菜单中隐藏的命令列表"
+        },
+        "whitelist": {
+          "title": "菜单白名单",
+          "description": "优先（Tier 0）进入Telegram菜单的命令列表"
+        }
+      }
+    },
+    "ar": {
+      "name": "Command Control",
+      "description": "إدارة قائمة أوامر تيليجرام (القائمة البيضاء، القائمة السوداء) وتوصيل أوامر التعديلات بزمن انتقال منخفض",
+      "config": {
+        "blacklist": {
+          "title": "القائمة السوداء للقائمة",
+          "description": "قائمة الأوامر المخفية فقط من قائمة تيليجرام"
+        },
+        "whitelist": {
+          "title": "القائمة البيضاء للقائمة",
+          "description": "قائمة الأوامر التي تدخل في المقام الأول (Tier 0) إلى قائمة تيليجرام"
+        }
+      }
+    },
+    "de": {
+      "name": "Command Control",
+      "description": "Telegram-Befehlsmenü-Verwaltung (Whitelist, Blacklist) und Mod-Befehlsanbindung mit geringer Latenz",
+      "config": {
+        "blacklist": {
+          "title": "Menü-Blacklist",
+          "description": "Liste von Befehlen, die nur im Telegram-Menü ausgeblendet werden"
+        },
+        "whitelist": {
+          "title": "Menü-Whitelist",
+          "description": "Liste von Befehlen, die vorrangig (Tier 0) in das Telegram-Menü aufgenommen werden"
+        }
+      }
+    },
+    "pt": {
+      "name": "Command Control",
+      "description": "Gerenciamento do menu de comandos do Telegram (whitelist, blacklist) e conexão de comandos de mods de baixa latência",
+      "config": {
+        "blacklist": {
+          "title": "Lista negra do menu",
+          "description": "Lista de comandos ocultos apenas do menu do Telegram"
+        },
+        "whitelist": {
+          "title": "Lista branca do menu",
+          "description": "Lista de comandos adicionados prioritariamente (Tier 0) ao menu do Telegram"
+        }
+      }
+    }
+  },
+  "command-faster": {
+    "en": {
+      "name": "Command Faster",
+      "description": "Command /faster: instant acceleration of the current task and active subagents (in-flight and background) with duplicate protection",
+      "slash": {
+        "faster": {
+          "description": "Accelerate execution of current task and active subagents (while in-flight)"
+        }
+      }
+    },
+    "ru": {
+      "name": "Command Faster",
+      "description": "Команда /faster: мгновенное ускорение текущей задачи и активных субагентов (во время работы и в фоне) с защитой от дублирования ответов",
+      "slash": {
+        "faster": {
+          "description": "Ускорить выполнение текущей задачи и активных субагентов (во время работы)"
+        }
+      }
+    },
+    "es": {
+      "name": "Command Faster",
+      "description": "Comando /faster: aceleración instantánea de la tarea actual y subagentes activos (en ejecución y en segundo plano) con protección contra duplicados",
+      "slash": {
+        "faster": {
+          "description": "Acelerar la ejecución de la tarea actual y subagentes activos (en curso)"
+        }
+      }
+    },
+    "fr": {
+      "name": "Command Faster",
+      "description": "Commande /faster : accélération instantanée de la tâche en cours et des sous-agents actifs (en vol et en arrière-plan) avec protection contre les doublons",
+      "slash": {
+        "faster": {
+          "description": "Accélérer l'exécution de la tâche en cours et des sous-agents actifs (en cours d'exécution)"
+        }
+      }
+    },
+    "zh": {
+      "name": "Command Faster",
+      "description": "命令 /faster：即时加速当前任务及活跃子Agent（运行中及后台），并防止重复回复",
+      "slash": {
+        "faster": {
+          "description": "加速当前任务及活跃子Agent的执行（运行中）"
+        }
+      }
+    },
+    "ar": {
+      "name": "Command Faster",
+      "description": "أمر /faster: تسريع فوري للمهمة الحالية والوكلاء الفرعيين النشطين (أثناء العمل وفي الخلفية) مع حماية ضد التكرار",
+      "slash": {
+        "faster": {
+          "description": "تسريع تنفيذ المهمة الحالية والوكلاء الفرعيين النشطين (أثناء العمل)"
+        }
+      }
+    },
+    "de": {
+      "name": "Command Faster",
+      "description": "Befehl /faster: sofortige Beschleunigung der aktuellen Aufgabe und aktiver Subagenten (laufend und im Hintergrund) mit Schutz vor Duplikaten",
+      "slash": {
+        "faster": {
+          "description": "Ausführung der aktuellen Aufgabe und aktiver Subagenten beschleunigen (während der Laufzeit)"
+        }
+      }
+    },
+    "pt": {
+      "name": "Command Faster",
+      "description": "Comando /faster: aceleração instantânea da tarefa atual e subagentes ativos (em andamento e em segundo plano) com proteção contra duplicações",
+      "slash": {
+        "faster": {
+          "description": "Acelerar a execução da tarefa atual e subagentes ativos (em andamento)"
+        }
+      }
+    }
+  },
+  "command-queue": {
+    "en": {
+      "name": "Command Queue Next",
+      "description": "Extension for the /queue command: /queue next mode to queue the next message (text or voice STT) without interrupting the active task",
+      "slash": {
+        "queue": {
+          "description": "Queue prompt for next turn (/queue next for next incoming message) or list/clear"
+        }
+      }
+    },
+    "ru": {
+      "name": "Command Queue Next",
+      "description": "Расширение команды /queue: режим /queue next для гарантированной отправки следующего сообщения (текст или голосовое STT) в очередь без прерывания текущей задачи",
+      "slash": {
+        "queue": {
+          "description": "Поставить промпт в очередь на следующий ход (/queue next для следующего сообщения) или list/clear"
+        }
+      }
+    },
+    "es": {
+      "name": "Command Queue Next",
+      "description": "Extensión del comando /queue: modo /queue next para poner en cola el siguiente mensaje (texto o voz STT) sin interrumpir la tarea activa",
+      "slash": {
+        "queue": {
+          "description": "Poner un prompt en cola para el siguiente turno (/queue next para el siguiente mensaje) o list/clear"
+        }
+      }
+    },
+    "fr": {
+      "name": "Command Queue Next",
+      "description": "Extension de la commande /queue : mode /queue next pour mettre en file d'attente le prochain message (texte ou voix STT) sans interrompre la tâche active",
+      "slash": {
+        "queue": {
+          "description": "Mettre un prompt en file d'attente pour le prochain tour (/queue next pour le prochain message) ou list/clear"
+        }
+      }
+    },
+    "zh": {
+      "name": "Command Queue Next",
+      "description": "扩展 /queue 命令：/queue next 模式可将下一条消息（文本或语音STT）加入队列而不打断当前活动任务",
+      "slash": {
+        "queue": {
+          "description": "将提示词排入下一轮执行队列（/queue next 用于下一条消息）或 list/clear"
+        }
+      }
+    },
+    "ar": {
+      "name": "Command Queue Next",
+      "description": "توسيع أمر /queue: وضع /queue next لإدراج الرسالة التالية (نص أو صوت STT) في قائمة الانتظار دون مقاطعة المهمة النشطة",
+      "slash": {
+        "queue": {
+          "description": "وضع التوجيه في قائمة الانتظار للدور التالي (/queue next للرسالة التالية) أو list/clear"
+        }
+      }
+    },
+    "de": {
+      "name": "Command Queue Next",
+      "description": "Erweiterung für den /queue-Befehl: /queue next-Modus zum Einreihen der nächsten Nachricht (Text oder Sprach-STT) ohne Unterbrechung der aktiven Aufgabe",
+      "slash": {
+        "queue": {
+          "description": "Prompt für den nächsten Zug in die Warteschlange einreihen (/queue next für die nächste Nachricht) oder list/clear"
+        }
+      }
+    },
+    "pt": {
+      "name": "Command Queue Next",
+      "description": "Extensão para o comando /queue: modo /queue next para enfileirar a próxima mensagem (texto ou voz STT) sem interromper a tarefa ativa",
+      "slash": {
+        "queue": {
+          "description": "Colocar prompt na fila para o próximo turno (/queue next para a próxima mensagem) ou list/clear"
+        }
+      }
+    }
+  },
+  "command-role": {
+    "en": {
+      "name": "Command Role",
+      "description": "Command /role (alias: /instruct) for uncompressible session instructions, rules, and system role",
+      "slash": {
+        "role": {
+          "description": "Set session role or persistent instructions"
+        }
+      }
+    },
+    "ru": {
+      "name": "Command Role",
+      "description": "Команда /role (алиас: /instruct) для несжимаемых сессионных установок, правил и роли агента",
+      "slash": {
+        "role": {
+          "description": "Задать роль сессии"
+        }
+      }
+    },
+    "es": {
+      "name": "Command Role",
+      "description": "Comando /role (alias: /instruct) para instrucciones de sesión no comprimibles, reglas y rol del sistema",
+      "slash": {
+        "role": {
+          "description": "Definir el rol de la sesión"
+        }
+      }
+    },
+    "fr": {
+      "name": "Command Role",
+      "description": "Commande /role (alias : /instruct) pour instructions de session incompressibles, règles et rôle système",
+      "slash": {
+        "role": {
+          "description": "Définir le rôle de la session"
+        }
+      }
+    },
+    "zh": {
+      "name": "Command Role",
+      "description": "命令 /role（别名：/instruct）用于不可压缩的会话指令、规则及系统角色设定",
+      "slash": {
+        "role": {
+          "description": "设定会话角色"
+        }
+      }
+    },
+    "ar": {
+      "name": "Command Role",
+      "description": "أمر /role (الاسم المستعار: /instruct) لتعليمات الجلسة غير القابلة للضغط والقواعد ودور النظام",
+      "slash": {
+        "role": {
+          "description": "تحديد دور الجلسة"
+        }
+      }
+    },
+    "de": {
+      "name": "Command Role",
+      "description": "Befehl /role (Alias: /instruct) für nicht komprimierbare Sitzungsanweisungen, Regeln und Systemrolle",
+      "slash": {
+        "role": {
+          "description": "Sitzungsrolle festlegen"
+        }
+      }
+    },
+    "pt": {
+      "name": "Command Role",
+      "description": "Comando /role (alias: /instruct) para instruções de sessão incompressíveis, regras e papel do sistema",
+      "slash": {
+        "role": {
+          "description": "Definir o papel da sessão"
+        }
+      }
+    }
+  },
+  "command-unlimited": {
+    "en": {
+      "name": "Command Unlimited",
+      "description": "Command /unlimited [on|off|status]: remove turn and subagent iteration limits with global session tree counting and config.yaml tuning",
+      "slash": {
+        "unlimited": {
+          "description": "Enable or disable unlimited mode for the active session (agent and subagent turn limits)"
+        }
+      }
+    },
+    "ru": {
+      "name": "Command Unlimited",
+      "description": "Команда /unlimited [on|off|status]: снятие ограничений итераций агента и субагентов",
+      "slash": {
+        "unlimited": {
+          "description": "Включить или выключить режим без ограничений для текущей сессии (итерации агента и субагентов)"
+        }
+      }
+    },
+    "es": {
+      "name": "Command Unlimited",
+      "description": "Comando /unlimited [on|off|status]: eliminación de límites de iteración del agente y subagentes con recuento global del árbol de sesiones y ajustes en config.yaml",
+      "slash": {
+        "unlimited": {
+          "description": "Activar o desactivar el modo ilimitado para la sesión actual (iteraciones de agente y subagentes)"
+        }
+      }
+    },
+    "fr": {
+      "name": "Command Unlimited",
+      "description": "Commande /unlimited [on|off|status] : suppression des limites d'itérations de l'agent et des sous-agents avec comptage global de l'arbre de session et réglage de config.yaml",
+      "slash": {
+        "unlimited": {
+          "description": "Activer ou désactiver le mode sans limites pour la session active (itérations de l'agent et des sous-agents)"
+        }
+      }
+    },
+    "zh": {
+      "name": "Command Unlimited",
+      "description": "命令 /unlimited [on|off|status]：解除Agent与子Agent迭代轮数限制，支持全局会话树计数与config.yaml调优",
+      "slash": {
+        "unlimited": {
+          "description": "为当前会话启用或禁用无限制模式（Agent与子Agent迭代）"
+        }
+      }
+    },
+    "ar": {
+      "name": "Command Unlimited",
+      "description": "أمر /unlimited [on|off|status]: إزالة حدود تكرار الوكيل والوكلاء الفرعيين مع عد شجرة الجلسة الشاملة وضبط config.yaml",
+      "slash": {
+        "unlimited": {
+          "description": "تفعيل أو تعطيل الوضع غير المحدود للجلسة الحالية (تكرارات الوكيل والوكلاء الفرعيين)"
+        }
+      }
+    },
+    "de": {
+      "name": "Command Unlimited",
+      "description": "Befehl /unlimited [on|off|status]: Aufhebung von Runden- und Subagenten-Iterationslimits mit globaler Sitzungsbaum-Zählung und config.yaml-Anpassung",
+      "slash": {
+        "unlimited": {
+          "description": "Unbegrenzten Modus für die aktuelle Sitzung ein- oder ausschalten (Agent- und Subagenten-Iterationen)"
+        }
+      }
+    },
+    "pt": {
+      "name": "Command Unlimited",
+      "description": "Comando /unlimited [on|off|status]: remoção de limites de iterações do agente e subagentes com contagem global da árvore de sessões e ajuste no config.yaml",
+      "slash": {
+        "unlimited": {
+          "description": "Ativar ou desativar o modo ilimitado para a sessão atual (iterações do agente e subagentes)"
+        }
+      }
+    }
+  },
+  "core-tools-enhancements": {
+    "en": {
+      "name": "Core Tools Enhancements",
+      "description": "Comprehensive core tools enhancements: literal flag -F in search_files, atomic write_file, safe error handling in browser_vision and vision_analyze"
+    },
+    "ru": {
+      "name": "Core Tools Enhancements",
+      "description": "Комплексные улучшения инструментов ядра: точный поиск (literal flag -F в search_files), атомарное сохранение write_file, обработка ошибок в browser_vision и vision_analyze"
+    },
+    "es": {
+      "name": "Core Tools Enhancements",
+      "description": "Mejoras integrales en herramientas principales: indicador literal -F en search_files, guardado atómico en write_file y gestión segura de errores en browser_vision y vision_analyze"
+    },
+    "fr": {
+      "name": "Core Tools Enhancements",
+      "description": "Améliorations complètes des outils principaux : indicateur littéral -F dans search_files, écriture atomique dans write_file et gestion sécurisée des erreurs dans browser_vision et vision_analyze"
+    },
+    "zh": {
+      "name": "Core Tools Enhancements",
+      "description": "核心工具综合增强：search_files支持字面量匹配参数 -F、write_file原子写入以及browser_vision和vision_analyze的安全错误处理"
+    },
+    "ar": {
+      "name": "Core Tools Enhancements",
+      "description": "تحسينات شاملة لأدوات النواة: علامة الحرفية -F في search_files، وحفظ ذري في write_file، ومعالجة آمنة للأخطاء في browser_vision وvision_analyze"
+    },
+    "de": {
+      "name": "Core Tools Enhancements",
+      "description": "Umfassende Verbesserungen der Core-Tools: Literales Flag -F in search_files, atomare Speicherung in write_file und sichere Fehlerbehandlung in browser_vision und vision_analyze"
+    },
+    "pt": {
+      "name": "Core Tools Enhancements",
+      "description": "Aprimoramentos abrangentes das ferramentas principais: flag literal -F em search_files, gravação atômica em write_file e tratamento seguro de erros em browser_vision e vision_analyze"
+    }
+  },
+  "cron-enhancements": {
+    "en": {
+      "name": "Cron Subsystem Enhancements",
+      "description": "Isolation of cron task MCP servers by allowlist (mcp- prefix fix) and clean delivery with provider snapshot"
+    },
+    "ru": {
+      "name": "Cron Subsystem Enhancements",
+      "description": "Изоляция MCP-серверов задач cron по allowlist (mcp- prefix fix) и чистая доставка со снимком провайдера"
+    },
+    "es": {
+      "name": "Cron Subsystem Enhancements",
+      "description": "Aislamiento de servidores MCP para tareas cron mediante lista blanca (corrección del prefijo mcp-) y entrega limpia con instantánea del proveedor"
+    },
+    "fr": {
+      "name": "Cron Subsystem Enhancements",
+      "description": "Isolation des serveurs MCP des tâches cron par liste blanche (correction du préfixe mcp-) et remise propre avec capture de fournisseur"
+    },
+    "zh": {
+      "name": "Cron Subsystem Enhancements",
+      "description": "通过白名单隔离定时任务Cron的MCP服务器（修复mcp-前缀），并通过提供商快照实现纯净交付"
+    },
+    "ar": {
+      "name": "Cron Subsystem Enhancements",
+      "description": "عزل خوادم MCP لمهام cron بواسطة القائمة البيضاء (إصلاح بادئة mcp-) والتسليم النظيف مع لقطة الموفر"
+    },
+    "de": {
+      "name": "Cron Subsystem Enhancements",
+      "description": "Isolation von Cron-Aufgaben-MCP-Servern per Allowlist (mcp- Präfix-Korrektur) und saubere Zustellung mit Anbieter-Snapshot"
+    },
+    "pt": {
+      "name": "Cron Subsystem Enhancements",
+      "description": "Isolamento de servidores MCP de tarefas cron por lista de permissões (correção do prefixo mcp-) e entrega limpa com snapshot do provedor"
+    }
+  },
+  "gateway-busy-queue-sender-isolation": {
+    "en": {
+      "name": "Gateway Busy Queue Sender Isolation",
+      "description": "Isolate photo burst and follow-up merges by sender ID in busy session queue (PR #142102)"
+    },
+    "ru": {
+      "name": "Gateway Busy Queue Sender Isolation",
+      "description": "Изоляция очередей сессий и объединения батчей фото по ID отправителя"
+    },
+    "es": {
+      "name": "Gateway Busy Queue Sender Isolation",
+      "description": "Aislamiento de colas de sesión y fusión de ráfagas de fotos por ID de remitente en la cola de sesiones ocupadas (PR #142102)"
+    },
+    "fr": {
+      "name": "Gateway Busy Queue Sender Isolation",
+      "description": "Isolation des files d'attente de session et fusion de rafales de photos par identifiant d'expéditeur en file d'attente occupée (PR #142102)"
+    },
+    "zh": {
+      "name": "Gateway Busy Queue Sender Isolation",
+      "description": "在忙碌会话队列中按发送者ID隔离会话队列与连拍照片合并（PR #142102）"
+    },
+    "ar": {
+      "name": "Gateway Busy Queue Sender Isolation",
+      "description": "عزل قوائم انتظار الجلسات ودمج حزم الصور حسب معرّف المرسل في قائمة انتظار الجلسات المزدحمة (PR #142102)"
+    },
+    "de": {
+      "name": "Gateway Busy Queue Sender Isolation",
+      "description": "Trennung von Sitzungswarteschlangen und Foto-Burst-Zusammenführungen nach Absender-ID in der Gateway-Auslastungswarteschlange (PR #142102)"
+    },
+    "pt": {
+      "name": "Gateway Busy Queue Sender Isolation",
+      "description": "Isolamento de filas de sessão e mesclagem de lotes de fotos por ID do remetente na fila de sessão ocupada (PR #142102)"
+    }
+  },
+  "inventory-moa-filter": {
+    "en": {
+      "name": "Inventory MoA Filter",
+      "description": "Hiding disabled or excluded MoA providers from model inventory"
+    },
+    "ru": {
+      "name": "Inventory MoA Filter",
+      "description": "Скрытие отключенных или исключенных MoA-провайдеров из инвентаря моделей"
+    },
+    "es": {
+      "name": "Inventory MoA Filter",
+      "description": "Ocultación de proveedores MoA deshabilitados o excluidos del inventario de modelos"
+    },
+    "fr": {
+      "name": "Inventory MoA Filter",
+      "description": "Masquage des fournisseurs MoA désactivés ou exclus de l'inventaire des modèles"
+    },
+    "zh": {
+      "name": "Inventory MoA Filter",
+      "description": "从模型清单中隐藏已禁用或已排除的MoA提供商"
+    },
+    "ar": {
+      "name": "Inventory MoA Filter",
+      "description": "إخفاء موفري MoA المعطلين أو المستبعدين من مخزون النماذج"
+    },
+    "de": {
+      "name": "Inventory MoA Filter",
+      "description": "Ausblenden deaktivierter oder ausgeschlossener MoA-Anbieter aus dem Modellinventar"
+    },
+    "pt": {
+      "name": "Inventory MoA Filter",
+      "description": "Ocultação de provedores MoA desativados ou excluídos do inventário de modelos"
+    }
+  },
+  "mod-command-registry": {
+    "en": {
+      "name": "Mod Command Registry",
+      "description": "Native registration, caching, and dispatch of declarative slash commands from active Hermes mods"
+    },
+    "ru": {
+      "name": "Реестр команд модов",
+      "description": "Нативная регистрация, кэширование и исполнение декларативных слэш-команд от активных модов Hermes"
+    },
+    "es": {
+      "name": "Registro de comandos de mods",
+      "description": "Registro, almacenamiento en caché y despacho nativos de comandos slash declarativos de mods activos de Hermes"
+    },
+    "fr": {
+      "name": "Registre des commandes de mods",
+      "description": "Enregistrement, mise en cache et exécution natifs des commandes slash déclaratives des mods Hermes actifs"
+    },
+    "zh": {
+      "name": "Mod命令注册表",
+      "description": "Hermes活跃Mod声明式斜杠命令的原生注册、缓存与分发"
+    },
+    "ar": {
+      "name": "سجل أوامر التعديلات",
+      "description": "التسجيل الأصلي والتخزين المؤقت وتوجيه أوامر الشرطة المائلة التصريحية من تعديلات Hermes النشطة"
+    },
+    "de": {
+      "name": "Mod-Befehlsregister",
+      "description": "Natives Registrieren, Zwischenspeichern und Ausführen deklarativer Slash-Befehle aktiver Hermes-Mods"
+    },
+    "pt": {
+      "name": "Registro de comandos de mods",
+      "description": "Registro nativo, cache e despacho de comandos slash declarativos de mods ativos do Hermes"
+    }
+  },
+  "mod-declarative-i18n": {
+    "en": {
+      "name": "Mod Declarative i18n",
+      "description": "Declarative collocated mod localization with highest-priority Mod Overlay layer"
+    },
+    "ru": {
+      "name": "Декларативная локализация",
+      "description": "Декларативная колоцированная локализация модов со слоем Mod Overlay наивысшего приоритета"
+    },
+    "es": {
+      "name": "Localización declarativa de mods",
+      "description": "Localización declarativa colocada de mods con capa de superposición Mod Overlay de máxima prioridad"
+    },
+    "fr": {
+      "name": "Localisation déclarative de mods",
+      "description": "Localisation déclarative colocalisée des mods avec couche de superposition Mod Overlay de priorité maximale"
+    },
+    "zh": {
+      "name": "声明式Mod本地化",
+      "description": "具有最高优先级Mod Overlay覆盖层的声明式协同Mod本地化"
+    },
+    "ar": {
+      "name": "التعريب التصريحي للتعديلات",
+      "description": "تعريب تصريحي مشترك للتعديلات مع طبقة تراكب Mod Overlay ذات الأولوية القصوى"
+    },
+    "de": {
+      "name": "Deklarative Mod-Lokalisierung",
+      "description": "Deklarative kolozierte Mod-Lokalisierung mit der Mod-Overlay-Ebene höchster Priorität"
+    },
+    "pt": {
+      "name": "Localização declarativa de mods",
+      "description": "Localização declarativa colocada de mods com camada de sobreposição Mod Overlay de prioridade máxima"
+    }
+  },
+  "mod-declarative-mcp": {
+    "en": {
+      "name": "Declarative MCP Servers in Hermes Mods",
+      "description": "Declarative integration of MCP servers in mod manifests with variable interpolation and transparent runtime bridge"
+    },
+    "ru": {
+      "name": "Декларативные MCP-серверы",
+      "description": "Декларативная интеграция MCP-серверов в манифестах модов с интерполяцией переменных и прозрачным мостом в runtime"
+    },
+    "es": {
+      "name": "Servidores MCP declarativos en Hermes Mods",
+      "description": "Integración declarativa de servidores MCP en manifiestos de mods con interpolación de variables y puente transparente al tiempo de ejecución"
+    },
+    "fr": {
+      "name": "Serveurs MCP déclaratifs dans Hermes Mods",
+      "description": "Intégration déclarative de serveurs MCP dans les manifestes de mods avec interpolation de variables et pont transparent vers le runtime"
+    },
+    "zh": {
+      "name": "Hermes Mod声明式MCP服务器",
+      "description": "在Mod清单中声明式集成MCP服务器，支持变量插值与透明运行时桥接"
+    },
+    "ar": {
+      "name": "خوادم MCP التصريحية في تعديلات Hermes",
+      "description": "تكامل تصريحي لخوادم MCP في بيانات التعديلات مع استيفاء المتغيرات وجسر وقت تشغيل شفاف"
+    },
+    "de": {
+      "name": "Deklarative MCP-Server in Hermes-Mods",
+      "description": "Deklarative Integration von MCP-Servern in Mod-Manifesten mit Variableninterpolation und transparenter Laufzeitbrücke"
+    },
+    "pt": {
+      "name": "Servidores MCP declarativos em Hermes Mods",
+      "description": "Integração declarativa de servidores MCP em manifestos de mods com interpolação de variáveis e ponte transparente para o runtime"
+    }
+  },
+  "mod-folder-skills": {
+    "en": {
+      "name": "Mod Folder Skills Discovery & Integration",
+      "description": "Support for folder mods with co-located skills: automatic registration in skills_list, skill_view, and system prompt"
+    },
+    "ru": {
+      "name": "Скиллы папочных модов",
+      "description": "Поддержка папочных модов со своими скиллами: автоматическая регистрация в skills_list, skill_view и системном промпте"
+    },
+    "es": {
+      "name": "Descubrimiento e integración de habilidades de mods de carpeta",
+      "description": "Soporte para mods de carpeta con habilidades colocadas: registro automático en skills_list, skill_view y prompt del sistema"
+    },
+    "fr": {
+      "name": "Découverte et intégration des compétences de mods de dossier",
+      "description": "Prise en charge des mods de dossier avec compétences colocalisées : enregistrement automatique dans skills_list, skill_view et prompt système"
+    },
+    "zh": {
+      "name": "文件夹Mod技能发现与集成",
+      "description": "支持带有协同技能的文件夹Mod：自动在skills_list、skill_view和系统提示词中注册"
+    },
+    "ar": {
+      "name": "اكتشاف وتكامل مهارات تعديلات المجلدات",
+      "description": "دعم تعديلات المجلدات ذات المهارات المشتركة: التسجيل التلقائي في skills_list وskill_view والتوجيه الأساسي للنظام"
+    },
+    "de": {
+      "name": "Erkennung und Integration von Ordner-Mod-Skills",
+      "description": "Unterstützung für Ordner-Mods mit kolokierten Skills: automatische Registrierung in skills_list, skill_view und System-Prompt"
+    },
+    "pt": {
+      "name": "Descoberta e integração de habilidades de mods de pasta",
+      "description": "Suporte para mods de pasta com habilidades colocadas: registro automático em skills_list, skill_view e prompt do sistema"
+    }
+  },
+  "mod-manager": {
+    "en": {
+      "name": "Mod Manager",
+      "description": "Telegram slash command /mods (/mod) for mod inspection and management",
+      "commands": {
+        "mods": {
+          "description": "Manage and inspect Hermes mods"
+        }
+      }
+    },
+    "ru": {
+      "name": "Менеджер модов",
+      "description": "Telegram-команда /mods (/mod) для управления и инспекции модов из чата",
+      "commands": {
+        "mods": {
+          "description": "Управление и инспекция модов Hermes"
+        }
+      }
+    },
+    "es": {
+      "name": "Gestor de Mods",
+      "description": "Comando slash de Telegram /mods (/mod) para inspección y gestión de mods",
+      "commands": {
+        "mods": {
+          "description": "Gestión e inspección de mods de Hermes"
+        }
+      }
+    },
+    "fr": {
+      "name": "Gestionnaire de mods",
+      "description": "Commande slash Telegram /mods (/mod) pour l'inspection et la gestion des mods",
+      "commands": {
+        "mods": {
+          "description": "Gestion et inspection des mods Hermes"
+        }
+      }
+    },
+    "zh": {
+      "name": "Mod管理器",
+      "description": "用于检查和管理Mod的Telegram斜杠命令 /mods (/mod)",
+      "commands": {
+        "mods": {
+          "description": "Hermes Mod管理与检查"
+        }
+      }
+    },
+    "ar": {
+      "name": "مدير التعديلات",
+      "description": "أمر شريطة تيليجرام /mods (/mod) لفحص وإدارة التعديلات",
+      "commands": {
+        "mods": {
+          "description": "إدارة وفحص تعديلات Hermes"
+        }
+      }
+    },
+    "de": {
+      "name": "Mod-Manager",
+      "description": "Telegram-Slash-Befehl /mods (/mod) zur Inspektion und Verwaltung von Mods",
+      "commands": {
+        "mods": {
+          "description": "Verwaltung und Inspektion von Hermes-Mods"
+        }
+      }
+    },
+    "pt": {
+      "name": "Gerenciador de Mods",
+      "description": "Comando slash do Telegram /mods (/mod) para inspeção e gerenciamento de mods",
+      "commands": {
+        "mods": {
+          "description": "Gerenciamento e inspeção de mods do Hermes"
+        }
+      }
+    }
+  },
+  "mod-update-integration": {
+    "en": {
+      "name": "Mod Update Integration",
+      "description": "Automatic reapplication of mod engine patches on Hermes updates (/update and hermes update)"
+    },
+    "ru": {
+      "name": "Интеграция с обновлениями",
+      "description": "Автоматическое перенакатывание модов движка при обновлении Hermes (/update и hermes update)"
+    },
+    "es": {
+      "name": "Integración de actualizaciones de mods",
+      "description": "Reaplicación automática de parches del motor de mods tras actualizaciones de Hermes (/update y hermes update)"
+    },
+    "fr": {
+      "name": "Intégration des mises à jour de mods",
+      "description": "Réapplication automatique des correctifs du moteur de mods lors des mises à jour de Hermes (/update et hermes update)"
+    },
+    "zh": {
+      "name": "Mod更新集成",
+      "description": "在Hermes更新（/update 与 hermes update）时自动重新应用Mod引擎补丁"
+    },
+    "ar": {
+      "name": "تكامل تحديثات التعديلات",
+      "description": "إعادة التطبيق التلقائي لتصحيحات محرك التعديلات عند تحديثات Hermes (/update وhermes update)"
+    },
+    "de": {
+      "name": "Mod-Update-Integration",
+      "description": "Automatisches erneutes Anwenden von Mod-Engine-Patches bei Hermes-Updates (/update und hermes update)"
+    },
+    "pt": {
+      "name": "Integração de atualizações de mods",
+      "description": "Reaplicação automática de patches do mecanismo de mods em atualizações do Hermes (/update e hermes update)"
+    }
+  },
+  "multimodal-fallback": {
+    "en": {
+      "name": "Multimodal Fallback & Tool Images",
+      "description": "Wrap tool image results in user envelope and generate text descriptions for non-vision models"
+    },
+    "ru": {
+      "name": "Multimodal Fallback & Tool Images",
+      "description": "Оборачивание картинок от инструментов в user envelope и генерация текстовых описаний для non-vision моделей"
+    },
+    "es": {
+      "name": "Multimodal Fallback & Tool Images",
+      "description": "Envoltura de imágenes de herramientas en sobre de usuario y generación de descripciones de texto para modelos sin visión"
+    },
+    "fr": {
+      "name": "Multimodal Fallback & Tool Images",
+      "description": "Encapsulation des images d'outils dans une enveloppe utilisateur et génération de descriptions textuelles pour les modèles sans vision"
+    },
+    "zh": {
+      "name": "Multimodal Fallback & Tool Images",
+      "description": "将工具图像结果封装至用户信封中，并为非视觉模型生成文本描述"
+    },
+    "ar": {
+      "name": "Multimodal Fallback & Tool Images",
+      "description": "تغليف نتائج صور الأدوات في مظروف المستخدم وتوليد أوصاف نصية للنماذج غير البصرية"
+    },
+    "de": {
+      "name": "Multimodal Fallback & Tool Images",
+      "description": "Verpacken von Werkzeug-Bildergebnissen in Benutzerhülle und Generierung von Textbeschreibungen für Nicht-Vision-Modelle"
+    },
+    "pt": {
+      "name": "Multimodal Fallback & Tool Images",
+      "description": "Encapsulamento de imagens de ferramentas em envelope de usuário e geração de descrições textuais para modelos sem visão"
+    }
+  },
+  "multiplex-fallback-provider-env-resolution": {
+    "en": {
+      "name": "Multiplex Fallback Provider Env Resolution",
+      "description": "Resolve fallback provider key_env in profile secret scope under multiplex_profiles (Issue #142031)"
+    },
+    "ru": {
+      "name": "Multiplex Fallback Provider Env Resolution",
+      "description": "Разрешение key_env фолбэк-провайдера в secret scope профиля при мультиплексировании"
+    },
+    "es": {
+      "name": "Multiplex Fallback Provider Env Resolution",
+      "description": "Resolución de key_env del proveedor de respaldo en el ámbito secreto del perfil en multiplex_profiles (Issue #142031)"
+    },
+    "fr": {
+      "name": "Multiplex Fallback Provider Env Resolution",
+      "description": "Résolution de key_env du fournisseur de secours dans l'espace secret du profil sous multiplex_profiles (Issue #142031)"
+    },
+    "zh": {
+      "name": "Multiplex Fallback Provider Env Resolution",
+      "description": "在multiplex_profiles下的配置文件密钥范围内解析备用提供商的key_env（Issue #142031）"
+    },
+    "ar": {
+      "name": "Multiplex Fallback Provider Env Resolution",
+      "description": "حل key_env لموفر الاحتياط في نطاق أسرار ملف التعريف تحت multiplex_profiles (المسألة #142031)"
+    },
+    "de": {
+      "name": "Multiplex Fallback Provider Env Resolution",
+      "description": "Auflösung von key_env des Fallback-Anbieters im Profil-Secret-Scope unter multiplex_profiles (Issue #142031)"
+    },
+    "pt": {
+      "name": "Multiplex Fallback Provider Env Resolution",
+      "description": "Resolução de key_env do provedor de fallback no escopo de segredos do perfil em multiplex_profiles (Issue #142031)"
+    }
+  },
+  "network-resilience": {
+    "en": {
+      "name": "Comprehensive Network Resilience & Message Delivery Guard",
+      "description": "Unified network resilience: LLM stream retry, 60s connect timeout, None base read timeout (SSE streaming preserved), Gemini reasoning floors (300s), Telegram media/sticker retry, Telegram message drop prevention, TUI WebSocket 5s teardown timeout, ACP prompt preservation, and MCP failover ring 45s deadline"
+    },
+    "ru": {
+      "name": "Comprehensive Network Resilience & Message Delivery Guard",
+      "description": "Комплексная сетевая устойчивость: ретраи потоков LLM, таймаут подключения 60с и защита от зацикливания Keyless MCP"
+    },
+    "es": {
+      "name": "Comprehensive Network Resilience & Message Delivery Guard",
+      "description": "Resiliencia de red unificada: reintentos de flujo LLM, tiempo de espera de conexión de 60s y protección contra bucles en Keyless MCP"
+    },
+    "fr": {
+      "name": "Comprehensive Network Resilience & Message Delivery Guard",
+      "description": "Résilience réseau unifiée : nouvelles tentatives de flux LLM, délai d'attente de connexion de 60s et protection anti-boucle Keyless MCP"
+    },
+    "zh": {
+      "name": "Comprehensive Network Resilience & Message Delivery Guard",
+      "description": "综合网络弹性与消息传递守卫：LLM流重试、60秒连接超时及Keyless MCP防循环保护"
+    },
+    "ar": {
+      "name": "Comprehensive Network Resilience & Message Delivery Guard",
+      "description": "مرونة شبكية موحدة: إعادة محاولة تدفقات LLM، مهلة اتصال 60 ثانية وحماية من الحلقات المفرغة في Keyless MCP"
+    },
+    "de": {
+      "name": "Comprehensive Network Resilience & Message Delivery Guard",
+      "description": "Umfassende Netzwerk-Resilienz: LLM-Stream-Wiederholungen, 60s Verbindungs-Timeout und Schutz vor Endlosschleifen bei Keyless MCP"
+    },
+    "pt": {
+      "name": "Comprehensive Network Resilience & Message Delivery Guard",
+      "description": "Resiliência de rede unificada: novas tentativas de fluxo LLM, tempo limite de conexão de 60s e proteção contra loops em Keyless MCP"
+    }
+  },
+  "output-hygiene": {
+    "en": {
+      "name": "Output & System Notices Hygiene",
+      "description": "Hygiene for output and system notices: disable service banners, file-mutation verifier footers, bare local path delivery, and redundant error notices",
+      "gateway": {
+        "redirected_head": "↪ Redirected current run",
+        "redirected_tail": "."
+      }
+    },
+    "ru": {
+      "name": "Output & System Notices Hygiene",
+      "description": "Устранение избыточного шума: отключение сервисных баннеров, футера верификации, автодоставки локальных путей и дедупликация системных уведомлений",
+      "gateway": {
+        "redirected_head": "↪ Текущий запуск перенаправлен",
+        "redirected_tail": "."
+      }
+    },
+    "es": {
+      "name": "Output & System Notices Hygiene",
+      "description": "Higiene de salida y avisos del sistema: desactivación de banners de servicio, pie de página del verificador, entrega de rutas locales y deduplicación de avisos",
+      "gateway": {
+        "redirected_head": "↪ Ejecución actual redirigida",
+        "redirected_tail": "."
+      }
+    },
+    "fr": {
+      "name": "Output & System Notices Hygiene",
+      "description": "Hygiène des sorties et notifications système : désactivation des bannières de service, pied de page de vérification, livraison de chemins locaux et déduplication",
+      "gateway": {
+        "redirected_head": "↪ Exécution en cours redirigée",
+        "redirected_tail": "."
+      }
+    },
+    "zh": {
+      "name": "Output & System Notices Hygiene",
+      "description": "输出与系统通知净化：禁用服务横幅、文件变更验证页脚、直接交付本地路径及系统通知去重",
+      "gateway": {
+        "redirected_head": "↪ 已重定向当前运行",
+        "redirected_tail": "。"
+      }
+    },
+    "ar": {
+      "name": "Output & System Notices Hygiene",
+      "description": "نظافة المخرجات وإشعارات النظام: تعطيل لافتات الخدمة، وتذييل التحقق، وتسليم المسارات المحلية وإلغاء تكرار الإشعارات",
+      "gateway": {
+        "redirected_head": "↪ أُعيد توجيه التشغيل الحالي",
+        "redirected_tail": "."
+      }
+    },
+    "de": {
+      "name": "Output & System Notices Hygiene",
+      "description": "Ausgabe- und Benachrichtigungshygiene: Deaktivierung von Service-Bannern, Verifizierungs-Footern, direkter Pfadausgabe und Deduplizierung von Fehlermeldungen",
+      "gateway": {
+        "redirected_head": "↪ Aktuellen Lauf umgelenkt",
+        "redirected_tail": "."
+      }
+    },
+    "pt": {
+      "name": "Output & System Notices Hygiene",
+      "description": "Higiene de saídas e notificações do sistema: desativação de banners de serviço, rodapé de verificação, entrega de caminhos locais e desduplicação de avisos",
+      "gateway": {
+        "redirected_head": "↪ Execução atual redirecionada",
+        "redirected_tail": "."
+      }
+    }
+  },
+  "profile-cascading": {
+    "en": {
+      "name": "Profile Cascading & Deep Merge",
+      "description": "Hierarchical inheritance of secret scope (.env), cache, and deep-merge config.yaml between default and secondary profiles"
+    },
+    "ru": {
+      "name": "Profile Cascading & Deep Merge",
+      "description": "Иерархическое наследование secret scope (.env), кэша и deep-merge config.yaml между default и вторичными профилями"
+    },
+    "es": {
+      "name": "Profile Cascading & Deep Merge",
+      "description": "Herencia jerárquica de ámbito secreto (.env), caché y combinación profunda (deep-merge) de config.yaml entre perfil predeterminado y secundarios"
+    },
+    "fr": {
+      "name": "Profile Cascading & Deep Merge",
+      "description": "Héritage hiérarchique de l'espace secret (.env), du cache et fusion profonde (deep-merge) de config.yaml entre profils par défaut et secondaires"
+    },
+    "zh": {
+      "name": "Profile Cascading & Deep Merge",
+      "description": "默认配置文件与次级配置文件之间的机密作用域（.env）、缓存分层继承与config.yaml深度合并"
+    },
+    "ar": {
+      "name": "Profile Cascading & Deep Merge",
+      "description": "الوراثة الهرمية لنطاق الأسرار (.env) والتخزين المؤقت والدمج العميق لـ config.yaml بين الملف الافتراضي والثانوي"
+    },
+    "de": {
+      "name": "Profile Cascading & Deep Merge",
+      "description": "Hierarchische Vererbung von Secret-Scope (.env), Cache und Deep-Merge von config.yaml zwischen Standard- und Sekundärprofilen"
+    },
+    "pt": {
+      "name": "Profile Cascading & Deep Merge",
+      "description": "Herança hierárquica de escopo de segredos (.env), cache e mesclagem profunda (deep-merge) de config.yaml entre perfil padrão e secundários"
+    }
+  },
+  "profile-switcher": {
+    "en": {
+      "name": "Profile Switcher",
+      "description": "Dynamic profile switching by Telegram topics (/profile <name>)"
+    },
+    "ru": {
+      "name": "Profile Switcher",
+      "description": "Динамическое переключение профилей по топикам Telegram (/profile <name>)"
+    },
+    "es": {
+      "name": "Profile Switcher",
+      "description": "Cambio dinámico de perfiles según temas de Telegram (/profile <nombre>)"
+    },
+    "fr": {
+      "name": "Profile Switcher",
+      "description": "Changement dynamique de profil selon les sujets Telegram (/profile <nom>)"
+    },
+    "zh": {
+      "name": "Profile Switcher",
+      "description": "按Telegram话题动态切换配置文件（/profile <name>）"
+    },
+    "ar": {
+      "name": "Profile Switcher",
+      "description": "تبديل ديناميكي لملفات التعريف حسب مواضيع تيليجرام (/profile <name>)"
+    },
+    "de": {
+      "name": "Profile Switcher",
+      "description": "Dynamisches Umschalten von Profilen über Telegram-Themen (/profile <name>)"
+    },
+    "pt": {
+      "name": "Profile Switcher",
+      "description": "Alternância dinâmica de perfis por tópicos do Telegram (/profile <nome>)"
+    }
+  },
+  "reasoning-tool-turn-control": {
+    "en": {
+      "name": "Reasoning Tool Turn Control",
+      "description": "Reasoning turn control: suppression of premature clean-stop on tool turns and proper accounting of reasoning tokens"
+    },
+    "ru": {
+      "name": "Reasoning Tool Turn Control",
+      "description": "Управление ходами рассуждений: подавление преждевременного clean-stop на tool-ходах и корректный учёт токенов reasoning"
+    },
+    "es": {
+      "name": "Reasoning Tool Turn Control",
+      "description": "Control de turnos de razonamiento: supresión de paradas limpias prematuras en turnos de herramientas y recuento adecuado de tokens de razonamiento"
+    },
+    "fr": {
+      "name": "Reasoning Tool Turn Control",
+      "description": "Contrôle des tours de raisonnement : suppression de l'arrêt propre prématuré lors des tours d'outils et comptabilisation correcte des jetons de raisonnement"
+    },
+    "zh": {
+      "name": "Reasoning Tool Turn Control",
+      "description": "推理轮次控制：抑制工具调用轮次中的过早clean-stop，并准确统计推理Token"
+    },
+    "ar": {
+      "name": "Reasoning Tool Turn Control",
+      "description": "التحكم في أدوار التفكير: منع التوقف النظيف المبكر في أدوار الأدوات والاحتساب الصحيح لرموز التفكير"
+    },
+    "de": {
+      "name": "Reasoning Tool Turn Control",
+      "description": "Steuerung von Reasoning-Zügen: Unterdrückung vorzeitiger Clean-Stops bei Werkzeugaufrufen und korrekte Zählung von Reasoning-Tokens"
+    },
+    "pt": {
+      "name": "Reasoning Tool Turn Control",
+      "description": "Controle de turnos de raciocínio: supressão de parada limpa prematura em turnos de ferramentas e contagem adequada de tokens de raciocínio"
+    }
+  },
+  "skill-manage-frontmatter-validation": {
+    "en": {
+      "name": "Skill Manage Frontmatter Validation",
+      "description": "Validate YAML frontmatter when write_file targets SKILL.md (PR #142078)"
+    },
+    "ru": {
+      "name": "Skill Manage Frontmatter Validation",
+      "description": "Валидация YAML frontmatter при сохранении SKILL.md через write_file"
+    },
+    "es": {
+      "name": "Skill Manage Frontmatter Validation",
+      "description": "Validación de frontmatter YAML al guardar SKILL.md mediante write_file (PR #142078)"
+    },
+    "fr": {
+      "name": "Skill Manage Frontmatter Validation",
+      "description": "Validation du frontmatter YAML lors de l'enregistrement de SKILL.md via write_file (PR #142078)"
+    },
+    "zh": {
+      "name": "Skill Manage Frontmatter Validation",
+      "description": "当write_file写入SKILL.md时自动验证YAML frontmatter（PR #142078）"
+    },
+    "ar": {
+      "name": "Skill Manage Frontmatter Validation",
+      "description": "التحقق من صحة واجهة YAML الأمامية عند استهداف SKILL.md عبر write_file (PR #142078)"
+    },
+    "de": {
+      "name": "Skill Manage Frontmatter Validation",
+      "description": "Validierung des YAML-Frontmatters beim Speichern von SKILL.md über write_file (PR #142078)"
+    },
+    "pt": {
+      "name": "Skill Manage Frontmatter Validation",
+      "description": "Validação do frontmatter YAML ao salvar SKILL.md via write_file (PR #142078)"
+    }
+  },
+  "skill-prompt-desc-limit": {
+    "en": {
+      "name": "Skill Prompt Description Limit Configuration",
+      "description": "Configurable skill description limit in system prompt with clean whitespace trimming and validation",
+      "config": {
+        "limit": {
+          "title": "Description Length Limit",
+          "description": "Length limit for skill descriptions in system prompt (0 to disable trimming)"
+        }
+      }
+    },
+    "ru": {
+      "name": "Skill Prompt Description Limit Configuration",
+      "description": "Настраиваемый лимит длины описания скилла в системном промпте",
+      "config": {
+        "limit": {
+          "title": "Лимит длины описания",
+          "description": "Лимит длины описания скилла в системном промпте (0 - отключить обрезку)"
+        }
+      }
+    },
+    "es": {
+      "name": "Skill Prompt Description Limit Configuration",
+      "description": "Límite configurable de la longitud de descripción de habilidades en el prompt del sistema con recorte limpio de espacios",
+      "config": {
+        "limit": {
+          "title": "Límite de longitud de descripción",
+          "description": "Límite de longitud de la descripción de habilidades en el prompt del sistema (0 para desactivar el recorte)"
+        }
+      }
+    },
+    "fr": {
+      "name": "Skill Prompt Description Limit Configuration",
+      "description": "Limite configurable de la description des compétences dans le prompt système avec nettoyage des espaces",
+      "config": {
+        "limit": {
+          "title": "Limite de longueur de description",
+          "description": "Limite de longueur de la description de compétence dans le prompt système (0 pour désactiver le découpage)"
+        }
+      }
+    },
+    "zh": {
+      "name": "Skill Prompt Description Limit Configuration",
+      "description": "系统提示词中技能描述长度的可配置限制，具有纯净的空格修剪与验证功能",
+      "config": {
+        "limit": {
+          "title": "描述长度限制",
+          "description": "系统提示词中技能描述的长度限制（0表示禁用截断）"
+        }
+      }
+    },
+    "ar": {
+      "name": "Skill Prompt Description Limit Configuration",
+      "description": "حد قابل للتهيئة لطول وصف المهارة في توجيه النظام مع مسافات بيضاء مقصوصة بدقة",
+      "config": {
+        "limit": {
+          "title": "حد طول الوصف",
+          "description": "حد طول وصف المهارة في توجيه النظام (0 لتعطيل الاقتطاع)"
+        }
+      }
+    },
+    "de": {
+      "name": "Skill Prompt Description Limit Configuration",
+      "description": "Konfigurierbare Begrenzung der Skill-Beschreibungsdaten im System-Prompt mit sauberer Leerzeichenbereinigung",
+      "config": {
+        "limit": {
+          "title": "Beschreibungs-Längenlimit",
+          "description": "Limit für die Länge von Skill-Beschreibungen im System-Prompt (0 = Abschneiden deaktivieren)"
+        }
+      }
+    },
+    "pt": {
+      "name": "Skill Prompt Description Limit Configuration",
+      "description": "Limite configurável da extensão da descrição de habilidades no prompt do sistema com recorte limpo de espaços",
+      "config": {
+        "limit": {
+          "title": "Limite de tamanho da descrição",
+          "description": "Limite de tamanho da descrição de habilidades no prompt do sistema (0 para desativar recorte)"
+        }
+      }
+    }
+  },
+  "slash-commands-ux": {
+    "en": {
+      "name": "Slash Commands UX Polish",
+      "description": "Comprehensive slash commands UX: /undo, /goal, /model, /agents, /help and /commands formatting, /compress [N], /handoff, /context, /usage, /status, /insights",
+      "slash": {
+        "handoff": {
+          "description": "Hand off session context to a clean session (preserving task brief)"
+        },
+        "compress": {
+          "description": "Compress conversation context (specify [N] to keep last N messages; --preview or --dry-run for preview)"
+        }
+      },
+      "gateway": {
+        "context": {
+          "threshold": "Auto-compaction at: {threshold} ({threshold_pct}%) — {to_go} remaining ({to_go_pct})",
+          "over_threshold": "⚠️ **Auto-compaction threshold exceeded ({threshold}, {threshold_pct}%)**",
+          "category_row": "{glyph} {label}  ~  {tokens} tokens  ~  {pct}%",
+          "compressions": "Compressions this session: {count}",
+          "compressions_total": "Compressions all-time: {count}",
+          "last_savings": "Last compression freed: {savings}% of context",
+          "totals_header": "All-time totals (cumulative across {calls} API calls):",
+          "totals_line": "Input: {input} · Output: {output} · Reasoning: {reasoning}",
+          "total_billed": "Total: {total}",
+          "total_billed_with_cache": "Total: {total} ({cache_pct}% cache)"
+        },
+        "usage": {
+          "label_output_tokens": "Output tokens: {count}",
+          "label_total": "Total: {count}",
+          "label_total_with_cache": "Total: {count} ({cache_pct}% cache)",
+          "label_api_calls": "API calls: {count}"
+        },
+        "status": {
+          "tokens_with_cache": "**Lifetime tokens billed:** {tokens} ({cache_pct}% cache) _(not your current context size; use `/context`)_"
+        }
+      },
+      "cli": {
+        "usage": {
+          "cache_label": "cache"
+        }
+      }
+    },
+    "ru": {
+      "name": "Slash Commands UX Polish",
+      "description": "Комплексный UX слэш-команд: /undo, /goal, /model, /agents, форматирование /help и /commands, /compress [N], /handoff, /context, /usage, /status, /insights (честные токены, отображение процента кэша во всех командах)",
+      "slash": {
+        "handoff": {
+          "description": "Передать контекст сессии в новый чистый сеанс (сохранив бриф задач)"
+        },
+        "compress": {
+          "description": "Сжать контекст разговора (укажите [N], чтобы сохранить последние N сообщений; --preview или --dry-run для предпросмотра)"
+        }
+      },
+      "gateway": {
+        "context": {
+          "threshold": "Автосжатие при: {threshold} ({threshold_pct}%) — осталось {to_go} ({to_go_pct})",
+          "over_threshold": "⚠️ **Порог автосжатия превышен ({threshold}, {threshold_pct}%)**",
+          "category_row": "{glyph} {label}  ~  {tokens} токенов  ~  {pct}%",
+          "compressions": "Сжатий за этот сеанс: {count}",
+          "compressions_total": "Сжатий за всё время: {count}",
+          "last_savings": "Последнее сжатие освободило: {savings}% контекста",
+          "totals_header": "Итого за всё время (суммарно за {calls} вызовов API):",
+          "totals_line": "Входные: {input} · Выходные: {output} · Рассуждения: {reasoning}",
+          "total_billed": "Всего: {total}",
+          "total_billed_with_cache": "Всего: {total} ({cache_pct}% кэш)"
+        },
+        "usage": {
+          "label_output_tokens": "Выходные токены: {count}",
+          "label_total": "Всего: {count}",
+          "label_total_with_cache": "Всего: {count} ({cache_pct}% кэша)",
+          "label_api_calls": "Вызовы API: {count}"
+        },
+        "status": {
+          "tokens_with_cache": "**Всего токенов списано за всё время:** {tokens} ({cache_pct}% кэша) _(это не размер текущего контекста; используйте `/context`)_"
+        }
+      },
+      "cli": {
+        "usage": {
+          "cache_label": "кэша"
+        }
+      }
+    },
+    "es": {
+      "name": "Slash Commands UX Polish",
+      "description": "UX integral de comandos slash: formateo de /undo, /goal, /model, /agents, /help y /commands, /compress [N], /handoff, /context, /usage, /status, /insights (tokens reales y porcentaje de caché en todos los comandos)",
+      "slash": {
+        "handoff": {
+          "description": "Transferir el contexto a una sesión limpia (conservando el resumen de tareas)"
+        },
+        "compress": {
+          "description": "Comprimir el contexto de la conversación (indique [N] para conservar los últimos N mensajes; --preview o --dry-run para vista previa)"
+        }
+      },
+      "gateway": {
+        "context": {
+          "threshold": "Autocompresión a: {threshold} ({threshold_pct}%) — faltan {to_go} ({to_go_pct})",
+          "over_threshold": "⚠️ **Umbral de autocompresión superado ({threshold}, {threshold_pct}%)**",
+          "category_row": "{glyph} {label}  ~  {tokens} tokens  ~  {pct}%",
+          "compressions": "Compresiones en esta sesión: {count}",
+          "compressions_total": "Compresiones totales: {count}",
+          "last_savings": "La última compresión liberó: {savings}% del contexto",
+          "totals_header": "Totales históricos (acumulado en {calls} llamadas a la API):",
+          "totals_line": "Entrada: {input} · Salida: {output} · Razonamiento: {reasoning}",
+          "total_billed": "Total: {total}",
+          "total_billed_with_cache": "Total: {total} ({cache_pct}% de caché)"
+        },
+        "usage": {
+          "label_output_tokens": "Tokens de salida: {count}",
+          "label_total": "Total: {count}",
+          "label_total_with_cache": "Total: {count} ({cache_pct}% de caché)",
+          "label_api_calls": "Llamadas a la API: {count}"
+        },
+        "status": {
+          "tokens_with_cache": "**Tokens totales facturados en el historial:** {tokens} ({cache_pct}% de caché) _(este no es el tamaño del contexto actual; use `/context`)_"
+        }
+      },
+      "cli": {
+        "usage": {
+          "cache_label": "de caché"
+        }
+      }
+    },
+    "fr": {
+      "name": "Slash Commands UX Polish",
+      "description": "Expérience utilisateur complète des commandes slash : formatage de /undo, /goal, /model, /agents, /help et /commands, /compress [N], /handoff, /context, /usage, /status, /insights (jetons réels et pourcentage de cache sur toutes les commandes)",
+      "slash": {
+        "handoff": {
+          "description": "Transférer le contexte de session vers une session propre (en conservant le brief des tâches)"
+        },
+        "compress": {
+          "description": "Compresser le contexte de conversation (spécifiez [N] pour conserver les N derniers messages ; --preview ou --dry-run pour prévisualiser)"
+        }
+      },
+      "gateway": {
+        "context": {
+          "threshold": "Autocompactage à : {threshold} ({threshold_pct}%) — restant {to_go} ({to_go_pct})",
+          "over_threshold": "⚠️ **Seuil d'autocompactage dépassé ({threshold}, {threshold_pct}%)**",
+          "category_row": "{glyph} {label}  ~  {tokens} jetons  ~  {pct}%",
+          "compressions": "Compactages cette session : {count}",
+          "compressions_total": "Compactages totaux : {count}",
+          "last_savings": "Dernier compactage a libéré : {savings}% du contexte",
+          "totals_header": "Totaux cumulés (sur {calls} appels d'API) :",
+          "totals_line": "Entrée : {input} · Sortie : {output} · Raisonnement : {reasoning}",
+          "total_billed": "Total : {total}",
+          "total_billed_with_cache": "Total : {total} ({cache_pct}% cache)"
+        },
+        "usage": {
+          "label_output_tokens": "Jetons de sortie : {count}",
+          "label_total": "Total : {count}",
+          "label_total_with_cache": "Total : {count} ({cache_pct}% cache)",
+          "label_api_calls": "Appels d'API : {count}"
+        },
+        "status": {
+          "tokens_with_cache": "**Total cumulé des jetons facturés :** {tokens} ({cache_pct}% cache) _(ceci n'est pas la taille de votre contexte actuel ; utilisez `/context`)_"
+        }
+      },
+      "cli": {
+        "usage": {
+          "cache_label": "cache"
+        }
+      }
+    },
+    "zh": {
+      "name": "Slash Commands UX Polish",
+      "description": "斜杠命令综合用户体验优化：/undo、/goal、/model、/agents、/help 与 /commands 格式化，/compress [N]、/handoff、/context、/usage、/status、/insights（所有命令显示真实Token及缓存百分比）",
+      "slash": {
+        "handoff": {
+          "description": "将会话上下文移交给新的干净会话（保留任务简报）"
+        },
+        "compress": {
+          "description": "压缩对话上下文（指定 [N] 保留最后 N 条消息；--preview 或 --dry-run 进行预览）"
+        }
+      },
+      "gateway": {
+        "context": {
+          "threshold": "自动压缩阈值：{threshold} ({threshold_pct}%) — 剩余 {to_go} ({to_go_pct})",
+          "over_threshold": "⚠️ **已超过自动压缩阈值 ({threshold}, {threshold_pct}%)**",
+          "category_row": "{glyph} {label}  ~  {tokens} Token  ~  {pct}%",
+          "compressions": "本会话压缩次数：{count}",
+          "compressions_total": "累计压缩次数：{count}",
+          "last_savings": "最近一次压缩释放了：{savings}% 上下文",
+          "totals_header": "历史累计统计（共计 {calls} 次 API 调用）：",
+          "totals_line": "输入：{input} · 输出：{output} · 推理：{reasoning}",
+          "total_billed": "总计：{total}",
+          "total_billed_with_cache": "总计：{total}（缓存占比 {cache_pct}%）"
+        },
+        "usage": {
+          "label_output_tokens": "输出 Token：{count}",
+          "label_total": "总计：{count}",
+          "label_total_with_cache": "总计：{count}（缓存占比 {cache_pct}%）",
+          "label_api_calls": "API 调用次数：{count}"
+        },
+        "status": {
+          "tokens_with_cache": "**历史累计计费 Token：** {tokens}（缓存占比 {cache_pct}%）_（非当前上下文大小；请使用 `/context` 查看）_"
+        }
+      },
+      "cli": {
+        "usage": {
+          "cache_label": "缓存"
+        }
+      }
+    },
+    "ar": {
+      "name": "Slash Commands UX Polish",
+      "description": "تجربة مستخدم شاملة لأوامر الشرطة المائلة: تنسيق /undo و/goal و/model و/agents و/help و/commands و/compress [N] و/handoff و/context و/usage و/status و/insights (رموز دقيقة ونسبة التخزين المؤقت عبر جميع الأوامر)",
+      "slash": {
+        "handoff": {
+          "description": "تسليم سياق الجلسة إلى جلسة جديدة نظيفة (مع الحفاظ على ملخص المهام)"
+        },
+        "compress": {
+          "description": "ضغط سياق المحادثة (حدد [N] للاحتفاظ بآخر N من الرسائل؛ --preview أو --dry-run للمعاينة)"
+        }
+      },
+      "gateway": {
+        "context": {
+          "threshold": "الضغط التلقائي عند: {threshold} ({threshold_pct}%) — المتبقي {to_go} ({to_go_pct})",
+          "over_threshold": "⚠️ **تم تجاوز عتبة الضغط التلقائي ({threshold}, {threshold_pct}%)**",
+          "category_row": "{glyph} {label}  ~  {tokens} رمز  ~  {pct}%",
+          "compressions": "عمليات الضغط في هذه الجلسة: {count}",
+          "compressions_total": "إجمالي عمليات الضغط: {count}",
+          "last_savings": "آخر عملية ضغط حررت: {savings}% من السياق",
+          "totals_header": "الإجمالي الكلي (تراكمي عبر {calls} استدعاء API):",
+          "totals_line": "المدخلات: {input} · المخرجات: {output} · التفكير: {reasoning}",
+          "total_billed": "الإجمالي: {total}",
+          "total_billed_with_cache": "الإجمالي: {total} ({cache_pct}% تخزين مؤقت)"
+        },
+        "usage": {
+          "label_output_tokens": "رموز المخرجات: {count}",
+          "label_total": "الإجمالي: {count}",
+          "label_total_with_cache": "الإجمالي: {count} ({cache_pct}% تخزين مؤقت)",
+          "label_api_calls": "استدعاءات API: {count}"
+        },
+        "status": {
+          "tokens_with_cache": "**إجمالي الرموز المحتسبة عبر كامل الوقت:** {tokens} ({cache_pct}% تخزين مؤقت) _(هذا ليس حجم سياقك الحالي؛ استخدم `/context`)_"
+        }
+      },
+      "cli": {
+        "usage": {
+          "cache_label": "تخزين مؤقت"
+        }
+      }
+    },
+    "de": {
+      "name": "Slash Commands UX Polish",
+      "description": "Umfassende UX für Slash-Befehle: Formatierung von /undo, /goal, /model, /agents, /help und /commands, /compress [N], /handoff, /context, /usage, /status, /insights (echte Token und Cache-Prozentsatz in allen Befehlen)",
+      "slash": {
+        "handoff": {
+          "description": "Sitzungskontext an eine neue, saubere Sitzung übergeben (Aufgaben-Briefing beibehalten)"
+        },
+        "compress": {
+          "description": "Konversationskontext komprimieren ([N] angeben, um die letzten N Nachrichten zu behalten; --preview oder --dry-run zur Vorschau)"
+        }
+      },
+      "gateway": {
+        "context": {
+          "threshold": "Automatische Komprimierung bei: {threshold} ({threshold_pct}%) — verbleibend {to_go} ({to_go_pct})",
+          "over_threshold": "⚠️ **Schwelle für automatische Komprimierung überschritten ({threshold}, {threshold_pct}%)**",
+          "category_row": "{glyph} {label}  ~  {tokens} Token  ~  {pct}%",
+          "compressions": "Komprimierungen in dieser Sitzung: {count}",
+          "compressions_total": "Komprimierungen insgesamt: {count}",
+          "last_savings": "Letzte Komprimierung hat freigegeben: {savings}% des Kontexts",
+          "totals_header": "Gesamtsumme aller Zeiten (kumulativ über {calls} API-Aufrufe):",
+          "totals_line": "Eingabe: {input} · Ausgabe: {output} · Reasoning: {reasoning}",
+          "total_billed": "Gesamt: {total}",
+          "total_billed_with_cache": "Gesamt: {total} ({cache_pct}% Cache)"
+        },
+        "usage": {
+          "label_output_tokens": "Ausgabe-Token: {count}",
+          "label_total": "Gesamt: {count}",
+          "label_total_with_cache": "Gesamt: {count} ({cache_pct}% Cache)",
+          "label_api_calls": "API-Aufrufe: {count}"
+        },
+        "status": {
+          "tokens_with_cache": "**Lebenszeit-Token abgerechnet:** {tokens} ({cache_pct}% Cache) _(dies ist nicht Ihre aktuelle Kontextgröße; verwenden Sie `/context`)_"
+        }
+      },
+      "cli": {
+        "usage": {
+          "cache_label": "Cache"
+        }
+      }
+    },
+    "pt": {
+      "name": "Slash Commands UX Polish",
+      "description": "UX abrangente de comandos slash: formatação de /undo, /goal, /model, /agents, /help e /commands, /compress [N], /handoff, /context, /usage, /status, /insights (tokens reais e porcentagem de cache em todos os comandos)",
+      "slash": {
+        "handoff": {
+          "description": "Transferir contexto da sessão para uma nova sessão limpa (preservando o resumo de tarefas)"
+        },
+        "compress": {
+          "description": "Compactar contexto da conversa (indique [N] para manter as últimas N mensagens; --preview ou --dry-run para pré-visualização)"
+        }
+      },
+      "gateway": {
+        "context": {
+          "threshold": "Autocompactação em: {threshold} ({threshold_pct}%) — restam {to_go} ({to_go_pct})",
+          "over_threshold": "⚠️ **Limite de autocompactação excedido ({threshold}, {threshold_pct}%)**",
+          "category_row": "{glyph} {label}  ~  {tokens} tokens  ~  {pct}%",
+          "compressions": "Compactações nesta sessão: {count}",
+          "compressions_total": "Compactações no total: {count}",
+          "last_savings": "Última compactação liberou: {savings}% do contexto",
+          "totals_header": "Totais acumulados de todos os tempos (ao longo de {calls} chamadas de API):",
+          "totals_line": "Entrada: {input} · Saída: {output} · Raciocínio: {reasoning}",
+          "total_billed": "Total: {total}",
+          "total_billed_with_cache": "Total: {total} ({cache_pct}% de cache)"
+        },
+        "usage": {
+          "label_output_tokens": "Tokens de saída: {count}",
+          "label_total": "Total: {count}",
+          "label_total_with_cache": "Total: {count} ({cache_pct}% de cache)",
+          "label_api_calls": "Chamadas de API: {count}"
+        },
+        "status": {
+          "tokens_with_cache": "**Tokens totais faturados em todo o período:** {tokens} ({cache_pct}% de cache) _(este não é o tamanho do seu contexto atual; use `/context`)_"
+        }
+      },
+      "cli": {
+        "usage": {
+          "cache_label": "de cache"
+        }
+      }
+    }
+  },
+  "smart-compaction": {
+    "en": {
+      "name": "Smart Compaction Dual-Trigger",
+      "description": "Intelligent dual-level context compaction (Dual-Trigger): proactive live trimming of tool outputs and background idle compaction",
+      "config": {
+        "enabled": {
+          "title": "Enable Dual-Trigger",
+          "description": "Enable intelligent context compaction (Dual-Trigger)"
+        },
+        "idle_seconds": {
+          "title": "Inactivity Timeout",
+          "description": "Inactivity threshold (in seconds) for cold context compression between turns"
+        },
+        "live_threshold_ratio": {
+          "title": "Live Trimming Threshold",
+          "description": "Ratio threshold of threshold_tokens to trigger live pruning of old tool outputs (0.70 = 70%)"
+        },
+        "min_prune_chars": {
+          "title": "Minimum Tool Size",
+          "description": "Threshold of tool output character length for trimming"
+        },
+        "min_reclaim_tokens": {
+          "title": "Minimum Reclaim Tokens",
+          "description": "Minimum amount of reclaimed tokens required to confirm tool output pruning"
+        }
+      }
+    },
+    "ru": {
+      "name": "Smart Compaction Dual-Trigger",
+      "description": "Интеллектуальное двухуровневое сжатие контекста Hermes (Dual-Trigger): упреждающая Live-подрезка тулов и фоновое сжатие по бездействию",
+      "config": {
+        "enabled": {
+          "title": "Включение Dual-Trigger",
+          "description": "Включение интеллектуального сжатия контекста (Dual-Trigger)"
+        },
+        "idle_seconds": {
+          "title": "Таймаут неактивности",
+          "description": "Порог неактивности (в секундах) для холодного сжатия контекста между ходами"
+        },
+        "live_threshold_ratio": {
+          "title": "Порог live-подрезки",
+          "description": "Порог live-подрезки старых результатов тулов в долях от threshold_tokens (0.70 = 70%)"
+        },
+        "min_prune_chars": {
+          "title": "Минимальный размер тула",
+          "description": "Порог длины вывода инструмента в символах для подрезки"
+        },
+        "min_reclaim_tokens": {
+          "title": "Минимальное высвобождение",
+          "description": "Минимальное количество высвобождаемых токенов для подтверждения подрезки тулов"
+        }
+      }
+    },
+    "es": {
+      "name": "Smart Compaction Dual-Trigger",
+      "description": "Compresión inteligente de contexto de doble nivel (Dual-Trigger): recorte proactivo en vivo de salidas de herramientas y compresión en segundo plano por inactividad",
+      "config": {
+        "enabled": {
+          "title": "Activar Dual-Trigger",
+          "description": "Habilitar compresión inteligente de contexto (Dual-Trigger)"
+        },
+        "idle_seconds": {
+          "title": "Tiempo de inactividad",
+          "description": "Umbral de inactividad (en segundos) para compresión en frío del contexto entre turnos"
+        },
+        "live_threshold_ratio": {
+          "title": "Umbral de recorte en vivo",
+          "description": "Proporción límite para recorte en vivo de salidas antiguas de herramientas respecto a threshold_tokens (0.70 = 70%)"
+        },
+        "min_prune_chars": {
+          "title": "Tamaño mínimo de herramienta",
+          "description": "Longitud mínima en caracteres de la salida de herramienta para aplicar recorte"
+        },
+        "min_reclaim_tokens": {
+          "title": "Recuperación mínima",
+          "description": "Cantidad mínima de tokens a liberar para confirmar el recorte de herramientas"
+        }
+      }
+    },
+    "fr": {
+      "name": "Smart Compaction Dual-Trigger",
+      "description": "Compactage intelligent de contexte à double niveau (Dual-Trigger) : élagage proactif en direct des outils et compactage en arrière-plan",
+      "config": {
+        "enabled": {
+          "title": "Activation Dual-Trigger",
+          "description": "Activer le compactage intelligent de contexte (Dual-Trigger)"
+        },
+        "idle_seconds": {
+          "title": "Délai d'inactivité",
+          "description": "Seuil d'inactivité (en secondes) pour le compactage à froid du contexte entre les tours"
+        },
+        "live_threshold_ratio": {
+          "title": "Seuil d'élagage en direct",
+          "description": "Seuil d'élagage en direct des anciens résultats d'outils en fraction de threshold_tokens (0.70 = 70%)"
+        },
+        "min_prune_chars": {
+          "title": "Taille minimale d'outil",
+          "description": "Longueur minimale de sortie d'outil en caractères pour l'élagage"
+        },
+        "min_reclaim_tokens": {
+          "title": "Récupération minimale",
+          "description": "Nombre minimal de jetons à libérer pour confirmer l'élagage des outils"
+        }
+      }
+    },
+    "zh": {
+      "name": "Smart Compaction Dual-Trigger",
+      "description": "Hermes智能双触发上下文压缩（Dual-Trigger）：工具输出的主动实时裁剪与空闲后台压缩",
+      "config": {
+        "enabled": {
+          "title": "启用Dual-Trigger",
+          "description": "启用智能上下文压缩（Dual-Trigger）"
+        },
+        "idle_seconds": {
+          "title": "空闲超时",
+          "description": "轮次间冷上下文压缩的空闲阈值（秒）"
+        },
+        "live_threshold_ratio": {
+          "title": "实时裁剪阈值",
+          "description": "旧工具输出实时裁剪比例阈值（占threshold_tokens比例，0.70 = 70%）"
+        },
+        "min_prune_chars": {
+          "title": "工具最小字符数",
+          "description": "触发裁剪的工具输出最小字符长度"
+        },
+        "min_reclaim_tokens": {
+          "title": "最小回收Token",
+          "description": "确认工具输出裁剪所需释放的最小Token数量"
+        }
+      }
+    },
+    "ar": {
+      "name": "Smart Compaction Dual-Trigger",
+      "description": "ضغط سياق ذكي ثنائي المستوى (Dual-Trigger): تشذيب مباشر استباقي لمخرجات الأدوات وضغط في الخلفية عند الخمول",
+      "config": {
+        "enabled": {
+          "title": "تفعيل Dual-Trigger",
+          "description": "تفعيل ضغط السياق الذكي (Dual-Trigger)"
+        },
+        "idle_seconds": {
+          "title": "مهلة الخمول",
+          "description": "عتبة عدم النشاط (بالثواني) لضغط السياق البارد بين الأدوار"
+        },
+        "live_threshold_ratio": {
+          "title": "نسبة عتبة التشذيب المباشر",
+          "description": "نسبة عتبة التشذيب المباشر لنتائج الأدوات القديمة من threshold_tokens (0.70 = 70%)"
+        },
+        "min_prune_chars": {
+          "title": "الحد الأدنى لحجم الأداة",
+          "description": "عتبة طول مخرجات الأداة بالأحرف للتشذيب"
+        },
+        "min_reclaim_tokens": {
+          "title": "الحد الأدنى للاسترداد",
+          "description": "الحد الأدنى لعدد الرموز المستردة لتأكيد تشذيب الأدوات"
+        }
+      }
+    },
+    "de": {
+      "name": "Smart Compaction Dual-Trigger",
+      "description": "Intelligente zweistufige Kontextkomprimierung (Dual-Trigger): proaktives Live-Kürzen von Werkzeugausgaben und Hintergrundkomprimierung bei Inaktivität",
+      "config": {
+        "enabled": {
+          "title": "Dual-Trigger aktivieren",
+          "description": "Intelligente Kontextkomprimierung (Dual-Trigger) einschalten"
+        },
+        "idle_seconds": {
+          "title": "Inaktivitäts-Timeout",
+          "description": "Inaktivitätsschwelle (in Sekunden) für die kalte Kontextkomprimierung zwischen Zügen"
+        },
+        "live_threshold_ratio": {
+          "title": "Live-Kürzungsverhältnis",
+          "description": "Schwellenwert für das Live-Kürzen alter Werkzeugausgaben als Anteil von threshold_tokens (0.70 = 70%)"
+        },
+        "min_prune_chars": {
+          "title": "Minimale Werkzeuggröße",
+          "description": "Mindestlänge der Werkzeugausgabe in Zeichen zum Kürzen"
+        },
+        "min_reclaim_tokens": {
+          "title": "Minimale Token-Rückgewinnung",
+          "description": "Mindestanzahl freizugebender Tokens zur Bestätigung des Werkzeugkürzens"
+        }
+      }
+    },
+    "pt": {
+      "name": "Smart Compaction Dual-Trigger",
+      "description": "Compactação inteligente de contexto de dois níveis (Dual-Trigger): poda proativa em tempo real de saídas de ferramentas e compactação em segundo plano",
+      "config": {
+        "enabled": {
+          "title": "Ativar Dual-Trigger",
+          "description": "Habilitar compactação inteligente de contexto (Dual-Trigger)"
+        },
+        "idle_seconds": {
+          "title": "Tempo limite de inatividade",
+          "description": "Limite de inatividade (em segundos) para compactação a frio de contexto entre turnos"
+        },
+        "live_threshold_ratio": {
+          "title": "Limite de poda em tempo real",
+          "description": "Proporção de limite para poda em tempo real de saídas antigas de ferramentas em relação a threshold_tokens (0.70 = 70%)"
+        },
+        "min_prune_chars": {
+          "title": "Tamanho mínimo da ferramenta",
+          "description": "Tamanho mínimo em caracteres da saída da ferramenta para poda"
+        },
+        "min_reclaim_tokens": {
+          "title": "Recuperação mínima",
+          "description": "Quantidade mínima de tokens a liberar para confirmar a poda de ferramentas"
+        }
+      }
+    }
+  },
+  "speech-to-text": {
+    "en": {
+      "name": "Speech to Text",
+      "description": "Speech-to-Text module via multimodal API with speculative parallel fallback to local faster-whisper",
+      "config": {
+        "fallback_whisper": {
+          "title": "Fallback to Whisper",
+          "description": "Automatic failover to faster-whisper when remote STT gateway is unreachable"
+        },
+        "downscale_heavy_audio": {
+          "title": "Compress Heavy Audio",
+          "description": "Automatically re-encode audio >750KB via ffmpeg into compact mono-Opus"
+        },
+        "api_key": {
+          "title": "STT API Key",
+          "description": "Optional STT API key (defaults to native config.yaml inheritance)"
+        },
+        "base_url": {
+          "title": "STT Base URL",
+          "description": "OmniRoute STT gateway base URL (defaults to config.yaml inheritance)"
+        },
+        "model": {
+          "title": "STT Model",
+          "description": "Optional STT model override (defaults to stt.openai.model in config.yaml)"
+        },
+        "timeout": {
+          "title": "Request Timeout",
+          "description": "Request timeout for remote STT API in seconds"
+        },
+        "speculative_fallback_delay": {
+          "title": "Fallback Delay",
+          "description": "Delay in seconds before speculative parallel launch of local Whisper"
+        }
+      }
+    },
+    "ru": {
+      "name": "Speech to Text",
+      "description": "Модуль распознавания речи (STT) через мультимодальный API со спекулятивным параллельным фолбэком на локальный faster-whisper",
+      "config": {
+        "fallback_whisper": {
+          "title": "Фолбэк на Whisper",
+          "description": "Автоматический переход на faster-whisper при недоступности удалённого шлюза"
+        },
+        "downscale_heavy_audio": {
+          "title": "Сжатие тяжёлого аудио",
+          "description": "Автоматическое пересжатие аудиофайлов >750КБ через ffmpeg в компактный моно-Opus"
+        },
+        "api_key": {
+          "title": "API ключ STT",
+          "description": "Опциональный API ключ STT (по умолчанию нативно наследуется из config.yaml Hermes)"
+        },
+        "base_url": {
+          "title": "Базовый URL STT",
+          "description": "Базовый URL шлюза OmniRoute STT (по умолчанию наследуется из config.yaml Hermes)"
+        },
+        "model": {
+          "title": "Модель STT",
+          "description": "Опциональный оверрайд модели STT (по умолчанию нативно наследуется из stt.openai.model в config.yaml Hermes)"
+        },
+        "timeout": {
+          "title": "Таймаут запроса",
+          "description": "Таймаут запроса к удаленному API STT в секундах"
+        },
+        "speculative_fallback_delay": {
+          "title": "Задержка фолбэка",
+          "description": "Задержка в секундах до спекулятивного параллельного запуска локального Whisper"
+        }
+      }
+    },
+    "es": {
+      "name": "Speech to Text",
+      "description": "Módulo de reconocimiento de voz (STT) mediante API multimodal con respaldo paralelo especulativo a faster-whisper local",
+      "config": {
+        "fallback_whisper": {
+          "title": "Respaldo con Whisper",
+          "description": "Transición automática a faster-whisper cuando la puerta de enlace remota de STT no esté disponible"
+        },
+        "downscale_heavy_audio": {
+          "title": "Comprimir audio pesado",
+          "description": "Recompresión automática de archivos de audio >750KB mediante ffmpeg en mono-Opus compacto"
+        },
+        "api_key": {
+          "title": "Clave API de STT",
+          "description": "Clave API opcional para STT (por defecto se hereda nativamente de config.yaml de Hermes)"
+        },
+        "base_url": {
+          "title": "URL base de STT",
+          "description": "URL base de la puerta de enlace OmniRoute STT (por defecto heredada de config.yaml de Hermes)"
+        },
+        "model": {
+          "title": "Modelo STT",
+          "description": "Anulación opcional del modelo STT (por defecto heredado de stt.openai.model en config.yaml de Hermes)"
+        },
+        "timeout": {
+          "title": "Tiempo de espera de solicitud",
+          "description": "Tiempo de espera de la solicitud a la API remota de STT en segundos"
+        },
+        "speculative_fallback_delay": {
+          "title": "Retardo de respaldo",
+          "description": "Retardo en segundos antes del inicio paralelo especulativo de Whisper local"
+        }
+      }
+    },
+    "fr": {
+      "name": "Speech to Text",
+      "description": "Module de reconnaissance vocale (STT) via API multimodale avec bascule parallèle spéculative vers faster-whisper local",
+      "config": {
+        "fallback_whisper": {
+          "title": "Secours avec Whisper",
+          "description": "Bascule automatique vers faster-whisper en cas d'inaccessibilité de la passerelle STT distante"
+        },
+        "downscale_heavy_audio": {
+          "title": "Compresser l'audio lourd",
+          "description": "Recompression automatique des fichiers audio >750Ko via ffmpeg en mono-Opus compact"
+        },
+        "api_key": {
+          "title": "Clé API STT",
+          "description": "Clé API STT optionnelle (héritée nativement de config.yaml de Hermes par défaut)"
+        },
+        "base_url": {
+          "title": "URL de base STT",
+          "description": "URL de base de la passerelle OmniRoute STT (héritée de config.yaml de Hermes par défaut)"
+        },
+        "model": {
+          "title": "Modèle STT",
+          "description": "Remplacement optionnel du modèle STT (hérité de stt.openai.model dans config.yaml de Hermes)"
+        },
+        "timeout": {
+          "title": "Délai d'attente de requête",
+          "description": "Délai d'attente de requête vers l'API distante STT en secondes"
+        },
+        "speculative_fallback_delay": {
+          "title": "Délai de bascule de secours",
+          "description": "Délai en secondes avant le lancement spéculatif parallèle de Whisper local"
+        }
+      }
+    },
+    "zh": {
+      "name": "Speech to Text",
+      "description": "通过多模态API的语音识别（STT）模块，支持推测性并行回退到本地faster-whisper",
+      "config": {
+        "fallback_whisper": {
+          "title": "Whisper备用故障转移",
+          "description": "远程STT网关不可用时自动回退到本地faster-whisper"
+        },
+        "downscale_heavy_audio": {
+          "title": "压缩大音频文件",
+          "description": "通过ffmpeg自动将大于750KB的音频文件重压缩为紧凑的单声道Opus"
+        },
+        "api_key": {
+          "title": "STT API密钥",
+          "description": "可选STT API密钥（默认从Hermes的config.yaml中原生继承）"
+        },
+        "base_url": {
+          "title": "STT基础URL",
+          "description": "OmniRoute STT网关基础URL（默认从Hermes的config.yaml继承）"
+        },
+        "model": {
+          "title": "STT模型",
+          "description": "可选STT模型覆盖（默认从Hermes config.yaml的stt.openai.model继承）"
+        },
+        "timeout": {
+          "title": "请求超时",
+          "description": "远程STT API请求超时时间（秒）"
+        },
+        "speculative_fallback_delay": {
+          "title": "备用延迟",
+          "description": "推测性并行启动本地Whisper前的等待延迟（秒）"
+        }
+      }
+    },
+    "ar": {
+      "name": "Speech to Text",
+      "description": "وحدة التعرف على الكلام (STT) عبر واجهة برمجة تطبيقات متعددة الوسائط مع احتياطي موازٍ تخميني إلى faster-whisper المحلي",
+      "config": {
+        "fallback_whisper": {
+          "title": "التحويل الاحتياطي إلى Whisper",
+          "description": "التحويل التلقائي إلى faster-whisper عند عدم توفر بوابة STT البعيدة"
+        },
+        "downscale_heavy_audio": {
+          "title": "ضغط الملفات الصوتية الثقيلة",
+          "description": "إعادة ضغط الملفات الصوتية التي تزيد عن 750 كيلوبايت تلقائيًا عبر ffmpeg إلى صيغة mono-Opus المدمجة"
+        },
+        "api_key": {
+          "title": "مفتاح API لـ STT",
+          "description": "مفتاح API اختياري لـ STT (موروث أصليًا من config.yaml لـ Hermes افتراضيًا)"
+        },
+        "base_url": {
+          "title": "عنوان URL الأساسي لـ STT",
+          "description": "عنوان URL الأساسي لبوابة OmniRoute STT (موروث افتراضيًا من config.yaml لـ Hermes)"
+        },
+        "model": {
+          "title": "نموذج STT",
+          "description": "تجاوز اختياري لنموذج STT (موروث افتراضيًا من stt.openai.model في config.yaml لـ Hermes)"
+        },
+        "timeout": {
+          "title": "مهلة الطلب",
+          "description": "مهلة طلب API البعيد لـ STT بالثواني"
+        },
+        "speculative_fallback_delay": {
+          "title": "مهلة التحويل الاحتياطي",
+          "description": "التأخير بالثواني قبل التشغيل الموازي التخميني لـ Whisper المحلي"
+        }
+      }
+    },
+    "de": {
+      "name": "Speech to Text",
+      "description": "Spracherkennungsmodul (STT) über multimodale API mit spekulativem parallelem Fallback auf lokales faster-whisper",
+      "config": {
+        "fallback_whisper": {
+          "title": "Fallback auf Whisper",
+          "description": "Automatisches Failover auf faster-whisper bei Nichterreichbarkeit des Remote-STT-Gateways"
+        },
+        "downscale_heavy_audio": {
+          "title": "Schwere Audiodateien komprimieren",
+          "description": "Automatische Neukomprimierung von Audiodateien >750KB über ffmpeg in kompaktes Mono-Opus"
+        },
+        "api_key": {
+          "title": "STT API-Schlüssel",
+          "description": "Optionaler STT API-Schlüssel (wird standardmäßig nativ aus Hermes config.yaml geerbt)"
+        },
+        "base_url": {
+          "title": "STT Basis-URL",
+          "description": "OmniRoute STT Gateway Basis-URL (wird standardmäßig aus Hermes config.yaml geerbt)"
+        },
+        "model": {
+          "title": "STT-Modell",
+          "description": "Optionaler STT-Modell-Override (wird standardmäßig aus stt.openai.model in Hermes config.yaml geerbt)"
+        },
+        "timeout": {
+          "title": "Anforderungs-Timeout",
+          "description": "Anforderungs-Timeout für die Remote-STT-API in Sekunden"
+        },
+        "speculative_fallback_delay": {
+          "title": "Fallback-Verzögerung",
+          "description": "Verzögerung in Sekunden vor dem spekulativen parallelen Start des lokalen Whisper"
+        }
+      }
+    },
+    "pt": {
+      "name": "Speech to Text",
+      "description": "Módulo de reconhecimento de fala (STT) via API multimodal com fallback paralelo especulativo para faster-whisper local",
+      "config": {
+        "fallback_whisper": {
+          "title": "Fallback para Whisper",
+          "description": "Transição automática para faster-whisper quando o gateway remoto de STT estiver inacessível"
+        },
+        "downscale_heavy_audio": {
+          "title": "Comprimir áudio pesado",
+          "description": "Recompactação automática de arquivos de áudio >750KB via ffmpeg em mono-Opus compacto"
+        },
+        "api_key": {
+          "title": "Chave de API do STT",
+          "description": "Chave de API opcional do STT (herdada nativamente de config.yaml do Hermes por padrão)"
+        },
+        "base_url": {
+          "title": "URL base do STT",
+          "description": "URL base do gateway OmniRoute STT (herdada de config.yaml do Hermes por padrão)"
+        },
+        "model": {
+          "title": "Modelo STT",
+          "description": "Substituição opcional do modelo STT (herdada de stt.openai.model no config.yaml do Hermes por padrão)"
+        },
+        "timeout": {
+          "title": "Tempo limite da requisição",
+          "description": "Tempo limite da requisição para a API remota de STT em segundos"
+        },
+        "speculative_fallback_delay": {
+          "title": "Atraso de fallback",
+          "description": "Atraso em segundos antes do lançamento paralelo especulativo do Whisper local"
+        }
+      }
+    }
+  },
+  "state-db-threaded-repair-safety": {
+    "en": {
+      "name": "State DB Threaded Repair Safety",
+      "description": "Evict idle reader connections from the process pool before running state.db schema surgery and vacuum (Issue #142077)"
+    },
+    "ru": {
+      "name": "State DB Threaded Repair Safety",
+      "description": "Сброс неактивных соединений из пула процесса перед выполнением восстановления state.db"
+    },
+    "es": {
+      "name": "State DB Threaded Repair Safety",
+      "description": "Expulsión de conexiones de lectura inactivas del grupo de procesos antes de la reparación y optimización de state.db (Issue #142077)"
+    },
+    "fr": {
+      "name": "State DB Threaded Repair Safety",
+      "description": "Éviction des connexions de lecture inactives du pool de processus avant la réparation et le vacuum de state.db (Issue #142077)"
+    },
+    "zh": {
+      "name": "State DB Threaded Repair Safety",
+      "description": "在对state.db执行架构修复和清理操作前，从进程池中逐出空闲读取连接（Issue #142077）"
+    },
+    "ar": {
+      "name": "State DB Threaded Repair Safety",
+      "description": "طرد اتصالات القراءة الخاملة من تجمع العمليات قبل إجراء إصلاح مخطط state.db والضغط (المسألة #142077)"
+    },
+    "de": {
+      "name": "State DB Threaded Repair Safety",
+      "description": "Bereinigung inaktiver Lese-Verbindungen aus dem Prozess-Pool vor Durchführung von state.db-Schemareparatur und Vacuum (Issue #142077)"
+    },
+    "pt": {
+      "name": "State DB Threaded Repair Safety",
+      "description": "Despejo de conexões leitoras ociosas do pool de processos antes da reparação e vácuo do esquema state.db (Issue #142077)"
+    }
+  },
+  "stt-provider-echo": {
+    "en": {
+      "name": "STT Provider Tracking & Echo",
+      "description": "Record actual STT provider in transcripts, safe tuple/STTTranscript handling in clarify, and clean audio logging"
+    },
+    "ru": {
+      "name": "STT Provider Tracking & Echo",
+      "description": "Фиксация реального STT-провайдера в транскриптах, безопасная обработка tuple/STTTranscript в clarify и чистый лог аудио"
+    },
+    "es": {
+      "name": "STT Provider Tracking & Echo",
+      "description": "Registro del proveedor real de STT en transcripciones, manejo seguro de tuple/STTTranscript en clarify y registro de audio limpio"
+    },
+    "fr": {
+      "name": "STT Provider Tracking & Echo",
+      "description": "Enregistrement du fournisseur STT réel dans les transcriptions, gestion sécurisée de tuple/STTTranscript dans clarify et journalisation audio propre"
+    },
+    "zh": {
+      "name": "STT Provider Tracking & Echo",
+      "description": "在转录文本中记录实际STT提供商，在clarify中安全处理tuple/STTTranscript并保持音频日志纯净"
+    },
+    "ar": {
+      "name": "STT Provider Tracking & Echo",
+      "description": "تسجيل موفر STT الفعلي في النصوص المنقولة، ومعالجة آمنة لـ tuple/STTTranscript في التوضيح وسجل صوتي نظيف"
+    },
+    "de": {
+      "name": "STT Provider Tracking & Echo",
+      "description": "Erfassung des tatsächlichen STT-Anbieters in Transkripten, sichere Behandlung von tuple/STTTranscript in clarify und saubere Audio-Protokollierung"
+    },
+    "pt": {
+      "name": "STT Provider Tracking & Echo",
+      "description": "Registro do provedor real de STT em transcrições, manipulação segura de tupla/STTTranscript em clarify e registro limpo de áudio"
+    }
+  },
+  "subscription-limit-notice": {
+    "en": {
+      "name": "Subscription Limit Concise Notice & No-Retry Guard",
+      "description": "Concise subscription limit reached notice with reset timer and no-retry guard for 429/503 cooldowns",
+      "subscription_limit": {
+        "notice": "Subscription limit reached, resets in {time}. Switch model: /model or wait.",
+        "unknown_time": "some time"
+      }
+    },
+    "ru": {
+      "name": "Subscription Limit Concise Notice & No-Retry Guard",
+      "description": "Лаконичное сообщение об исчерпании лимита подписки с таймером сброса (429/503 / cooling down / reset after) без слепых повторных попыток",
+      "subscription_limit": {
+        "notice": "Лимит подписки исчерпан, сброс через {time}. Поменять модель: /model или дождитесь.",
+        "unknown_time": "некоторое время"
+      }
+    },
+    "es": {
+      "name": "Subscription Limit Concise Notice & No-Retry Guard",
+      "description": "Aviso conciso de límite de suscripción alcanzado con temporizador de reinicio y protección sin reintentos para enfriamientos 429/503",
+      "subscription_limit": {
+        "notice": "Límite de suscripción alcanzado, se reinicia en {time}. Cambie de modelo: /model o espere.",
+        "unknown_time": "un momento"
+      }
+    },
+    "fr": {
+      "name": "Subscription Limit Concise Notice & No-Retry Guard",
+      "description": "Notification concise de limite d'abonnement atteinte avec minuteur de réinitialisation et protection sans nouvelle tentative pour les refroidissements 429/503",
+      "subscription_limit": {
+        "notice": "Limite d'abonnement atteinte, réinitialisation dans {time}. Changez de modèle : /model ou patientez.",
+        "unknown_time": "un certain temps"
+      }
+    },
+    "zh": {
+      "name": "Subscription Limit Concise Notice & No-Retry Guard",
+      "description": "简洁的订阅额度耗尽通知，带有重置计时器和针对429/503冷却的免重试保护",
+      "subscription_limit": {
+        "notice": "已达到订阅额度限制，将在 {time} 后重置。更换模型：/model 或稍后重试。",
+        "unknown_time": "稍后"
+      }
+    },
+    "ar": {
+      "name": "Subscription Limit Concise Notice & No-Retry Guard",
+      "description": "إشعار موجز بالوصول إلى حد الاشتراك مع مؤقت لإعادة الضبط وحماية ضد إعادة المحاولة لفترات التهدئة 429/503",
+      "subscription_limit": {
+        "notice": "تم استنفاد حد الاشتراك، سيُعاد التعيين خلال {time}. غيّر النموذج: /model أو انتظر.",
+        "unknown_time": "بعض الوقت"
+      }
+    },
+    "de": {
+      "name": "Subscription Limit Concise Notice & No-Retry Guard",
+      "description": "Präziser Hinweis bei erreichtem Abonnementlimit mit Reset-Timer und No-Retry-Schutz für 429/503-Abkühlphasen",
+      "subscription_limit": {
+        "notice": "Abonnementlimit erreicht, Reset in {time}. Modell wechseln: /model oder warten.",
+        "unknown_time": "einiger Zeit"
+      }
+    },
+    "pt": {
+      "name": "Subscription Limit Concise Notice & No-Retry Guard",
+      "description": "Aviso conciso de limite de assinatura atingido com temporizador de redefinição e proteção sem repetição para períodos de resfriamento 429/503",
+      "subscription_limit": {
+        "notice": "Limite de assinatura atingido, reinicia em {time}. Troque de modelo: /model ou aguarde.",
+        "unknown_time": "algum tempo"
+      }
+    }
+  },
+  "telegram-quiet-notifications": {
+    "en": {
+      "name": "Telegram Quiet Notifications",
+      "description": "Quiet-first Telegram notification policy: mute routine slash command replies and topic seeds, preserve audible alerts for urgent events",
+      "config": {
+        "audible_commands": {
+          "title": "Audible Slash Commands",
+          "description": "Whether to play sound for slash command replies (default false - quiet mode)"
+        }
+      }
+    },
+    "ru": {
+      "name": "Telegram Quiet Notifications",
+      "description": "Комплексный аудит и мют системного шума в Telegram: тихий режим по умолчанию для всех команд и служебных сообщений",
+      "config": {
+        "audible_commands": {
+          "title": "Звук для слэш-команд",
+          "description": "Включать ли звук для ответов на слэш-команды (по умолчанию выключено — тихий режим)"
+        }
+      }
+    },
+    "es": {
+      "name": "Telegram Quiet Notifications",
+      "description": "Política de notificaciones silenciosas en Telegram: silenciar respuestas rutinarias a comandos slash y preservar alertas sonoras para eventos urgentes",
+      "config": {
+        "audible_commands": {
+          "title": "Sonido para comandos slash",
+          "description": "Activar sonido para respuestas a comandos slash (desactivado por defecto: modo silencioso)"
+        }
+      }
+    },
+    "fr": {
+      "name": "Telegram Quiet Notifications",
+      "description": "Politique de notifications silencieuses sur Telegram : couper le son des réponses de routine aux commandes slash et conserver les alertes pour les urgences",
+      "config": {
+        "audible_commands": {
+          "title": "Son pour les commandes slash",
+          "description": "Activer le son pour les réponses aux commandes slash (désactivé par défaut : mode silencieux)"
+        }
+      }
+    },
+    "zh": {
+      "name": "Telegram Quiet Notifications",
+      "description": "Telegram静音优先通知策略：静音常规斜杠命令回复与话题创建，保留紧急事件的声音提醒",
+      "config": {
+        "audible_commands": {
+          "title": "斜杠命令提示音",
+          "description": "是否为斜杠命令回复开启声音提示（默认关闭：静音模式）"
+        }
+      }
+    },
+    "ar": {
+      "name": "Telegram Quiet Notifications",
+      "description": "سياسة الإشعارات الصامتة أولاً في تيليجرام: كتم ردود أوامر الشرطة المائلة الروتينية والحفاظ على التنبيهات الصوتية للأحداث العاجلة",
+      "config": {
+        "audible_commands": {
+          "title": "صوت أوامر الشرطة المائلة",
+          "description": "ما إذا كان سيتم تشغيل الصوت للردود على أوامر الشرطة المائلة (معطل افتراضيًا — وضع صامت)"
+        }
+      }
+    },
+    "de": {
+      "name": "Telegram Quiet Notifications",
+      "description": "Stille Benachrichtigungsrichtlinie für Telegram: Stummschalten von Routine-Slash-Befehlen und Beibehalten von Tönen für dringende Ereignisse",
+      "config": {
+        "audible_commands": {
+          "title": "Ton für Slash-Befehle",
+          "description": "Ob Ton für Antworten auf Slash-Befehle abgespielt werden soll (standardmäßig aus — lautloser Modus)"
+        }
+      }
+    },
+    "pt": {
+      "name": "Telegram Quiet Notifications",
+      "description": "Política de notificações silenciosas no Telegram: silenciar respostas rotineiras de comandos slash e preservar alertas sonoros para eventos urgentes",
+      "config": {
+        "audible_commands": {
+          "title": "Som para comandos slash",
+          "description": "Ativar som para respostas a comandos slash (desativado por padrão: modo silencioso)"
+        }
+      }
+    }
+  },
+  "telegram-ux": {
+    "en": {
+      "name": "Telegram UX & Rich Formatting",
+      "description": "Telegram rich messaging UX: delivery of rich formatting (tables, LaTeX, spoilers), multiline quotes, and photo burst grouping"
+    },
+    "ru": {
+      "name": "Telegram UX & Rich Formatting",
+      "description": "Комплексный UX Telegram: доставка Rich Messages (таблицы, LaTeX, спойлеры), поддержка multiline-цитат и группировка фото-пакетов"
+    },
+    "es": {
+      "name": "Telegram UX & Rich Formatting",
+      "description": "UX enriquecido de Telegram: entrega de formato avanzado (tablas, LaTeX, spoilers), citas multilínea y agrupación de ráfagas de fotos"
+    },
+    "fr": {
+      "name": "Telegram UX & Rich Formatting",
+      "description": "Expérience enrichie sur Telegram : prise en charge du formatage enrichi (tableaux, LaTeX, spoilers), citations multilignes et regroupement de photos"
+    },
+    "zh": {
+      "name": "Telegram UX & Rich Formatting",
+      "description": "Telegram富文本消息UX优化：支持富文本格式化（表格、LaTeX、剧透内容）、多行引用及连拍照片智能分组"
+    },
+    "ar": {
+      "name": "Telegram UX & Rich Formatting",
+      "description": "تجربة مستخدم غنية لتيليجرام: تسليم التنسيق الغني (الجداول، LaTeX، النصوص المخفية)، واقتباسات متعددة الأسطر وتجميع حزم الصور"
+    },
+    "de": {
+      "name": "Telegram UX & Rich Formatting",
+      "description": "Telegram-Rich-Messaging-UX: Bereitstellung von Rich-Formatierungen (Tabellen, LaTeX, Spoiler), mehrzeiligen Zitaten und Foto-Burst-Gruppierung"
+    },
+    "pt": {
+      "name": "Telegram UX & Rich Formatting",
+      "description": "UX de mensagens ricas no Telegram: entrega de formatação avançada (tabelas, LaTeX, spoilers), citações multilinha e agrupamento de lotes de fotos"
+    }
+  },
+  "terminal-core-fixes": {
+    "en": {
+      "name": "Terminal & PTY Core Fixes",
+      "description": "Terminal output draining via poll() for fd >= 1024 safety and suppression of spurious SIGWINCH on key combinations"
+    },
+    "ru": {
+      "name": "Terminal & PTY Core Fixes",
+      "description": "Дренаж вывода терминала через poll() для защиты от fd >= 1024 и предотвращение ложных SIGWINCH при комбинациях клавиш"
+    },
+    "es": {
+      "name": "Terminal & PTY Core Fixes",
+      "description": "Drenaje de salida de terminal mediante poll() para seguridad con fd >= 1024 y supresión de SIGWINCH espurios en combinaciones de teclas"
+    },
+    "fr": {
+      "name": "Terminal & PTY Core Fixes",
+      "description": "Drainage de la sortie du terminal via poll() pour la sécurité fd >= 1024 et suppression des faux signaux SIGWINCH lors des combinaisons de touches"
+    },
+    "zh": {
+      "name": "Terminal & PTY Core Fixes",
+      "description": "通过poll()排出终端输出以确保fd >= 1024时的安全性，并抑制按键组合产生的误触发SIGWINCH信号"
+    },
+    "ar": {
+      "name": "Terminal & PTY Core Fixes",
+      "description": "تصريف مخرجات الطرفية عبر poll() لأمان fd >= 1024 ومنع إشارات SIGWINCH الزائفة عند مجموعات المفاتيح"
+    },
+    "de": {
+      "name": "Terminal & PTY Core Fixes",
+      "description": "Terminal-Ausgabe-Draining via poll() für fd >= 1024-Sicherheit und Unterdrückung fehlerhafter SIGWINCH-Signale bei Tastenkombinationen"
+    },
+    "pt": {
+      "name": "Terminal & PTY Core Fixes",
+      "description": "Drenagem de saída do terminal via poll() para segurança de fd >= 1024 e supressão de SIGWINCH espúrios em combinações de teclas"
+    }
+  },
+  "text-to-speech": {
+    "en": {
+      "name": "Text to Speech",
+      "description": "Text-to-Speech synthesis module via API with neural adaptation to conversational style",
+      "config": {
+        "voice": {
+          "title": "Speech Synthesis Voice",
+          "description": "Speech synthesis voice for Gemini TTS"
+        },
+        "adaptation": {
+          "title": "Text Neural Adaptation",
+          "description": "Neural adaptation of written Markdown text into conversational speech before synthesis"
+        },
+        "api_key": {
+          "title": "TTS API Key",
+          "description": "API key for OmniRoute TTS access (stored in secrets.yaml)"
+        },
+        "base_url": {
+          "title": "TTS Base URL",
+          "description": "Base URL for OmniRoute TTS gateway"
+        },
+        "fallback_edge": {
+          "title": "Fallback to Edge TTS",
+          "description": "Automatic failover to Edge TTS when OmniRoute is unavailable or token is missing"
+        },
+        "timeout": {
+          "title": "Request Timeout",
+          "description": "Request timeout for remote TTS API in seconds"
+        }
+      }
+    },
+    "ru": {
+      "name": "Text to Speech",
+      "description": "Модуль синтеза устной речи (TTS) через API с авто-адаптацией текста под естественную речь",
+      "config": {
+        "voice": {
+          "title": "Голос синтеза речи",
+          "description": "Голос синтеза речи Gemini TTS"
+        },
+        "adaptation": {
+          "title": "Нейроадаптация текста",
+          "description": "Нейросетевая адаптация письменного Markdown-текста в устную речь перед синтезом"
+        },
+        "api_key": {
+          "title": "API ключ TTS",
+          "description": "API ключ для доступа к OmniRoute TTS (сохраняется в secrets.yaml)"
+        },
+        "base_url": {
+          "title": "Базовый URL TTS",
+          "description": "Базовый URL шлюза OmniRoute TTS"
+        },
+        "fallback_edge": {
+          "title": "Фолбэк на Edge TTS",
+          "description": "Автоматический переход на Edge TTS при недоступности OmniRoute или отсутствии токена"
+        },
+        "timeout": {
+          "title": "Таймаут запроса",
+          "description": "Таймаут запроса к удаленному API TTS в секундах"
+        }
+      }
+    },
+    "es": {
+      "name": "Text to Speech",
+      "description": "Módulo de síntesis de voz (TTS) mediante API con adaptación neuronal al estilo conversacional",
+      "config": {
+        "voice": {
+          "title": "Voz de síntesis de voz",
+          "description": "Voz de síntesis de habla para Gemini TTS"
+        },
+        "adaptation": {
+          "title": "Neuroadaptación de texto",
+          "description": "Adaptación neuronal de texto Markdown escrito a habla conversacional antes de la síntesis"
+        },
+        "api_key": {
+          "title": "Clave API de TTS",
+          "description": "Clave API para acceso a OmniRoute TTS (se almacena en secrets.yaml)"
+        },
+        "base_url": {
+          "title": "URL base de TTS",
+          "description": "URL base de la puerta de enlace OmniRoute TTS"
+        },
+        "fallback_edge": {
+          "title": "Respaldo con Edge TTS",
+          "description": "Transición automática a Edge TTS cuando OmniRoute no esté disponible o falte el token"
+        },
+        "timeout": {
+          "title": "Tiempo de espera de solicitud",
+          "description": "Tiempo de espera de solicitud a la API remota de TTS en segundos"
+        }
+      }
+    },
+    "fr": {
+      "name": "Text to Speech",
+      "description": "Module de synthèse vocale (TTS) via API avec adaptation neuronale au style conversationnel",
+      "config": {
+        "voice": {
+          "title": "Voix de synthèse vocale",
+          "description": "Voix de synthèse vocale pour Gemini TTS"
+        },
+        "adaptation": {
+          "title": "Neuro-adaptation du texte",
+          "description": "Adaptation neuronale du texte Markdown écrit en parole naturelle avant synthèse"
+        },
+        "api_key": {
+          "title": "Clé API TTS",
+          "description": "Clé API pour l'accès à OmniRoute TTS (stockée dans secrets.yaml)"
+        },
+        "base_url": {
+          "title": "URL de base TTS",
+          "description": "URL de base de la passerelle OmniRoute TTS"
+        },
+        "fallback_edge": {
+          "title": "Secours avec Edge TTS",
+          "description": "Bascule automatique vers Edge TTS en cas d'inaccessibilité d'OmniRoute ou d'absence de jeton"
+        },
+        "timeout": {
+          "title": "Délai d'attente de requête",
+          "description": "Délai d'attente de requête vers l'API distante TTS en secondes"
+        }
+      }
+    },
+    "zh": {
+      "name": "Text to Speech",
+      "description": "通过API的语音合成（TTS）模块，具有文本转自然口语风格的神经网络适应能力",
+      "config": {
+        "voice": {
+          "title": "语音合成音色",
+          "description": "Gemini TTS语音合成音色"
+        },
+        "adaptation": {
+          "title": "文本神经适应",
+          "description": "在合成前将书面Markdown文本进行口语化神经网络转换适应"
+        },
+        "api_key": {
+          "title": "TTS API密钥",
+          "description": "访问OmniRoute TTS的API密钥（存储在secrets.yaml中）"
+        },
+        "base_url": {
+          "title": "TTS基础URL",
+          "description": "OmniRoute TTS网关的基础URL"
+        },
+        "fallback_edge": {
+          "title": "Edge TTS备用转移",
+          "description": "当OmniRoute不可用或缺少令牌时自动回退到Edge TTS"
+        },
+        "timeout": {
+          "title": "请求超时",
+          "description": "远程TTS API请求超时时间（秒）"
+        }
+      }
+    },
+    "ar": {
+      "name": "Text to Speech",
+      "description": "وحدة تركيب الكلام الصوتي (TTS) عبر واجهة برمجة التطبيقات مع تكيف عصبي مع الأسلوب الحواري",
+      "config": {
+        "voice": {
+          "title": "صوت تركيب الكلام",
+          "description": "صوت توليد الكلام لـ Gemini TTS"
+        },
+        "adaptation": {
+          "title": "التكيف العصبي للنص",
+          "description": "تكيف عصبي للنص المكتوب بصيغة Markdown إلى كلام منطوق قبل التوليد"
+        },
+        "api_key": {
+          "title": "مفتاح API لـ TTS",
+          "description": "مفتاح API للوصول إلى OmniRoute TTS (يُحفظ في secrets.yaml)"
+        },
+        "base_url": {
+          "title": "عنوان URL الأساسي لـ TTS",
+          "description": "عنوان URL الأساسي لبوابة OmniRoute TTS"
+        },
+        "fallback_edge": {
+          "title": "التحويل الاحتياطي إلى Edge TTS",
+          "description": "التحويل التلقائي إلى Edge TTS عند عدم توفر OmniRoute أو غياب الرمز"
+        },
+        "timeout": {
+          "title": "مهلة الطلب",
+          "description": "مهلة طلب API البعيد لـ TTS بالثواني"
+        }
+      }
+    },
+    "de": {
+      "name": "Text to Speech",
+      "description": "Sprachsynthese-Modul (TTS) über API mit neuronaler Anpassung an den Konversationsstil",
+      "config": {
+        "voice": {
+          "title": "Sprachsynthese-Stimme",
+          "description": "Sprachsynthese-Stimme für Gemini TTS"
+        },
+        "adaptation": {
+          "title": "Neuronale Textanpassung",
+          "description": "Neuronale Anpassung von geschriebenem Markdown-Text in gesprochene Sprache vor der Synthese"
+        },
+        "api_key": {
+          "title": "TTS API-Schlüssel",
+          "description": "API-Schlüssel für OmniRoute TTS-Zugriff (in secrets.yaml gespeichert)"
+        },
+        "base_url": {
+          "title": "TTS Basis-URL",
+          "description": "Basis-URL für das OmniRoute TTS-Gateway"
+        },
+        "fallback_edge": {
+          "title": "Fallback auf Edge TTS",
+          "description": "Automatisches Failover auf Edge TTS bei Nichterreichbarkeit von OmniRoute oder fehlendem Token"
+        },
+        "timeout": {
+          "title": "Anforderungs-Timeout",
+          "description": "Anforderungs-Timeout für die Remote-TTS-API in Sekunden"
+        }
+      }
+    },
+    "pt": {
+      "name": "Text to Speech",
+      "description": "Módulo de síntese de fala (TTS) via API com adaptação neural ao estilo de conversação",
+      "config": {
+        "voice": {
+          "title": "Voz de síntese de fala",
+          "description": "Voz de síntesis de fala do Gemini TTS"
+        },
+        "adaptation": {
+          "title": "Neuroadaptação de texto",
+          "description": "Adaptação neural de texto Markdown escrito para fala conversacional antes da síntese"
+        },
+        "api_key": {
+          "title": "Chave de API do TTS",
+          "description": "Chave de API para acesso ao OmniRoute TTS (armazenada em secrets.yaml)"
+        },
+        "base_url": {
+          "title": "URL base do TTS",
+          "description": "URL base do gateway OmniRoute TTS"
+        },
+        "fallback_edge": {
+          "title": "Fallback para Edge TTS",
+          "description": "Transição automática para o Edge TTS quando o OmniRoute estiver indisponível ou faltar o token"
+        },
+        "timeout": {
+          "title": "Tempo limite da requisição",
+          "description": "Tempo limite da requisição para a API remota de TTS em segundos"
+        }
+      }
+    }
+  },
+  "tool-video-analyze": {
+    "en": {
+      "name": "Tool Video Analyze",
+      "description": "Registration of video_analyze tool in core toolset and routing via auxiliary.video"
+    },
+    "ru": {
+      "name": "Tool Video Analyze",
+      "description": "Регистрация инструмента video_analyze в core-тулсете и маршрутизация через auxiliary.video"
+    },
+    "es": {
+      "name": "Tool Video Analyze",
+      "description": "Registro de la herramienta video_analyze en el conjunto principal de herramientas y enrutamiento mediante auxiliary.video"
+    },
+    "fr": {
+      "name": "Tool Video Analyze",
+      "description": "Enregistrement de l'outil video_analyze dans la boîte à outils principale et routage via auxiliary.video"
+    },
+    "zh": {
+      "name": "Tool Video Analyze",
+      "description": "在核心工具集中注册video_analyze工具并通过auxiliary.video进行路由"
+    },
+    "ar": {
+      "name": "Tool Video Analyze",
+      "description": "تسجيل أداة video_analyze في مجموعة أدوات النواة والتوجيه عبر auxiliary.video"
+    },
+    "de": {
+      "name": "Tool Video Analyze",
+      "description": "Registrierung des video_analyze-Tools im Core-Toolset und Routing über auxiliary.video"
+    },
+    "pt": {
+      "name": "Tool Video Analyze",
+      "description": "Registro da ferramenta video_analyze no conjunto de ferramentas principais e roteamento via auxiliary.video"
+    }
+  },
+  "voice-command-custom": {
+    "en": {
+      "name": "Voice Command Modes & On-Demand Speech Synthesis",
+      "description": "Mode switching for /voice (on=all, tts=voice_only, off=off) and on-demand async speech synthesis for the latest agent response"
+    },
+    "ru": {
+      "name": "Voice Command Modes & On-Demand Speech Synthesis",
+      "description": "Смена режимов /voice (on=all, tts=voice_only, off=off) и асинхронный синтез речи последнего ответа агента"
+    },
+    "es": {
+      "name": "Voice Command Modes & On-Demand Speech Synthesis",
+      "description": "Cambio de modos para /voice (on=todos, tts=solo_voz, off=desactivado) y síntesis asíncrona de voz bajo demanda para la última respuesta del agente"
+    },
+    "fr": {
+      "name": "Voice Command Modes & On-Demand Speech Synthesis",
+      "description": "Changement de mode pour /voice (on=tous, tts=voix_seule, off=désactivé) et synthèse vocale asynchrone à la demande pour la dernière réponse de l'agent"
+    },
+    "zh": {
+      "name": "Voice Command Modes & On-Demand Speech Synthesis",
+      "description": "命令 /voice 的模式切换（on=全部，tts=仅语音，off=关闭）以及对最新Agent回复的按需异步语音合成"
+    },
+    "ar": {
+      "name": "Voice Command Modes & On-Demand Speech Synthesis",
+      "description": "تبديل أوضاع /voice (on=الكل، tts=صوت_فقط، off=إيقاف) والتركيب الصوتي غير المتزامن عند الطلب لآخر رد من الوكيل"
+    },
+    "de": {
+      "name": "Voice Command Modes & On-Demand Speech Synthesis",
+      "description": "Modusumschaltung für /voice (on=alle, tts=nur_stimme, off=aus) und asynchrone On-Demand-Sprachsynthese für die letzte Agentenantwort"
+    },
+    "pt": {
+      "name": "Voice Command Modes & On-Demand Speech Synthesis",
+      "description": "Alternância de modos para /voice (on=todos, tts=somente_voz, off=desligado) e síntese assíncrona de fala sob demanda para a última resposta do agente"
+    }
+  }
+}

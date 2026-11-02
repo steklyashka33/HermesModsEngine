@@ -1,0 +1,28 @@
+name: Speech to Text
+description: وحدة التعرف على الكلام (STT) عبر واجهة برمجة تطبيقات متعددة الوسائط مع
+  احتياطي موازٍ تخميني إلى faster-whisper المحلي
+config:
+  fallback_whisper:
+    title: التحويل الاحتياطي إلى Whisper
+    description: التحويل التلقائي إلى faster-whisper عند عدم توفر بوابة STT البعيدة
+  downscale_heavy_audio:
+    title: ضغط الملفات الصوتية الثقيلة
+    description: إعادة ضغط الملفات الصوتية التي تزيد عن 750 كيلوبايت تلقائيًا عبر
+      ffmpeg إلى صيغة mono-Opus المدمجة
+  api_key:
+    title: مفتاح API لـ STT
+    description: مفتاح API اختياري لـ STT (موروث أصليًا من config.yaml لـ Hermes افتراضيًا)
+  base_url:
+    title: عنوان URL الأساسي لـ STT
+    description: عنوان URL الأساسي لبوابة OmniRoute STT (موروث افتراضيًا من config.yaml
+      لـ Hermes)
+  model:
+    title: نموذج STT
+    description: تجاوز اختياري لنموذج STT (موروث افتراضيًا من stt.openai.model في
+      config.yaml لـ Hermes)
+  timeout:
+    title: مهلة الطلب
+    description: مهلة طلب API البعيد لـ STT بالثواني
+  speculative_fallback_delay:
+    title: مهلة التحويل الاحتياطي
+    description: التأخير بالثواني قبل التشغيل الموازي التخميني لـ Whisper المحلي

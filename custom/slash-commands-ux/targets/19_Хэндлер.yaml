@@ -1,0 +1,215 @@
+targets:
+- file: gateway/slash_commands_session.py
+  description: Хэндлер команды /handoff (бесшовная передача дел в чистую новую сессию)
+  old_block: "    # ---------------------------------------------------------------------\
+    \ /compress\n\n    async def _handle_compress_command(self, event: MessageEvent)\
+    \ -> str:"
+  new_block: "    # ---------------------------------------------------------------------\
+    \ /handoff\n\n    @staticmethod\n    def _microcompact_tool_turns(\n        turns:\
+    \ list[dict],\n        keep_recent_tools: int = 6,\n        max_len: int = 400,\n\
+    \        head_len: int = 150,\n    ) -> list[dict]:\n        \"\"\"Microcompact\
+    \ large tool output buffers from older turns before summarization.\n\n       \
+    \ Keeps the most recent `keep_recent_tools` tool outputs intact. For older tool\
+    \ outputs\n        exceeding `max_len`, truncates to `head_len` chars with a clear\
+    \ placeholder to avoid\n        overwhelming summarizer context.\n        \"\"\
+    \"\n        tool_indices = [i for i, t in enumerate(turns) if t.get(\"role\")\
+    \ == \"tool\"]\n        if len(tool_indices) <= keep_recent_tools:\n         \
+    \   return turns\n\n        old_indices = set(tool_indices[:-keep_recent_tools])\n\
+    \        compacted: list[dict] = []\n        for i, turn in enumerate(turns):\n\
+    \            if i in old_indices and turn.get(\"role\") == \"tool\":\n       \
+    \         content = turn.get(\"content\")\n                if isinstance(content,\
+    \ str) and len(content) > max_len:\n                    t_copy = dict(turn)\n\
+    \                    tool_name = t_copy.get(\"name\") or \"tool\"\n          \
+    \          t_copy[\"content\"] = f\"[Tool result cleared: {tool_name}]\"\n   \
+    \                 compacted.append(t_copy)\n                    continue\n   \
+    \         compacted.append(turn)\n        return compacted\n\n    @staticmethod\n\
+    \    def _collect_git_status(cwd: str | None = None, timeout: float = 3.0) ->\
+    \ str:\n        \"\"\"Collect git status and diff stat for repo grounding. Fail-open\
+    \ if not a git repo or on error.\"\"\"\n        try:\n            import subprocess\n\
+    \            proc_status = subprocess.run(\n                [\"git\", \"status\"\
+    , \"--short\"],\n                cwd=cwd,\n                capture_output=True,\n\
+    \                text=True,\n                timeout=timeout,\n            )\n\
+    \            if proc_status.returncode != 0:\n                return \"\"\n  \
+    \          status_out = (proc_status.stdout or \"\").strip()\n\n            proc_diff\
+    \ = subprocess.run(\n                [\"git\", \"diff\", \"--stat\"],\n      \
+    \          cwd=cwd,\n                capture_output=True,\n                text=True,\n\
+    \                timeout=timeout,\n            )\n            diff_out = (proc_diff.stdout\
+    \ or \"\").strip() if proc_diff.returncode == 0 else \"\"\n\n            parts\
+    \ = []\n            if status_out:\n                status_lines = status_out.splitlines()\n\
+    \                if len(status_lines) > 50:\n                    status_out =\
+    \ \"\\n\".join(status_lines[:50]) + f\"\\n... [{len(status_lines) - 50} more files]\"\
+    \n                parts.append(f\"Changed / Untracked files:\\n{status_out}\"\
+    )\n            if diff_out:\n                diff_lines = diff_out.splitlines()\n\
+    \                if len(diff_lines) > 40:\n                    diff_out = \"\\\
+    n\".join(diff_lines[:40]) + f\"\\n... [{len(diff_lines) - 40} more lines]\"\n\
+    \                parts.append(f\"Diff summary:\\n{diff_out}\")\n\n           \
+    \ return \"\\n\\n\".join(parts)\n        except Exception:\n            return\
+    \ \"\"\n\n    globals()[\"_microcompact_tool_turns\"] = _microcompact_tool_turns\n\
+    \    globals()[\"_collect_git_status\"] = _collect_git_status\n\n    async def\
+    \ _handle_handoff_command(self, event: MessageEvent) -> str:\n        \"\"\"Profile-scoping\
+    \ wrapper around /handoff.\"\"\"\n        if not getattr(getattr(self, \"config\"\
+    , None), \"multiplex_profiles\", False):\n            return await self._handle_handoff_command_inner(event)\n\
+    \        from gateway.run import _profile_runtime_scope\n        with _profile_runtime_scope(self._resolve_profile_home_for_source(event.source)):\n\
+    \            return await self._handle_handoff_command_inner(event)\n\n    async\
+    \ def _handle_handoff_command_inner(self, event: MessageEvent) -> str:\n     \
+    \   \"\"\"Handle /handoff [focus] — synthesize authoritative handoff briefing\
+    \ and rotate into a clean new session without disk files.\"\"\"\n        source\
+    \ = event.source\n        session_entry = await self.async_session_store.get_or_create_session(source)\n\
+    \        if not session_entry or not getattr(session_entry, \"session_id\", None):\n\
+    \            return \"ℹ️ Недостаточно сообщений в текущей сессии для передачи\
+    \ дел.\"\n        session_key = self._session_key_for_source(source)\n       \
+    \ old_session_id = session_entry.session_id\n\n        try:\n            history\
+    \ = await self.async_session_store.load_transcript(old_session_id)\n        except\
+    \ Exception:\n            history = []\n\n        turns = [m for m in history\
+    \ if m.get(\"role\") in {\"user\", \"assistant\", \"tool\"} and (m.get(\"content\"\
+    ) or m.get(\"tool_calls\"))]\n        if len(turns) < 2 or not any(m[\"role\"\
+    ] == \"user\" for m in turns):\n            return \"ℹ️ Недостаточно сообщений\
+    \ в текущей сессии для передачи дел.\"\n\n        focus = (event.get_command_args()\
+    \ or \"\").strip()\n\n        from agent.auxiliary_client import call_llm, extract_content_or_reasoning\n\
+    \        from gateway.run import _platform_config_key\n\n        platform_key\
+    \ = _platform_config_key(source.platform) if source.platform else None\n     \
+    \   model, runtime_kwargs = self._resolve_session_agent_runtime(source=source,\
+    \ session_key=session_key)\n        if not runtime_kwargs.get(\"api_key\"):\n\
+    \            return t(\"gateway.compress.no_provider\")\n        if platform_key\
+    \ is not None:\n            runtime_kwargs[\"platform\"] = platform_key\n    \
+    \    runtime_kwargs[\"gateway_session_key\"] = session_key\n\n        tmp_agent\
+    \ = await self._build_manual_compression_agent(old_session_id, model, runtime_kwargs)\n\
+    \        try:\n            turns_to_summarize = self._microcompact_tool_turns(turns,\
+    \ keep_recent_tools=6, max_len=400, head_len=150)\n            compressor = getattr(tmp_agent,\
+    \ \"context_compressor\", None)\n            if compressor:\n                serialized\
+    \ = compressor._serialize_for_summary(turns_to_summarize)\n            else:\n\
+    \                serialized = \"\\n\\n\".join(\n                    f\"[{m.get('role',\
+    \ '').upper()}]: {m.get('content') or (m.get('tool_calls') and 'Called tool(s)')\
+    \ or ''}\"\n                    for m in turns_to_summarize\n                )\n\
+    \n            focus_block = f'USER FOCUS FOR HANDOFF:\\n\"{focus}\"\\nPrioritize\
+    \ preserving all context, files, decisions, and detailing next steps around this\
+    \ focus.\\n\\n' if focus else \"\"\n\n            cwd = getattr(self, \"_terminal_cwd\"\
+    , lambda: os.getcwd())()\n            repo_status = await asyncio.to_thread(self._collect_git_status,\
+    \ cwd, 3.0)\n            repo_block = (\n                f\"ACTUAL REPOSITORY\
+    \ STATE (GROUND TRUTH FROM DISK):\\n\"\n                f\"{repo_status}\\n\\\
+    n\"\n                f\"Use this actual repository state to ground your summary:\
+    \ ensure key files, deliverables, \"\n                f\"and current state match\
+    \ what is physically on disk rather than relying solely on chat discussion.\\\
+    n\\n\"\n            ) if repo_status else \"\"\n\n            prompt = f\"\"\"\
+    You are a senior staff engineer preparing an authoritative handoff briefing for\
+    \ a fresh continuing session.\nThe current conversation has reached a milestone\
+    \ or context limit, and the next session will take over immediately without seeing\
+    \ the past transcript.\n\n{focus_block}{repo_block}Analyze the preceding conversation\
+    \ and produce a clear, comprehensive context handoff using this exact structure:\n\
+    \n# CONTEXT HANDOFF\nSession Focus: {focus or 'Continuation of active tasks and\
+    \ project state'}\n\n## 1. Goal & Requirements\n- [Original user goal, intent,\
+    \ constraints, and non-negotiable rules stated by the user]\n\n## 2. Key Decisions\
+    \ & Architecture\n- [Architectural choices, technical decisions, and WHY they\
+    \ were made over alternatives]\n\n## 3. Current State & Deliverables\n- DONE:\
+    \ [Fully completed work, tested and confirmed]\n- PARTIAL: [Work started but not\
+    \ finished]\n- NOT STARTED: [Planned work that has not been started yet]\n\n##\
+    \ 4. Key Files & Working Artifacts\n- [File path and exact purpose/changes made]\n\
+    \n## 5. Pitfalls, Errors & Dead Ends\n- [Bugs encountered, what failed, lessons\
+    \ learned, and what NOT to repeat]\n\n## 6. User Constraints & Feedback (Verbatim)\n\
+    - [Exact user directives, styling rules, platform preferences, and negative constraints\
+    \ that must strictly remain in effect]\n\n## 7. Next Priority Steps\n1. [Immediate\
+    \ first step to execute in the new session]\n2. [Subsequent sequential steps]\n\
+    \nTURNS TO SUMMARIZE:\n{serialized}\n\nProduce only the structured handoff briefing.\
+    \ Be concrete — include exact file paths, commands, and decisions. Never disclose\
+    \ secrets or credentials (use [REDACTED]).\"\"\"\n\n            # Keep the runtime\
+    \ snapshot separate from AIAgent-only kwargs; auxiliary_client\n            #\
+    \ accepts a structured completion, not a text string or a positional model.\n\
+    \            aux_runtime = {key: runtime_kwargs[key] for key in (\"provider\"\
+    , \"base_url\", \"api_key\", \"api_mode\", \"reasoning_config\")\n           \
+    \                if runtime_kwargs.get(key) is not None}\n\n            # Use\
+    \ auxiliary.compression model (fast, no bloated reasoning timeout)\n         \
+    \   # with up to 3 retries. Never rotate or drop session on failure!\n       \
+    \     handoff_text = None\n            last_err = None\n            for attempt\
+    \ in range(1, 4):\n                try:\n                    def _call():\n  \
+    \                      return call_llm(model=model, task=\"compression\", messages=[{\"\
+    role\": \"user\", \"content\": prompt}],\n                                   \
+    \     temperature=0.2, max_tokens=2500, timeout=120, **aux_runtime)\n        \
+    \            handoff_response = await self._run_in_executor_with_context(_call)\n\
+    \                    extracted = extract_content_or_reasoning(handoff_response)\n\
+    \                    if extracted and extracted.strip():\n                   \
+    \     handoff_text = extracted.strip()\n                        break\n      \
+    \          except Exception as exc:\n                    last_err = exc\n    \
+    \                if attempt < 3:\n                        await asyncio.sleep(2)\n\
+    \n            if not handoff_text:\n                logger.warning(\"Handoff LLM\
+    \ call failed after 3 attempts: %s\", last_err)\n                return \"❌ Не\
+    \ удалось сгенерировать handoff из-за ошибки сети/таймаута, сессия сохранена без\
+    \ изменений.\"\n\n            # The summary may include credentials despite the\
+    \ prompt's instruction: enforce\n            # redaction at the persistence boundary,\
+    \ including a secret copied from /handoff focus.\n            from agent.redact\
+    \ import redact_sensitive_text\n            handoff_text = redact_sensitive_text(handoff_text,\
+    \ force=True).strip()\n            if not handoff_text:\n                return\
+    \ \"❌ Не удалось сформировать отчёт передачи контекста (модель вернула пустой\
+    \ ответ).\"\n\n            await self._cleanup_old_agent_for_reset(session_key)\n\
+    \            _reset_process_scoped_tool_state()\n\n            new_entry = await\
+    \ self.async_session_store.reset_session(session_key)\n            new_session_id\
+    \ = new_entry.session_id if new_entry else None\n            if not new_session_id:\n\
+    \                return \"❌ Ошибка создания новой сессии при выполнении передачи\
+    \ дел.\"\n\n            # Ensure universal inheritance of all session metadata\
+    \ and settings from session_entry\n            if session_entry and new_entry:\n\
+    \                if getattr(session_entry, \"metadata\", None):\n            \
+    \        if not getattr(new_entry, \"metadata\", None):\n                    \
+    \    new_entry.metadata = dict(session_entry.metadata)\n                    else:\n\
+    \                        for k, v in session_entry.metadata.items():\n       \
+    \                     if k not in new_entry.metadata:\n                      \
+    \          new_entry.metadata[k] = v\n                if getattr(session_entry,\
+    \ \"model_override\", None) and not getattr(new_entry, \"model_override\", None):\n\
+    \                    new_entry.model_override = dict(session_entry.model_override)\n\
+    \                if getattr(session_entry, \"yolo\", None) is not None and getattr(new_entry,\
+    \ \"yolo\", None) is None:\n                    new_entry.yolo = session_entry.yolo\n\
+    \n            self._evict_cached_agent(session_key)\n            self._clear_conversation_scope(session_key,\
+    \ reason=\"handoff\")\n\n            # Restore model override and metadata into\
+    \ runner and session store after conversation scope clear\n            if new_entry:\n\
+    \                if getattr(new_entry, \"model_override\", None):\n          \
+    \          if hasattr(self, \"_rehydrate_session_model_override\"):\n        \
+    \                try:\n                            self._rehydrate_session_model_override(session_key)\n\
+    \                        except Exception:\n                            pass\n\
+    \                    if hasattr(self, \"_session_state\"):\n                 \
+    \       try:\n                            st = self._session_state(session_key)\n\
+    \                            if st and hasattr(st, \"conversation\"):\n      \
+    \                          st.conversation.model_override = dict(new_entry.model_override)\n\
+    \                        except Exception:\n                            pass\n\
+    \                if getattr(new_entry, \"metadata\", None) and hasattr(self, \"\
+    session_store\") and self.session_store:\n                    if hasattr(self.session_store,\
+    \ \"get_session_metadata\") and hasattr(self.session_store, \"set_session_metadata\"\
+    ):\n                        for k, v in new_entry.metadata.items():\n        \
+    \                    try:\n                                if self.session_store.get_session_metadata(session_key,\
+    \ k) != v:\n                                    self.session_store.set_session_metadata(session_key,\
+    \ k, v)\n                            except Exception:\n                     \
+    \           pass\n\n            # Propagate runtime metadata flags to any active/cached\
+    \ agent generically\n            cached_agent = self._cached_agent_for(session_key)\
+    \ if hasattr(self, \"_cached_agent_for\") else None\n            if cached_agent\
+    \ and cached_agent is not getattr(self, \"_AGENT_PENDING_SENTINEL\", object()):\n\
+    \                if new_entry and getattr(new_entry, \"metadata\", None):\n  \
+    \                  for k, v in new_entry.metadata.items():\n                 \
+    \       for attr in (k, f\"_{k}\"):\n                            try:\n      \
+    \                          setattr(cached_agent, attr, v)\n                  \
+    \          except Exception:\n                                pass\n\n       \
+    \     zero_trust_directive = (\n                \"[ZERO-TRUST DIRECTIVE]\\n\"\n\
+    \                \"Считай этот бриф контекстом и рабочей гипотезой, а не абсолютной\
+    \ истиной. \"\n                \"Перед продолжением работы перепроверь реальные\
+    \ файлы и состояние проекта через свои инструменты. \"\n                \"Не додумывай\
+    \ код, сверяйся с диском.\"\n            )\n            initial_turn = {\n   \
+    \             \"role\": \"user\",\n                \"content\": (\n          \
+    \          f\"[CONTEXT HANDOFF — REFERENCE ONLY]\\n\"\n                    f\"\
+    {handoff_text}\\n\\n\"\n                    f\"{zero_trust_directive}\\n\\n\"\n\
+    \                    f\"[NEW SESSION READY — continue task seamlessly from this\
+    \ context]\"\n                ),\n            }\n            await self.async_session_store.append_to_transcript(new_session_id,\
+    \ initial_turn)\n\n            if await asyncio.to_thread(self._is_telegram_topic_lane,\
+    \ source) and new_entry is not None:\n                try:\n                 \
+    \   await asyncio.to_thread(self._record_telegram_topic_binding, source, new_entry)\n\
+    \                except Exception:\n                    logger.warning(\"Failed\
+    \ to rebind Telegram topic after /handoff\", exc_info=True)\n                \
+    \    return \"⚠️ Новая сессия создана, но привязка топика не обновилась. Повторите\
+    \ /topic для восстановления.\"\n\n            focus_line = f\"\\n• Фокус: _{redact_sensitive_text(focus,\
+    \ force=True)}_\" if focus else \"\"\n            # Calculate approximate token\
+    \ count of handoff brief\n            try:\n                from agent.token_estimator\
+    \ import count_tokens\n                handoff_tokens = count_tokens(handoff_text)\n\
+    \            except Exception:\n                handoff_tokens = max(1, len(handoff_text)\
+    \ // 4)\n\n            return (\n                f\"\U0001F91D **Контекст передан\
+    \ в новую сессию** (возврат: `/resume {old_session_id}`)\\n\"\n              \
+    \  f\"Бриф загружен в начальный контекст.{focus_line}\\n\"\n                f\"\
+    Длина контекста: {handoff_tokens} токенов.\"\n            )\n        finally:\n\
+    \            await self._cleanup_agent_resources_off_loop(tmp_agent, context=\"\
+    handoff\")\n\n    # ---------------------------------------------------------------------\
+    \ /compress\n\n    async def _handle_compress_command(self, event: MessageEvent)\
+    \ -> str:"

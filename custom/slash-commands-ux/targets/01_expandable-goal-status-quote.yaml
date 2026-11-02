@@ -1,0 +1,48 @@
+targets:
+- file: hermes_cli/goals.py
+  old_block: "    def status_line(self) -> str:\n        s = self._state\n       \
+    \ if s is None or s.status == \"cleared\":\n            return \"No active goal.\
+    \ Set one with /goal <text>.\"\n        turns = f\"{s.turns_used}/{s.max_turns}\
+    \ turns\"\n        sub = f\", {len(s.subgoals)} subgoal{'s' if len(s.subgoals)\
+    \ != 1 else ''}\" if s.subgoals else \"\"\n        con = \", contract\" if self.has_contract()\
+    \ else \"\"\n        gat = f\", {len(s.gates)} gate{'s' if len(s.gates) != 1 else\
+    \ ''}\" if s.gates else \"\"\n        meta = f\"{turns}{sub}{con}{gat}\"\n   \
+    \     if s.status == \"active\":\n            if s.waiting_on_session and _session_waiting(s.waiting_on_session):\n\
+    \                return f\"⏳ Goal (parked on {s.waiting_reason or f'session {s.waiting_on_session}'},\
+    \ {meta}): {s.goal}\"\n            if s.waiting_on_pid and _pid_alive(s.waiting_on_pid):\n\
+    \                return f\"⏳ Goal (parked on {s.waiting_reason or f'pid {s.waiting_on_pid}'},\
+    \ {meta}): {s.goal}\"\n            if s.waiting_until and time.time() < s.waiting_until:\n\
+    \                remaining = int(s.waiting_until - time.time())\n            \
+    \    wr = s.waiting_reason or f\"{remaining}s\"\n                return f\"⏳ Goal\
+    \ (parked {remaining}s — {wr}, {meta}): {s.goal}\"\n            return f\"⊙ Goal\
+    \ (active, {meta}): {s.goal}\"\n        if s.status == \"paused\":\n         \
+    \   extra = f\" — {s.paused_reason}\" if s.paused_reason else \"\"\n         \
+    \   return f\"⏸ Goal (paused, {meta}{extra}): {s.goal}\"\n        if s.status\
+    \ == \"done\":\n            return f\"✓ Goal done ({meta}): {s.goal}\"\n     \
+    \   return f\"Goal ({s.status}, {meta}): {s.goal}\"\n\n"
+  new_block: "    def status_line(self) -> str:\n        s = self._state\n       \
+    \ if s is None or s.status == \"cleared\":\n            return \"No active goal.\
+    \ Set one with /goal <text>.\"\n        turns = f\"{s.turns_used}/{s.max_turns}\
+    \ turns\"\n        sub = f\", {len(s.subgoals)} subgoal{'s' if len(s.subgoals)\
+    \ != 1 else ''}\" if s.subgoals else \"\"\n        con = \", contract\" if self.has_contract()\
+    \ else \"\"\n        gat = f\", {len(s.gates)} gate{'s' if len(s.gates) != 1 else\
+    \ ''}\" if s.gates else \"\"\n        meta = f\"{turns}{sub}{con}{gat}\"\n   \
+    \     if s.status == \"active\":\n            if s.waiting_on_session and _session_waiting(s.waiting_on_session):\n\
+    \                header = f\"⏳ Goal (parked on {s.waiting_reason or f'session\
+    \ {s.waiting_on_session}'}, {meta})\"\n            elif s.waiting_on_pid and _pid_alive(s.waiting_on_pid):\n\
+    \                header = f\"⏳ Goal (parked on {s.waiting_reason or f'pid {s.waiting_on_pid}'},\
+    \ {meta})\"\n            elif s.waiting_until and time.time() < s.waiting_until:\n\
+    \                remaining = int(s.waiting_until - time.time())\n            \
+    \    wr = s.waiting_reason or f\"{remaining}s\"\n                header = f\"\
+    ⏳ Goal (parked {remaining}s — {wr}, {meta})\"\n            else:\n           \
+    \     header = f\"⊙ Goal (active, {meta})\"\n        elif s.status == \"paused\"\
+    :\n            extra = f\" — {s.paused_reason}\" if s.paused_reason else \"\"\n\
+    \            header = f\"⏸ Goal (paused, {meta}{extra})\"\n        elif s.status\
+    \ == \"done\":\n            header = f\"✓ Goal done ({meta})\"\n        else:\n\
+    \            header = f\"Goal ({s.status}, {meta})\"\n\n        goal_text = (s.goal\
+    \ or \"\").strip()\n        goal_lines = goal_text.splitlines()\n        if len(goal_lines)\
+    \ > 3 or len(goal_text) > 120:\n            res = f\"{header}:\\n**> {goal_lines[0]}\\\
+    n\"\n            for line in goal_lines[1:]:\n                res += f\"> {line}\\\
+    n\"\n            return res.rstrip(\"\\n\") + \"||\"\n        return f\"{header}:\
+    \ {goal_text}\""
+  description: expandable-goal-status-quote

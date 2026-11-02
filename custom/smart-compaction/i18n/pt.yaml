@@ -1,0 +1,21 @@
+name: Smart Compaction Dual-Trigger
+description: 'Compactação inteligente de contexto de dois níveis (Dual-Trigger): poda
+  proativa em tempo real de saídas de ferramentas e compactação em segundo plano'
+config:
+  enabled:
+    title: Ativar Dual-Trigger
+    description: Habilitar compactação inteligente de contexto (Dual-Trigger)
+  idle_seconds:
+    title: Tempo limite de inatividade
+    description: Limite de inatividade (em segundos) para compactação a frio de contexto
+      entre turnos
+  live_threshold_ratio:
+    title: Limite de poda em tempo real
+    description: Proporção de limite para poda em tempo real de saídas antigas de
+      ferramentas em relação a threshold_tokens (0.70 = 70%)
+  min_prune_chars:
+    title: Tamanho mínimo da ferramenta
+    description: Tamanho mínimo em caracteres da saída da ferramenta para poda
+  min_reclaim_tokens:
+    title: Recuperação mínima
+    description: Quantidade mínima de tokens a liberar para confirmar a poda de ferramentas

@@ -1,0 +1,17 @@
+name: Mod-Befehlsregister
+description: Natives Registrieren, Zwischenspeichern und Ausführen deklarativer Slash-Befehle aktiver Hermes-Mods
+mods:
+  command_registry:
+    usage: "ℹ️ Verwendung: /{canonical_name} {hint}"
+    circuit_breaker_disabled: "⚠️ Mod '{mod_id}' wurde wegen wiederholter Fehler vorübergehend durch Circuit Breaker deaktiviert."
+    handler_not_found: "⚠️ Befehls-Handler nicht gefunden: {handler_path}"
+    no_handler_configured: "⚠️ Befehl /{canonical_name} hat keinen konfigurierten Handler (handler_script, python, shell)."
+    timeout_isolated: "⏱️ Zeitüberschreitung für Befehl /{canonical_name}. Mod '{mod_id}' wurde durch Circuit Breaker isoliert."
+    timeout: "⏱️ Befehl /{canonical_name} hat das Ausführungs-Timeout überschritten (30s)."
+    error_isolated: "⚠️ Ausführungsfehler bei /{canonical_name}: {exc}. Mod '{mod_id}' wurde durch Circuit Breaker isoliert."
+    error: "⚠️ Ausführungsfehler bei /{canonical_name}: {exc}"
+    module_spec_error: "⚠️ Modulspezifikation konnte nicht geladen werden: {script_path}"
+    entrypoint_not_found: "⚠️ Aufrufbare Funktion '{entrypoint}' im Skript {script_name} nicht gefunden."
+    script_error: "⚠️ Skriptfehler (Exit-Code {code}): {error}"
+    shell_error: "⚠️ Shell-Befehlsfehler (Exit-Code {code}): {error}"
+    alias: "Alias"

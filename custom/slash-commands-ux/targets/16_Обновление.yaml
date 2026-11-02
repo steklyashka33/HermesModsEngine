@@ -1,0 +1,27 @@
+targets:
+- file: hermes_cli/commands.py
+  description: Обновление CommandDef для /handoff и /compress (плоский args_hint)
+  old_block: "    CommandDef(\"handoff\", \"Hand off this session to a messaging platform\
+    \ (Telegram, Discord, etc.)\", \"Session\",\n               args_hint=\"<platform>\"\
+    , cli_only=True, argument_mode=\"options\"),\n    CommandDef(\"branch\", \"Branch\
+    \ the current session (new thread on Discord/Telegram/Slack/Matrix; --here stays\
+    \ here)\",\n               \"Session\", aliases=(\"fork\",), args_hint=\"[--here]\
+    \ [name]\"),\n    CommandDef(\"worktree\", \"Show, list, create, or prune isolated\
+    \ git worktrees\", \"Session\",\n               cli_only=True, args_hint=\"[new\
+    \ [name]|list|prune [--dry-run]]\",\n               subcommands=(\"new\", \"list\"\
+    , \"prune\"), desktop=\"terminal\"),\n    CommandDef(\"compress\", \"Compress\
+    \ conversation context (add 'here [N]' to keep recent N turns; --preview shows\
+    \ what would happen)\", \"Session\",\n               aliases=(\"compact\",), args_hint=\"\
+    [here [N] | focus topic | --preview|--dry-run]\"),"
+  new_block: "    CommandDef(\"handoff\", \"Hand off current session into a fresh\
+    \ continuing session (with context briefing)\", \"Session\",\n               args_hint=\"\
+    [focus instructions]\"),\n    CommandDef(\"branch\", \"Branch the current session\
+    \ (new thread on Discord/Telegram/Slack/Matrix; --here stays here)\",\n      \
+    \         \"Session\", aliases=(\"fork\",), args_hint=\"[--here] [name]\"),\n\
+    \    CommandDef(\"worktree\", \"Show, list, create, or prune isolated git worktrees\"\
+    , \"Session\",\n               cli_only=True, args_hint=\"[new [name]|list|prune\
+    \ [--dry-run]]\",\n               subcommands=(\"new\", \"list\", \"prune\"),\
+    \ desktop=\"terminal\"),\n    CommandDef(\"compress\", \"Compress conversation\
+    \ context (pass [N] to keep recent N turns; --preview shows what would happen)\"\
+    , \"Session\",\n               aliases=(\"compact\",), args_hint=\"[N] [focus\
+    \ instructions] [--preview|--dry-run]\"),"

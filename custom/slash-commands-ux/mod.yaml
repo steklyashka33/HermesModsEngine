@@ -1,0 +1,6 @@
+id: slash-commands-ux
+name: Slash Commands UX Polish
+version: 4.3.0
+description: 'Comprehensive slash commands UX: /undo, /goal, /model, /agents, /help
+  and /commands formatting, /compress [N], /handoff, /context, /usage, /status, /insights
+  (honest tokens and cache percentage across all commands, state.db retention and transcript fallback)'

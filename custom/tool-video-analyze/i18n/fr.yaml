@@ -1,0 +1,3 @@
+name: Tool Video Analyze
+description: Enregistrement de l'outil video_analyze dans la boîte à outils principale
+  et routage via auxiliary.video

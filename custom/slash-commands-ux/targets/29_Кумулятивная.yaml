@@ -1,0 +1,81 @@
+targets:
+- file: gateway/slash_commands_status.py
+  description: Кумулятивная статистика активного окна, автосжатие и сжатия за все
+    время в _context_compressor_lines
+  old_block: "def _context_compressor_lines(agent, ctx, used: int) -> list[str]:\n\
+    \    \"\"\"/context full view: auto-compression threshold/headroom, compression\
+    \ count + last savings,\n    and cumulative throughput (labelled as throughput,\
+    \ NOT context size).\"\"\"\n    lines: list[str] = []\n    from agent.context_breakdown\
+    \ import context_display_source\n    mark = \"~\" if context_display_source(ctx)\
+    \ != \"provider_usage\" else \"\"\n    threshold = _n(ctx, \"threshold_tokens\"\
+    )\n    threshold_pct = f\"{_n(ctx, 'threshold_percent') * 100:.0f}\"\n    if threshold\
+    \ > 0:\n        if used >= threshold:\n            lines.append(t(\"gateway.context.over_threshold\"\
+    , threshold=_fmt(threshold),\n                           threshold_pct=threshold_pct))\n\
+    \        else:\n            lines.append(t(\"gateway.context.threshold\", threshold=_fmt(threshold),\n\
+    \                           threshold_pct=threshold_pct, to_go=mark + _fmt(threshold\
+    \ - used)))\n    compressions = _n(ctx, \"compression_count\")\n    lines.append(t(\"\
+    gateway.context.compressions\", count=compressions))\n    savings = getattr(ctx,\
+    \ \"_last_compression_savings_pct\", None) if compressions else None\n    if savings\
+    \ is not None:\n        lines.append(t(\"gateway.context.last_savings\", savings=f\"\
+    {savings:.0f}\"))\n    lines += [\n        \"\",\n        t(\"gateway.context.totals_header\"\
+    , calls=_n(agent, \"session_api_calls\")),\n        t(\"gateway.context.totals_line\"\
+    ,\n          input=_fmt(_n(agent, \"session_input_tokens\")),\n          output=_fmt(_n(agent,\
+    \ \"session_output_tokens\")),\n          reasoning=_fmt(_n(agent, \"session_reasoning_tokens\"\
+    ))),\n        t(\"gateway.context.total_billed\", total=_fmt(_n(agent, \"session_total_tokens\"\
+    ))),\n        t(\"gateway.context.throughput_note\"),\n    ]\n    return lines\n\
+    \n"
+  new_block: "def _context_compressor_lines(agent, ctx, used: int, session_id: str\
+    \ = \"\", context_length: int = 0) -> list[str]:\n    \"\"\"/context full view:\
+    \ auto-compression threshold/headroom, compression count + last savings,\n   \
+    \ and cumulative throughput (labelled as throughput, NOT context size).\"\"\"\n\
+    \    lines: list[str] = []\n    from agent.context_breakdown import context_display_source\n\
+    \    mark = \"~\" if context_display_source(ctx) != \"provider_usage\" else \"\
+    \"\n    ctx_len = _n(ctx, \"context_length\") or context_length\n    threshold\
+    \ = _n(ctx, \"threshold_tokens\")\n    threshold_pct = f\"{_n(ctx, 'threshold_percent')\
+    \ * 100:.0f}\" if _n(ctx, 'threshold_percent') else \"80\"\n    if threshold <=\
+    \ 0 and ctx_len > 0:\n        threshold = int(ctx_len * 0.8)\n        threshold_pct\
+    \ = \"80\"\n    if threshold > 0:\n        if used >= threshold:\n           \
+    \ lines.append(t(\"gateway.context.over_threshold\", threshold=_fmt(threshold),\n\
+    \                           threshold_pct=threshold_pct))\n        else:\n   \
+    \         to_go_pct = f\"{(threshold - used) / threshold * 100:.0f}%\"\n     \
+    \       lines.append(t(\"gateway.context.threshold\", threshold=_fmt(threshold),\n\
+    \                           threshold_pct=threshold_pct, to_go=mark + _fmt(threshold\
+    \ - used),\n                           to_go_pct=to_go_pct))\n    sid = session_id\
+    \ or str(getattr(agent, \"session_id\", \"\") or \"\")\n    db_usage = _active_window_usage_from_db(sid)\
+    \ if sid else {\"calls\": 0, \"input\": 0, \"output\": 0, \"reasoning\": 0, \"\
+    cache\": 0, \"total\": 0, \"compressions\": 0}\n\n    session_compressions = _n(ctx,\
+    \ \"compression_count\")\n    total_compressions = max(session_compressions, db_usage.get(\"\
+    compressions\", 0))\n\n    lines.append(t(\"gateway.context.compressions_total\"\
+    , count=total_compressions))\n    if session_compressions > 0:\n        lines.append(t(\"\
+    gateway.context.compressions\", count=session_compressions))\n\n    savings =\
+    \ None\n    if session_compressions > 0 or total_compressions > 0:\n        raw_savings\
+    \ = getattr(ctx, \"_last_compression_savings_pct\", None)\n        if raw_savings\
+    \ is not None:\n            try:\n                savings_val = float(raw_savings)\n\
+    \            except (ValueError, TypeError):\n                savings_val = None\n\
+    \n            if savings_val is not None:\n                if savings_val >= 99.5:\n\
+    \                    telem = getattr(ctx, \"_last_compression_telemetry\", None)\
+    \ or getattr(ctx, \"_active_compression_telemetry\", None)\n                 \
+    \   if isinstance(telem, dict):\n                        tb = telem.get(\"tokens_before\"\
+    ) or 0\n                        ta = telem.get(\"tokens_after\") or 0\n      \
+    \                  if tb > 0 and tb > ta:\n                            real_delta\
+    \ = (tb - ta) / tb * 100\n                            if 0 <= real_delta < 99.5:\n\
+    \                                savings = real_delta\n                elif savings_val\
+    \ >= 0:\n                    savings = savings_val\n\n    if savings is not None:\n\
+    \        lines.append(t(\"gateway.context.last_savings\", savings=f\"{savings:.0f}\"\
+    ))\n\n    calls = max(_n(agent, \"session_api_calls\"), db_usage.get(\"calls\"\
+    , 0))\n    inp = max(_n(agent, \"session_input_tokens\"), db_usage.get(\"input\"\
+    , 0))\n    out = max(_n(agent, \"session_output_tokens\"), db_usage.get(\"output\"\
+    , 0))\n    reasoning = max(_n(agent, \"session_reasoning_tokens\"), db_usage.get(\"\
+    reasoning\", 0))\n    cache_tokens = max(\n        _n(agent, \"session_cache_read_tokens\"\
+    ) + _n(agent, \"session_cache_write_tokens\"),\n        db_usage.get(\"cache\"\
+    , 0),\n    )\n\n    total_all = (inp + cache_tokens + out) if (inp + cache_tokens\
+    \ + out) > 0 else (_n(agent, \"session_total_tokens\") or db_usage.get(\"total\"\
+    , 0))\n    prompt_total = inp + cache_tokens\n    if cache_tokens > 0 and prompt_total\
+    \ > 0:\n        cache_pct = round(cache_tokens / prompt_total * 100)\n       \
+    \ total_line = t(\"gateway.context.total_billed_with_cache\", total=_fmt(total_all),\
+    \ cache_pct=cache_pct)\n    else:\n        total_line = t(\"gateway.context.total_billed\"\
+    , total=_fmt(total_all))\n\n    if calls > 0 or total_all > 0 or ctx is not None:\n\
+    \        lines += [\n            \"\",\n            t(\"gateway.context.totals_header\"\
+    , calls=calls),\n            t(\"gateway.context.totals_line\",\n            \
+    \  input=_fmt(inp),\n              output=_fmt(out),\n              reasoning=_fmt(reasoning)),\n\
+    \            total_line,\n        ]\n    return lines\n"

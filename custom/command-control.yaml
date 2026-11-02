@@ -1,0 +1,336 @@
+id: command-control
+name: Command Control (Telegram Menu Whitelist/Blacklist & Mod Commands)
+description: Telegram command menu management (whitelist, blacklist) and low-latency
+  mod commands connection
+version: 1.2.0
+author: Hermes Admin
+enabled: true
+config:
+  blacklist:
+    type: list
+    default:
+    - fast
+    - codex-runtime
+    - egress
+    - footer
+    - login
+    - topup
+    - subscription
+    description: List of commands hidden from Telegram menu
+  whitelist:
+    type: list
+    default: []
+    description: List of priority (Tier 0) commands for Telegram menu
+targets:
+- file: hermes_cli/config.py
+  description: Add mods to _OPEN_DICT_TOP_LEVEL_KEYS so config.yaml accepts mods.command-control
+  old_block: '    "secrets", "goals", "loops"})'
+  new_block: '    "secrets", "goals", "loops", "mods"})'
+- file: gateway/slash_commands.py
+  description: Увеличение размера страницы /commands для Telegram до 30 команд
+  old_block: "        # Page size is a surface parameter (Telegram messages are shorter).\n\
+    \        page_size = 15 if event.source.platform == Platform.TELEGRAM else 20"
+  new_block: "        # Page size is a surface parameter (Telegram messages are shorter).\n\
+    \        page_size = 30 if event.source.platform == Platform.TELEGRAM else 30"
+  verify_cmd: python3 -c "import sys; sys.path.insert(0, '/usr/local/lib/hermes-agent');
+    from gateway.slash_commands import GatewaySlashCommandsMixin; print('OK')"
+- file: hermes_cli/commands_platforms.py
+  description: Telegram menu candidate prioritization with blacklist filtering and
+    tier hierarchy (Tier 0 whitelist, Tier 1 core priority, Tier 2 core other, Tier
+    3 mod commands)
+  old_block: "def _prioritize_telegram_menu_candidates(\n    candidates: list[tuple[str,\
+    \ str, str, str]]) -> list[tuple[str, str, str, str]]:\n    \"\"\"Order ``(final_name,\
+    \ description, source, raw_name)`` candidates; the default priority\n    applies\
+    \ to core only, \"replace\" mode ignores it. ``raw_name`` is the pre-clamp name\
+    \ so a\n    configured long command stays addressable.\"\"\"\n    menu_cfg = _telegram_command_menu_config()\n\
+    \    configured_rank = _sanitized_rank(menu_cfg[\"priority\"])\n    default_rank\
+    \ = _sanitized_rank(_TELEGRAM_MENU_PRIORITY)\n    tiers = _TELEGRAM_PRIORITY_TIERS[menu_cfg[\"\
+    priority_mode\"]]\n\n    def _rank(stable_index: int, candidate: tuple[str, str,\
+    \ str, str]) -> tuple[int, int, int]:\n        final_name, _desc, source, raw_name\
+    \ = candidate\n        indexes = {\n            \"configured\": configured_rank.get(raw_name,\
+    \ configured_rank.get(final_name)),\n            \"default\": default_rank.get(final_name)\
+    \ if source == \"core\" else None}\n        for tier, table in enumerate(tiers):\n\
+    \            if indexes[table] is not None:\n                return (tier, indexes[table],\
+    \ stable_index)\n        return (len(tiers), 0, stable_index)\n\n    return [c\
+    \ for _i, c in sorted(enumerate(candidates), key=lambda item: _rank(*item))]"
+  new_block: "_DEFAULT_COMMAND_CONTROL_BLACKLIST = [\n    \"fast\", \"codex-runtime\"\
+    , \"egress\", \"footer\", \"login\", \"topup\", \"subscription\",\n]\n\n\ndef\
+    \ _get_command_control_config() -> tuple[list[str], list[str]]:\n    \"\"\"Return\
+    \ (blacklist, whitelist) from mods.command-control config.\"\"\"\n    default_bl\
+    \ = list(_DEFAULT_COMMAND_CONTROL_BLACKLIST)\n    try:\n        from hermes_cli.config\
+    \ import read_raw_config\n        raw = read_raw_config() or {}\n    except Exception:\n\
+    \        raw = {}\n    mod_cfg: Any = {}\n    if isinstance(raw, Mapping):\n \
+    \       mods_sec = raw.get(\"mods\")\n        if isinstance(mods_sec, Mapping):\n\
+    \            mod_cfg = mods_sec.get(\"command-control\") or mods_sec.get(\"command_control\"\
+    ) or {}\n\n    raw_bl = mod_cfg.get(\"blacklist\") if isinstance(mod_cfg, Mapping)\
+    \ else None\n    if raw_bl is not None:\n        if isinstance(raw_bl, list):\n\
+    \            bl = [str(x).strip().lstrip(\"/\") for x in raw_bl if str(x).strip()]\n\
+    \        elif isinstance(raw_bl, str) and raw_bl.strip():\n            bl = [str(raw_bl).strip().lstrip(\"\
+    /\")]\n        else:\n            bl = []\n    else:\n        bl = default_bl\n\
+    \n    raw_wl = mod_cfg.get(\"whitelist\") if isinstance(mod_cfg, Mapping) else\
+    \ None\n    if raw_wl is not None:\n        if isinstance(raw_wl, list):\n   \
+    \         wl = [str(x).strip().lstrip(\"/\") for x in raw_wl if str(x).strip()]\n\
+    \        elif isinstance(raw_wl, str) and raw_wl.strip():\n            wl = [str(raw_wl).strip().lstrip(\"\
+    /\")]\n        else:\n            wl = []\n    else:\n        wl = []\n\n    return\
+    \ bl, wl\n\n\ndef _prioritize_telegram_menu_candidates(\n    candidates: list[tuple[str,\
+    \ str, str, str]]) -> list[tuple[str, str, str, str]]:\n    \"\"\"Order ``(final_name,\
+    \ description, source, raw_name)`` candidates.\n\n    1. Filters out blacklist\
+    \ candidates (mods.command-control.blacklist or defaults).\n    2. Hierarchy:\n\
+    \       - Tier 0: whitelist (mods.command-control.whitelist, plus configured priority)\n\
+    \       - Tier 1: System core commands (_TELEGRAM_MENU_PRIORITY)\n       - Tier\
+    \ 2: Other core commands\n       - Tier 3: Mod commands (below core system commands)\n\
+    \       - Tier 4: Plugins/other\n    3. Deduplicates by final_name while preserving\
+    \ highest-priority candidate.\n    \"\"\"\n    blacklist, whitelist = _get_command_control_config()\n\
+    \    bl_set = set()\n    for item in blacklist:\n        clean = item.lower().lstrip(\"\
+    /\")\n        bl_set.add(clean)\n        bl_set.add(clean.replace(\"-\", \"_\"\
+    ))\n        san = _sanitize_telegram_name(clean)\n        if san:\n          \
+    \  bl_set.add(san)\n\n    filtered = [\n        c for c in candidates\n      \
+    \  if c[3].lower().lstrip(\"/\") not in bl_set\n        and c[0].lower().lstrip(\"\
+    /\") not in bl_set\n        and (_sanitize_telegram_name(c[3]) not in bl_set if\
+    \ c[3] else True)\n    ]\n\n    menu_cfg = _telegram_command_menu_config()\n \
+    \   wl_rank = _sanitized_rank(whitelist)\n    configured_rank = _sanitized_rank(menu_cfg.get(\"\
+    priority\", []))\n    default_rank = _sanitized_rank(_TELEGRAM_MENU_PRIORITY)\n\
+    \    priority_mode = menu_cfg.get(\"priority_mode\", \"prepend\")\n\n    def _rank(stable_index:\
+    \ int, candidate: tuple[str, str, str, str]) -> tuple[int, int, int]:\n      \
+    \  final_name, _desc, source, raw_name = candidate\n\n        # Tier 0: whitelist\
+    \ (unconditional 1st place)\n        idx = wl_rank.get(raw_name, wl_rank.get(final_name))\n\
+    \        if idx is not None:\n            return (0, idx, stable_index)\n\n  \
+    \      # Configured priority from telegram command_menu (also top tier)\n    \
+    \    idx = configured_rank.get(raw_name, configured_rank.get(final_name))\n  \
+    \      if idx is not None:\n            return (0, len(wl_rank) + idx, stable_index)\n\
+    \n    # Tier 1: System core commands (_TELEGRAM_MENU_PRIORITY)\n        if priority_mode\
+    \ != \"replace\" and source == \"core\":\n            idx = default_rank.get(final_name,\
+    \ default_rank.get(raw_name))\n            if idx is not None:\n             \
+    \   return (1, idx, stable_index)\n\n        # Tier 2: Other core commands\n \
+    \       if source == \"core\":\n            return (2, 0, stable_index)\n\n  \
+    \      # Tier 3: Mod commands (below core system commands, above plugins/skills)\n\
+    \        if source == \"mod\":\n            return (3, 0, stable_index)\n\n  \
+    \      # Tier 4: Plugins\n        if source == \"plugin\":\n            return\
+    \ (4, 0, stable_index)\n\n        # Tier 5: Skills (dropped if exceeding 100 limit)\n\
+    \        return (5, 0, stable_index)\n\n    sorted_candidates = [\n        c for\
+    \ _i, c in sorted(enumerate(filtered), key=lambda item: _rank(*item))\n    ]\n\
+    \n    seen: set[str] = set()\n    deduped: list[tuple[str, str, str, str]] = []\n\
+    \    for c in sorted_candidates:\n        if c[0] not in seen:\n            seen.add(c[0])\n\
+    \            deduped.append(c)\n\n    return deduped"
+- file: hermes_cli/commands_platforms.py
+  description: Collect active mod commands into Telegram menu candidates with low
+    priority
+  old_block: "def telegram_menu_commands(max_commands: int = 100) -> tuple[list[tuple[str,\
+    \ str]], int]:\n    \"\"\"``(menu_commands, hidden_count)`` for Telegram, capped\
+    \ to the Bot API limit. Tier order:\n    core CommandDefs, plugin slash commands,\
+    \ skill commands (alphabetical; hub and\n    telegram-disabled skills excluded).\
+    \ Tiers keep relative order unless named in\n    ``platforms.telegram.extra.command_menu.priority``\
+    \ — applied *before* the cap, so a\n    prioritized dynamic command can displace\
+    \ an unprioritized core command.\"\"\"\n    core_commands = list(telegram_bot_commands(include_plugins=False))\n\
+    \    entries, hidden_count = _collect_gateway_skill_entries(\n        platform=\"\
+    telegram\", max_slots=None, reserved_names={n for n, _ in core_commands},\n  \
+    \      desc_limit=40, sanitize_name=_sanitize_telegram_name)\n    candidates =\
+    \ [(name, desc, \"core\", name) for name, desc in core_commands]\n    candidates\
+    \ += [(name, desc, \"skill\" if cmd_key else \"plugin\", raw)\n              \
+    \     for name, desc, cmd_key, raw in entries]\n    candidates = _prioritize_telegram_menu_candidates(candidates)\n\
+    \    overflow_count = max(0, len(candidates) - max_commands)\n    menu = [(name,\
+    \ _normalize_telegram_desc(desc)) for name, desc, _source, _raw_name in candidates[:max_commands]]\n\
+    \    return menu, hidden_count + overflow_count"
+  new_block: "def _collect_mod_commands(\n    platform: str = \"telegram\",\n    desc_limit:\
+    \ int = 40,\n    sanitize_name: Callable[[str], str] | None = None,\n) -> list[tuple[str,\
+    \ str, str]]:\n    \"\"\"Collect slash commands registered by active mods.\n\n\
+    \    Reads from .commands_cache.json if available, with a fallback to scanning\
+    \ mods directory.\n    Returns list of (sanitized_name, truncated_desc, raw_name).\n\
+    \    \"\"\"\n    sanitize = sanitize_name or (lambda n: n)\n    import json\n\
+    \    from pathlib import Path\n    import os\n\n    try:\n        from hermes_constants\
+    \ import get_default_hermes_root\n        hermes_root = get_default_hermes_root()\n\
+    \    except Exception:\n        hermes_root = Path(os.environ.get(\"HERMES_HOME\"\
+    , Path.home() / \".hermes\"))\n\n    env_mods = os.environ.get(\"HERMES_MODS_DIR\"\
+    )\n    mods_dir = Path(env_mods) if env_mods else (hermes_root / \"mods\")\n\n\
+    \    cache_file = mods_dir / \".commands_cache.json\"\n    items: list[dict] =\
+    \ []\n    if cache_file.exists():\n        try:\n            data = json.loads(cache_file.read_text(encoding=\"\
+    utf-8\"))\n            if isinstance(data, dict):\n                raw_items =\
+    \ data.get(\"items\")\n                if isinstance(raw_items, list):\n     \
+    \               items = [x for x in raw_items if isinstance(x, dict)]\n      \
+    \          elif isinstance(data.get(\"commands\"), dict):\n                  \
+    \  items = [x for x in data[\"commands\"].values() if isinstance(x, dict)]\n \
+    \       except Exception as exc:\n            logger.debug(\"Failed reading .commands_cache.json:\
+    \ %s\", exc)\n\n    if not items and mods_dir.exists():\n        try:\n      \
+    \      import yaml\n            for manifest_path in sorted(mods_dir.glob(\"*.yaml\"\
+    )):\n                if manifest_path.name.startswith((\".\", \"_\")) or manifest_path.name.endswith(\"\
+    .disabled\"):\n                    continue\n                try:\n          \
+    \          with open(manifest_path, \"r\", encoding=\"utf-8\") as f_in:\n    \
+    \                    m_data = yaml.safe_load(f_in)\n                    if isinstance(m_data,\
+    \ dict) and m_data.get(\"enabled\", True):\n                        for cmd in\
+    \ m_data.get(\"commands\") or []:\n                            if isinstance(cmd,\
+    \ dict) and cmd.get(\"name\"):\n                                items.append(cmd)\n\
+    \                except Exception:\n                    pass\n            for\
+    \ d in sorted(mods_dir.iterdir()):\n                if d.is_dir() and not d.name.startswith((\"\
+    .\", \"_\")) and not d.name.endswith(\".disabled\"):\n                    mf =\
+    \ d / \"mod.yaml\"\n                    if not mf.exists():\n                \
+    \        mf = d / f\"{d.name}.yaml\"\n                    if mf.exists():\n  \
+    \                      try:\n                            with open(mf, \"r\",\
+    \ encoding=\"utf-8\") as f_in:\n                                m_data = yaml.safe_load(f_in)\n\
+    \                            if isinstance(m_data, dict) and m_data.get(\"enabled\"\
+    , True):\n                                for cmd in m_data.get(\"commands\")\
+    \ or []:\n                                    if isinstance(cmd, dict) and cmd.get(\"\
+    name\"):\n                                        items.append(cmd)\n        \
+    \                except Exception:\n                            pass\n       \
+    \ except Exception as exc:\n            logger.debug(\"Failed scanning mods directory:\
+    \ %s\", exc)\n\n    out: list[tuple[str, str, str]] = []\n    for item in items:\n\
+    \        raw_name = str(item.get(\"name\") or \"\").strip().lstrip(\"/\")\n  \
+    \      if not raw_name:\n            continue\n        desc = str(item.get(\"\
+    description\") or \"\").strip()\n        s_name = sanitize(raw_name)\n       \
+    \ if s_name:\n            out.append((s_name, desc[:desc_limit], raw_name))\n\
+    \    return out\n\n\ndef telegram_menu_commands(max_commands: int = 100) -> tuple[list[tuple[str,\
+    \ str]], int]:\n    \"\"\"(menu_commands, hidden_count) for Telegram, capped to\
+    \ the Bot API limit. Tier order:\n    core CommandDefs, plugin slash commands,\
+    \ skill commands (alphabetical; hub and\n    telegram-disabled skills excluded).\
+    \ Tiers keep relative order unless named in\n    platforms.telegram.extra.command_menu.priority\
+    \ — applied *before* the cap, so a\n    prioritized dynamic command can displace\
+    \ an unprioritized core command.\"\"\"\n    core_commands = list(telegram_bot_commands(include_plugins=False))\n\
+    \    entries, hidden_count = _collect_gateway_skill_entries(\n        platform=\"\
+    telegram\", max_slots=None, reserved_names={n for n, _ in core_commands},\n  \
+    \      desc_limit=40, sanitize_name=_sanitize_telegram_name)\n    candidates =\
+    \ [(name, desc, \"core\", name) for name, desc in core_commands]\n    candidates\
+    \ += [(name, desc, \"skill\" if cmd_key else \"plugin\", raw)\n              \
+    \     for name, desc, cmd_key, raw in entries]\n    mod_entries = _collect_mod_commands(\n\
+    \        platform=\"telegram\", desc_limit=40, sanitize_name=_sanitize_telegram_name)\n\
+    \    candidates += [(name, desc, \"mod\", raw) for name, desc, raw in mod_entries]\n\
+    \    candidates = _prioritize_telegram_menu_candidates(candidates)\n    overflow_count\
+    \ = max(0, len(candidates) - max_commands)\n    menu = [(name, _normalize_telegram_desc(desc))\
+    \ for name, desc, _source, _raw_name in candidates[:max_commands]]\n    return\
+    \ menu, hidden_count + overflow_count"
+- file: hermes_cli/commands_platforms.py
+  description: Demote Telegram-only / mod commands to /hermes on Slack to preserve
+    50-command cap
+  old_block: "_SLACK_VIA_HERMES_ONLY = frozenset({\n    \"topup\", \"moa\", \"debug\"\
+    , \"egress\", \"init\", \"version\", \"diff\", \"update\", \"heartbeat\",\n  \
+    \  \"refine\", \"review\", \"pause\", \"whoami\", \"platform\", \"insights\",\
+    \ \"login\",\n    # Recovery-only, after a restart lost a turn: `/hermes discard`\
+    \ reaches it.\n    \"discard\",\n    # One-time answer to the low-disk prompt;\
+    \ `/hermes autoprune on` reaches it.\n    \"autoprune\"})"
+  new_block: "_SLACK_VIA_HERMES_ONLY = frozenset({\n    \"topup\", \"moa\", \"debug\"\
+    , \"egress\", \"init\", \"version\", \"diff\", \"update\", \"heartbeat\",\n  \
+    \  \"refine\", \"review\", \"pause\", \"whoami\", \"platform\", \"insights\",\
+    \ \"login\",\n    # Telegram-only topic management; reaches /hermes close on Slack\n\
+    \    \"close\",\n    # Low-frequency / mod commands routed through /hermes on\
+    \ Slack (50-slash cap)\n    \"curator\", \"unlimited\", \"faster\",\n    # Recovery-only,\
+    \ after a restart lost a turn: `/hermes discard` reaches it.\n    \"discard\"\
+    ,\n    # One-time answer to the low-disk prompt; `/hermes autoprune on` reaches\
+    \ it.\n    \"autoprune\"})"
+i18n:
+  en:
+    name: Command Control
+    description: Telegram command menu management (whitelist, blacklist) and low-latency
+      mod commands connection
+    config:
+      blacklist:
+        title: Menu Blacklist
+        description: List of commands hidden exclusively from Telegram menu
+      whitelist:
+        title: Menu Whitelist
+        description: List of commands placed into Telegram menu with top priority
+          (Tier 0)
+  ru:
+    name: Command Control
+    description: Управление меню Telegram (whitelist, blacklist) и подключение команд
+      модов в меню Telegram с низким latency
+    config:
+      blacklist:
+        title: Черный список меню
+        description: Список команд, скрываемых только из меню Telegram
+      whitelist:
+        title: Белый список меню
+        description: Список команд, которые в первую очередь (Tier 0) попадают в меню
+          Telegram
+  es:
+    name: Command Control
+    description: Gestión del menú de comandos de Telegram (lista blanca, lista negra)
+      y conexión de comandos de mods de baja latencia
+    config:
+      blacklist:
+        title: Lista negra del menú
+        description: Lista de comandos ocultos únicamente del menú de Telegram
+      whitelist:
+        title: Lista blanca del menú
+        description: Lista de comandos que ingresan prioritariamente (Tier 0) al menú
+          de Telegram
+  fr:
+    name: Command Control
+    description: Gestion du menu de commandes Telegram (liste blanche, liste noire)
+      et intégration à faible latence des commandes de mods
+    config:
+      blacklist:
+        title: Liste noire du menu
+        description: Liste des commandes masquées uniquement du menu Telegram
+      whitelist:
+        title: Liste blanche du menu
+        description: Liste des commandes prioritaires (Tier 0) ajoutées au menu Telegram
+  zh:
+    name: Command Control
+    description: Telegram命令菜单管理（白名单、黑名单）与低延迟Mod命令连接
+    config:
+      blacklist:
+        title: 菜单黑名单
+        description: 仅在Telegram菜单中隐藏的命令列表
+      whitelist:
+        title: 菜单白名单
+        description: 优先（Tier 0）进入Telegram菜单的命令列表
+  ar:
+    name: Command Control
+    description: إدارة قائمة أوامر تيليجرام (القائمة البيضاء، القائمة السوداء) وتوصيل
+      أوامر التعديلات بزمن انتقال منخفض
+    config:
+      blacklist:
+        title: القائمة السوداء للقائمة
+        description: قائمة الأوامر المخفية فقط من قائمة تيليجرام
+      whitelist:
+        title: القائمة البيضاء للقائمة
+        description: قائمة الأوامر التي تدخل في المقام الأول (Tier 0) إلى قائمة تيليجرام
+  de:
+    name: Command Control
+    description: Telegram-Befehlsmenü-Verwaltung (Whitelist, Blacklist) und Mod-Befehlsanbindung
+      mit geringer Latenz
+    config:
+      blacklist:
+        title: Menü-Blacklist
+        description: Liste von Befehlen, die nur im Telegram-Menü ausgeblendet werden
+      whitelist:
+        title: Menü-Whitelist
+        description: Liste von Befehlen, die vorrangig (Tier 0) in das Telegram-Menü
+          aufgenommen werden
+  pt:
+    name: Command Control
+    description: Gerenciamento do menu de comandos do Telegram (whitelist, blacklist)
+      e conexão de comandos de mods de baixa latência
+    config:
+      blacklist:
+        title: Lista negra do menu
+        description: Lista de comandos ocultos apenas do menu do Telegram
+      whitelist:
+        title: Lista branca do menu
+        description: Lista de comandos adicionados prioritariamente (Tier 0) ao menu
+          do Telegram
+tests:
+  test_telegram_menu_filtering_and_mod_commands: 'from hermes_cli.config import _OPEN_DICT_TOP_LEVEL_KEYS
+
+    assert "mods" in _OPEN_DICT_TOP_LEVEL_KEYS
+
+    from hermes_cli.commands_platforms import telegram_menu_commands, _prioritize_telegram_menu_candidates,
+    _collect_mod_commands
+
+    from hermes_cli.commands import COMMAND_REGISTRY
+
+    assert any(c.name == "fast" for c in COMMAND_REGISTRY)
+
+    assert any(c.name == "egress" for c in COMMAND_REGISTRY)
+
+    menu, _ = telegram_menu_commands(100)
+
+    menu_names = [n for n, _ in menu]
+
+    assert "fast" not in menu_names
+
+    assert "egress" not in menu_names
+
+    assert "codex_runtime" not in menu_names
+
+    assert "help" in menu_names
+
+    '

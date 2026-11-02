@@ -1,0 +1,7 @@
+name: Command Unlimited
+description: 'Command /unlimited [on|off|status]: remove turn and subagent iteration
+  limits with global session tree counting and config.yaml tuning'
+slash:
+  unlimited:
+    description: Enable or disable unlimited mode for the active session (agent and
+      subagent turn limits)

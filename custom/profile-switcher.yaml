@@ -1,0 +1,150 @@
+name: Profile Switcher
+description: Dynamic profile switching by Telegram topics (/profile <name>)
+version: 1.3.0
+author: Hermes Admin
+enabled: true
+targets:
+- file: hermes_cli/commands.py
+  old_block: "    CommandDef(\"whoami\", \"Show your slash command access (admin /\
+    \ user)\", \"Info\"),\n    CommandDef(\"profile\", \"Show active profile name\
+    \ and home directory\", \"Info\",\n               busy_policy=\"dispatch\", execute=\"\
+    profile\"),"
+  new_block: "    CommandDef(\"whoami\", \"Show your slash command access (admin /\
+    \ user)\", \"Info\"),\n    CommandDef(\"profile\", \"Show active profile or switch\
+    \ topic profile\", \"Info\",\n               args_hint=\"[use <name>|reset]\"\
+    , subcommands=(\"use\", \"switch\", \"set\", \"reset\"),\n               busy_policy=\"\
+    dispatch\", execute=\"profile\"),"
+  description: update-profile-command-description-and-hints
+- file: gateway/slash_commands.py
+  old_block: "    async def _handle_profile_command(self, event: MessageEvent) ->\
+    \ str:\n        \"\"\"Handle /profile — show the profile serving this source and\
+    \ its home.  On a multiplexed\n        gateway the process-level profile is the\
+    \ multiplexer's own (\"default\" in every chat), so\n        with ``multiplex_profiles``\
+    \ on report ``source.profile`` and resolve home under that\n        profile's\
+    \ runtime scope; when off the stamp is ignored, mirroring ``_run_agent``.\"\"\"\
+    \n        from hermes_constants import display_hermes_home\n        source = getattr(event,\
+    \ \"source\", None)\n        profile_name = display = \"\"\n        if getattr(getattr(self,\
+    \ \"config\", None), \"multiplex_profiles\", False):\n            profile_name\
+    \ = (getattr(source, \"profile\", \"\") or \"\").strip()\n            try:\n \
+    \               from gateway.run import _profile_runtime_scope\n             \
+    \   with _profile_runtime_scope(self._resolve_profile_home_for_source(source)):\n\
+    \                    display = display_hermes_home()\n            except Exception:\n\
+    \                display = display_hermes_home()\n\n        # Shared executor\
+    \ resolves process-level fallbacks; the multiplexed per-source overrides\n   \
+    \     # (when any) ride in via options.\n        reply = _execute(\"profile\"\
+    , options={\"profile_name\": profile_name, \"home_display\": display})\n     \
+    \   return \"\\n\".join([t(\"gateway.profile.header\", profile=reply.data[\"profile\"\
+    ]),\n                          t(\"gateway.profile.home\", home=reply.data[\"\
+    home\"])])"
+  new_block: "    async def _handle_profile_command(self, event: MessageEvent) ->\
+    \ str:\n        \"\"\"Handle /profile — show profile or switch topic profile via\
+    \ '/profile use <name>' / '/profile reset'.\"\"\"\n        from hermes_constants\
+    \ import display_hermes_home\n        source = getattr(event, \"source\", None)\n\
+    \        text = (getattr(event, \"text\", \"\") or \"\").strip()\n        parts\
+    \ = text.split()\n        cmd_arg = parts[1].lower() if len(parts) > 1 else \"\
+    \"\n        target_profile = parts[2] if len(parts) > 2 else \"\"\n\n        if\
+    \ cmd_arg in (\"use\", \"switch\", \"set\", \"reset\"):\n            if not source\
+    \ or not getattr(source, \"platform\", None):\n                return \"❌ Не удалось\
+    \ определить источник сообщения.\"\n\n            plat_val = source.platform.value\
+    \ if hasattr(source.platform, \"value\") else str(source.platform)\n         \
+    \   thread_id = str(getattr(source, \"thread_id\", None) or \"\").strip()\n  \
+    \          chat_id = str(getattr(source, \"chat_id\", None) or \"\").strip()\n\
+    \n            if not thread_id:\n                if plat_val == \"local\":\n \
+    \                   return \"⚠️ В CLI/Desktop переключение профиля на лету не\
+    \ поддерживается. Запустите Hermes с флагом `--profile <name>`.\"\n          \
+    \      return \"⚠️ Команда переключения профиля поддерживается только внутри топика\
+    \ (thread).\"\n\n            from hermes_cli.config import read_user_config_raw,\
+    \ atomic_config_write\n            from gateway.run import _gateway_config_home\n\
+    \            from gateway.profile_routing import parse_profile_routes\n\n    \
+    \        config_path = _gateway_config_home() / \"config.yaml\"\n            try:\n\
+    \                user_config = read_user_config_raw(config_path) or {}\n     \
+    \           gw_section = user_config.setdefault(\"gateway\", {})\n           \
+    \     routes = gw_section.setdefault(\"profile_routes\", [])\n\n             \
+    \   new_routes = [\n                    r for r in routes\n                  \
+    \  if not (\n                        isinstance(r, dict)\n                   \
+    \     and str(r.get(\"platform\", \"\")).lower() == plat_val.lower()\n       \
+    \                 and str(r.get(\"thread_id\", \"\")) == thread_id\n         \
+    \               and (not r.get(\"chat_id\") or str(r.get(\"chat_id\", \"\")).strip()\
+    \ == chat_id)\n                    )\n                ]\n\n                if\
+    \ cmd_arg == \"reset\" or target_profile in (\"\", \"default\"):\n           \
+    \         gw_section[\"profile_routes\"] = new_routes\n                    atomic_config_write(config_path,\
+    \ user_config)\n                    if hasattr(self, \"config\") and self.config:\n\
+    \                        self.config.profile_routes = parse_profile_routes(new_routes)\n\
+    \                    session_key = self._session_key_for_source(source)\n    \
+    \                if session_key:\n                        self._evict_cached_agent(session_key)\n\
+    \                    return f\"\U0001F504 Топик `{thread_id}` сброшен на профиль\
+    \ **default**.\"\n\n                from hermes_cli.profiles import validate_profile_name,\
+    \ list_profiles\n                try:\n                    validate_profile_name(target_profile)\n\
+    \                except Exception as e:\n                    return f\"❌ Недопустимое\
+    \ имя профиля: {e}\"\n\n                all_profs = [p.name for p in list_profiles()]\n\
+    \                if target_profile not in all_profs:\n                    avail\
+    \ = \", \".join(all_profs) or \"default\"\n                    return f\"❌ Профиль\
+    \ `{target_profile}` не найден. Доступные: {avail}\"\n\n                route_rule\
+    \ = {\n                    \"name\": f\"{plat_val}-{thread_id}-{target_profile}\"\
+    ,\n                    \"platform\": plat_val,\n                    \"chat_id\"\
+    : chat_id,\n                    \"thread_id\": thread_id,\n                  \
+    \  \"profile\": target_profile,\n                    \"enabled\": True,\n    \
+    \            }\n                new_routes.append(route_rule)\n              \
+    \  gw_section[\"profile_routes\"] = new_routes\n                gw_section[\"\
+    multiplex_profiles\"] = True\n                atomic_config_write(config_path,\
+    \ user_config)\n\n                if hasattr(self, \"config\") and self.config:\n\
+    \                    self.config.multiplex_profiles = True\n                 \
+    \   self.config.profile_routes = parse_profile_routes(new_routes)\n\n        \
+    \        session_key = self._session_key_for_source(source)\n                if\
+    \ session_key:\n                    self._evict_cached_agent(session_key)\n\n\
+    \                return f\"✅ Топик `{thread_id}` переключён на профиль **{target_profile}**!\"\
+    \n\n            except Exception as e:\n                logger.error(\"Failed\
+    \ to update profile_routes: %s\", e)\n                return f\"❌ Ошибка сохранения\
+    \ маршрута: {e}\"\n\n        profile_name = display = \"\"\n        if getattr(getattr(self,\
+    \ \"config\", None), \"multiplex_profiles\", False):\n            profile_name\
+    \ = (getattr(source, \"profile\", \"\") or \"\").strip()\n            try:\n \
+    \               from gateway.run import _profile_runtime_scope\n             \
+    \   with _profile_runtime_scope(self._resolve_profile_home_for_source(source)):\n\
+    \                    display = display_hermes_home()\n            except Exception:\n\
+    \                display = display_hermes_home()\n\n        reply = _execute(\"\
+    profile\", options={\"profile_name\": profile_name, \"home_display\": display})\n\
+    \        return \"\\n\".join([t(\"gateway.profile.header\", profile=reply.data[\"\
+    profile\"]),\n                          t(\"gateway.profile.home\", home=reply.data[\"\
+    home\"])])"
+  description: dynamic-topic-profile-switcher
+i18n:
+  en:
+    name: Profile Switcher
+    description: Dynamic profile switching by Telegram topics (/profile <name>)
+  ru:
+    name: Profile Switcher
+    description: Динамическое переключение профилей по топикам Telegram (/profile
+      <name>)
+  es:
+    name: Profile Switcher
+    description: Cambio dinámico de perfiles según temas de Telegram (/profile <nombre>)
+  fr:
+    name: Profile Switcher
+    description: Changement dynamique de profil selon les sujets Telegram (/profile
+      <nom>)
+  zh:
+    name: Profile Switcher
+    description: 按Telegram话题动态切换配置文件（/profile <name>）
+  ar:
+    name: Profile Switcher
+    description: تبديل ديناميكي لملفات التعريف حسب مواضيع تيليجرام (/profile <name>)
+  de:
+    name: Profile Switcher
+    description: Dynamisches Umschalten von Profilen über Telegram-Themen (/profile
+      <name>)
+  pt:
+    name: Profile Switcher
+    description: Alternância dinâmica de perfis por tópicos do Telegram (/profile
+      <nome>)
+tests:
+  test_profile_command_registry_and_handler: 'from hermes_cli.commands import COMMAND_REGISTRY
+
+    p = [c for c in COMMAND_REGISTRY if c.name == "profile"][0]
+
+    assert p.subcommands == ("use", "switch", "set", "reset")
+
+    from gateway.slash_commands import GatewaySlashCommandsMixin
+
+    assert hasattr(GatewaySlashCommandsMixin, "_handle_profile_command")
+
+    '

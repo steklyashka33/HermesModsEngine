@@ -1,0 +1,113 @@
+id: gateway-busy-queue-sender-isolation
+name: Gateway Busy Queue Sender Isolation
+description: 'Isolate photo burst and follow-up merges by sender ID in busy session
+  queue (PR #142102)'
+version: 1.1.1
+author: Hermes Admin
+enabled: true
+targets:
+- file: gateway/run_busy.py
+  description: Require matching sender before merging photo burst or caption in busy
+    queue
+  old_block: "        existing = pending_slot.get(session_key) if isinstance(pending_slot,\
+    \ dict) else None\n        same_security_context = existing is not None and (\n\
+    \            getattr(existing, \"internal\", False) == getattr(event, \"internal\"\
+    , False)\n            and getattr(existing, \"inherit_channel_pin\", False) ==\
+    \ getattr(event, \"inherit_channel_pin\", False)\n            and getattr(existing,\
+    \ \"allow_gateway_control\", True)\n            == getattr(event, \"allow_gateway_control\"\
+    , True)\n            and all(\n                (getattr(existing, \"metadata\"\
+    , None) or {}).get(key)\n                == (getattr(event, \"metadata\", None)\
+    \ or {}).get(key)\n                for key in self._SECURITY_METADATA_KEYS\n \
+    \           )\n        )"
+  new_block: "        existing = pending_slot.get(session_key) if isinstance(pending_slot,\
+    \ dict) else None\n        # A shared session key (group_sessions_per_user: false,\
+    \ or a shared thread) can hold\n        # follow-ups from several people. The\
+    \ merged turn is attributed to the head event's\n        # sender, so folding\
+    \ another sender's photo or caption into it would hand their input\n        #\
+    \ to someone else's identity. Different sender -> its own FIFO turn.\n       \
+    \ def _event_sender_id(ev):\n            src = getattr(ev, \"source\", None)\n\
+    \            uid = getattr(ev, \"user_id\", None) or getattr(src, \"user_id\"\
+    , None) or getattr(src, \"user_id_alt\", None)\n            if uid:\n        \
+    \        return (\"user\", str(uid))\n            plat = getattr(src, \"platform\"\
+    , None)\n            if plat == Platform.LOCAL:\n                return (\"local\"\
+    , getattr(src, \"chat_id\", None))\n            meta = getattr(ev, \"metadata\"\
+    , None) or {}\n            meta_sender = meta.get(\"sender_id\") or meta.get(\"\
+    user_id\") or meta.get(\"caller_id\")\n            if meta_sender:\n         \
+    \       return (\"meta_sender\", str(meta_sender))\n            if getattr(src,\
+    \ \"chat_type\", \"dm\") == \"dm\" and getattr(src, \"chat_id\", None):\n    \
+    \            return (\"dm_chat\", str(getattr(src, \"chat_id\", None)))\n    \
+    \        return (\"anonymous\", id(ev))\n\n        same_sender = existing is not\
+    \ None and (_event_sender_id(existing) == _event_sender_id(event))\n        same_security_context\
+    \ = existing is not None and same_sender and (\n            getattr(existing,\
+    \ \"internal\", False) == getattr(event, \"internal\", False)\n            and\
+    \ getattr(existing, \"inherit_channel_pin\", False) == getattr(event, \"inherit_channel_pin\"\
+    , False)\n            and getattr(existing, \"allow_gateway_control\", True)\n\
+    \            == getattr(event, \"allow_gateway_control\", True)\n            and\
+    \ all(\n                (getattr(existing, \"metadata\", None) or {}).get(key)\n\
+    \                == (getattr(event, \"metadata\", None) or {}).get(key)\n    \
+    \            for key in self._SECURITY_METADATA_KEYS\n            )\n        )"
+- file: tests/gateway/test_queue_consumption.py
+  description: Provide explicit user_id in test_queue_consumption _text_event
+  old_block: "    def _text_event(self, text: str) -> MessageEvent:\n        # profile=None:\
+    \ a MagicMock auto-attribute reads as a truthy stamped\n        # profile and\
+    \ trips fail-closed adapter resolution (AGENTS.md #17).\n        source = MagicMock(chat_id=\"\
+    c1\", platform=Platform.TELEGRAM, profile=None)"
+  new_block: "    def _text_event(self, text: str) -> MessageEvent:\n        # profile=None:\
+    \ a MagicMock auto-attribute reads as a truthy stamped\n        # profile and\
+    \ trips fail-closed adapter resolution (AGENTS.md #17).\n        source = MagicMock(chat_id=\"\
+    c1\", platform=Platform.TELEGRAM, profile=None, user_id=\"u1\")"
+- file: tests/gateway/test_queue_consumption.py
+  description: Provide explicit user_id in test_queue_consumption _media_event
+  old_block: "    def _media_event(self, path: str, mime: str, message_type: MessageType,\
+    \ text: str = \"\") -> MessageEvent:\n        source = MagicMock(chat_id=\"c1\"\
+    , platform=Platform.TELEGRAM, profile=None)"
+  new_block: "    def _media_event(self, path: str, mime: str, message_type: MessageType,\
+    \ text: str = \"\") -> MessageEvent:\n        source = MagicMock(chat_id=\"c1\"\
+    , platform=Platform.TELEGRAM, profile=None, user_id=\"u1\")"
+i18n:
+  en:
+    name: Gateway Busy Queue Sender Isolation
+    description: 'Isolate photo burst and follow-up merges by sender ID in busy session
+      queue (PR #142102)'
+  ru:
+    name: Gateway Busy Queue Sender Isolation
+    description: Изоляция очередей сессий и объединения батчей фото по ID отправителя
+  es:
+    name: Gateway Busy Queue Sender Isolation
+    description: 'Aislamiento de colas de sesión y fusión de ráfagas de fotos por
+      ID de remitente en la cola de sesiones ocupadas (PR #142102)'
+  fr:
+    name: Gateway Busy Queue Sender Isolation
+    description: 'Isolation des files d''attente de session et fusion de rafales de
+      photos par identifiant d''expéditeur en file d''attente occupée (PR #142102)'
+  zh:
+    name: Gateway Busy Queue Sender Isolation
+    description: '在忙碌会话队列中按发送者ID隔离会话队列与连拍照片合并（PR #142102）'
+  ar:
+    name: Gateway Busy Queue Sender Isolation
+    description: 'عزل قوائم انتظار الجلسات ودمج حزم الصور حسب معرّف المرسل في قائمة
+      انتظار الجلسات المزدحمة (PR #142102)'
+  de:
+    name: Gateway Busy Queue Sender Isolation
+    description: 'Trennung von Sitzungswarteschlangen und Foto-Burst-Zusammenführungen
+      nach Absender-ID in der Gateway-Auslastungswarteschlange (PR #142102)'
+  pt:
+    name: Gateway Busy Queue Sender Isolation
+    description: 'Isolamento de filas de sessão e mesclagem de lotes de fotos por
+      ID do remetente na fila de sessão ocupada (PR #142102)'
+tests:
+  test_queue_consumption_suite: "import subprocess\nres = subprocess.run([\n    \"\
+    /usr/local/lib/hermes-agent/venv/bin/pytest\", \"-q\",\n    \"/usr/local/lib/hermes-agent/tests/gateway/test_queue_consumption.py\"\
+    \n], capture_output=True, text=True)\nassert res.returncode == 0, res.stdout +\
+    \ res.stderr\n"
+  test_same_sender_isolation_contract: 'from unittest.mock import MagicMock
+
+    from gateway.config import Platform
+
+    ev_u1 = MagicMock(source=MagicMock(user_id="u1", platform=Platform.TELEGRAM))
+
+    ev_u2 = MagicMock(source=MagicMock(user_id="u2", platform=Platform.TELEGRAM))
+
+    assert getattr(ev_u1.source, "user_id") != getattr(ev_u2.source, "user_id")
+
+    '

@@ -1,0 +1,21 @@
+targets:
+- file: gateway/session.py
+  description: Сохранение metadata и model_override при reset_session (/handoff)
+  old_block: "    def _replace_route_locked(self, session_key, old_entry, session_id,\
+    \ now, **fields) -> SessionEntry:\n        \"\"\"Publish a fresh entry (inheriting\
+    \ origin/platform/chat_type) and save. Lock held.\"\"\"\n        new_entry = SessionEntry(\n\
+    \            session_key=session_key, session_id=session_id, created_at=now, updated_at=now,\n\
+    \            origin=old_entry.origin, platform=old_entry.platform, chat_type=old_entry.chat_type,\n\
+    \            transport_profile=old_entry.transport_profile, **fields,\n      \
+    \  )"
+  new_block: "    def _replace_route_locked(self, session_key, old_entry, session_id,\
+    \ now, **fields) -> SessionEntry:\n        \"\"\"Publish a fresh entry (inheriting\
+    \ origin/platform/chat_type) and save. Lock held.\"\"\"\n        inherited_meta\
+    \ = dict(old_entry.metadata or {}) if hasattr(old_entry, \"metadata\") and old_entry.metadata\
+    \ else {}\n        if \"metadata\" in fields:\n            inherited_meta.update(fields.pop(\"\
+    metadata\") or {})\n        inherited_model = fields.pop(\"model_override\", getattr(old_entry,\
+    \ \"model_override\", None))\n        new_entry = SessionEntry(\n            session_key=session_key,\
+    \ session_id=session_id, created_at=now, updated_at=now,\n            origin=old_entry.origin,\
+    \ platform=old_entry.platform, chat_type=old_entry.chat_type,\n            transport_profile=old_entry.transport_profile,\n\
+    \            metadata=inherited_meta,\n            model_override=inherited_model,\n\
+    \            **fields,\n        )"

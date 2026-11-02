@@ -1,0 +1,181 @@
+targets:
+- file: hermes_cli/commands.py
+  description: register-role-command-in-registry
+  old_block: '    CommandDef("title", "Set a title for the current session", "Session",
+    args_hint="[name]"),'
+  new_block: "    CommandDef(\"title\", \"Set a title for the current session\", \"\
+    Session\", args_hint=\"[name]\"),\n    CommandDef(\"role\", \"Set session role\"\
+    , \"Session\",\n               aliases=(\"instruct\",), args_hint=\"[set <text>|add\
+    \ <text>|clear|status]\",\n               subcommands=(\"set\", \"add\", \"clear\"\
+    , \"status\")),"
+- file: gateway/run_busy.py
+  description: add-role-to-gateway-idle-commands
+  old_block: "        \"loop\", \"refine\", \"review\", \"voice\", \"unlimited\",\
+    \ \"curator\",\n    )"
+  new_block: "        \"loop\", \"refine\", \"review\", \"voice\", \"unlimited\",\
+    \ \"curator\", \"role\",\n    )"
+- file: gateway/run_turn_runner.py
+  description: inject-session-role-into-combined-ephemeral-prompt
+  old_block: "        for extra in (\n            (ctx.channel_prompt or \"\").strip(),\n\
+    \            self._runner._get_system_prompt_for_channel(\n                ctx.source.platform,\
+    \ ctx.source.chat_id or \"\", thread_id=getattr(ctx.source, \"thread_id\", None),\n\
+    \                parent_id=getattr(ctx.source, \"parent_chat_id\", None),\n  \
+    \          ),\n        ):\n            if extra:\n                combined = (combined\
+    \ + \"\\n\\n\" + extra).strip()\n        return combined"
+  new_block: "        for extra in (\n            (ctx.channel_prompt or \"\").strip(),\n\
+    \            self._runner._get_system_prompt_for_channel(\n                ctx.source.platform,\
+    \ ctx.source.chat_id or \"\", thread_id=getattr(ctx.source, \"thread_id\", None),\n\
+    \                parent_id=getattr(ctx.source, \"parent_chat_id\", None),\n  \
+    \          ),\n        ):\n            if extra:\n                combined = (combined\
+    \ + \"\\n\\n\" + extra).strip()\n        session_key = getattr(self, \"_quick_key\"\
+    , None) or getattr(ctx, \"session_key\", None)\n        if not session_key and\
+    \ hasattr(self._runner, \"_session_key_for_source\") and getattr(ctx, \"source\"\
+    , None):\n            session_key = self._runner._session_key_for_source(ctx.source)\n\
+    \        session_store = getattr(self._runner, \"session_store\", None)\n    \
+    \    if session_key and session_store and hasattr(session_store, \"get_session_metadata\"\
+    ):\n            try:\n                role_prompt = session_store.get_session_metadata(session_key,\
+    \ \"session_role\")\n                if role_prompt:\n                    combined\
+    \ = (combined + \"\\n\\n# УСТАНОВКА И РОЛЬ ТЕКУЩЕЙ СЕССИИ:\\n\" + str(role_prompt)).strip()\n\
+    \            except Exception:\n                pass\n        return combined"
+- file: gateway/slash_commands_session.py
+  description: implement-handle-role-command
+  old_block: '    async def _handle_resume_command(self, event: MessageEvent) -> str:'
+  new_block: "    async def _handle_role_command(self, event: MessageEvent) -> str:\n\
+    \        \"\"\"Handle /role [set|add|clear|status] (alias: /instruct) — uncompressible\
+    \ session instructions.\"\"\"\n        def _wrap_hidden_quote(text: str) -> str:\n\
+    \            if not text:\n                return \"\"\n            lines = str(text).strip().splitlines()\n\
+    \            if not lines:\n                return \"\"\n            quote_lines\
+    \ = [\"**> \" + lines[0]]\n            for l in lines[1:]:\n                s\
+    \ = l.strip()\n                quote_lines.append(\"> \" + s if s else \">\")\n\
+    \            quote_lines[-1] += \"||\"\n            return \"\\n\".join(quote_lines)\n\
+    \n        source = event.source\n        if hasattr(self, \"async_session_store\"\
+    ) and self.async_session_store and source:\n            try:\n               \
+    \ await self.async_session_store.get_or_create_session(source)\n            except\
+    \ Exception:\n                pass\n        session_key = None\n        if hasattr(self,\
+    \ \"_session_key_for_source\") and source:\n            try:\n               \
+    \ session_key = self._session_key_for_source(source)\n            except Exception:\n\
+    \                session_key = None\n        if not session_key and getattr(source,\
+    \ \"session_key\", None):\n            session_key = source.session_key\n    \
+    \    if not session_key and getattr(event, \"session_key\", None):\n         \
+    \   session_key = event.session_key\n\n        store = getattr(self, \"session_store\"\
+    , None)\n        if store is None and hasattr(self, \"_async_session_store\")\
+    \ and getattr(self._async_session_store, \"_store\", None):\n            store\
+    \ = self._async_session_store._store\n\n        args = (event.get_command_args()\
+    \ or \"\").strip()\n        current_role = \"\"\n        if store and session_key\
+    \ and hasattr(store, \"get_session_metadata\"):\n            current_role = (store.get_session_metadata(session_key,\
+    \ \"session_role\") or \"\").strip()\n\n        if not args or args.lower() in\
+    \ (\"status\", \"show\", \"инфо\", \"статус\", \"?\"):\n            if not current_role:\n\
+    \                return \"ℹ️ В текущей сессии роль не задана. Задайте: `/role\
+    \ set <текст>`\"\n            return (\n                \"\U0001F3AD **Установка\
+    \ и роль текущей сессии (несжимаемая):**\\n\\n\"\n                f\"{_wrap_hidden_quote(current_role)}\\\
+    n\\n\"\n                \"_Подсказка: используйте `/role add <текст>` для дополнения\
+    \ или `/role clear` для сброса._\"\n            )\n\n        if args.lower() in\
+    \ (\"clear\", \"reset\", \"off\", \"del\", \"remove\", \"сброс\", \"очистить\"\
+    ):\n            if store and session_key and hasattr(store, \"set_session_metadata\"\
+    ):\n                store.set_session_metadata(session_key, \"session_role\",\
+    \ \"\")\n            cached_agent = self._cached_agent_for(session_key) if hasattr(self,\
+    \ \"_cached_agent_for\") and session_key else None\n            if cached_agent\
+    \ and hasattr(cached_agent, \"_session_role\"):\n                cached_agent._session_role\
+    \ = \"\"\n            return \"\U0001F5D1️ Роль текущей сессии очищена.\"\n\n\
+    \        parts = args.split(None, 1)\n        subcmd = parts[0].lower()\n    \
+    \    subtext = parts[1].strip() if len(parts) > 1 else \"\"\n\n        if subcmd\
+    \ in (\"clear\", \"reset\", \"off\", \"del\", \"remove\", \"сброс\", \"очистить\"\
+    ) and not subtext:\n            if store and session_key and hasattr(store, \"\
+    set_session_metadata\"):\n                store.set_session_metadata(session_key,\
+    \ \"session_role\", \"\")\n            cached_agent = self._cached_agent_for(session_key)\
+    \ if hasattr(self, \"_cached_agent_for\") and session_key else None\n        \
+    \    if cached_agent and hasattr(cached_agent, \"_session_role\"):\n         \
+    \       cached_agent._session_role = \"\"\n            return \"\U0001F5D1️ Роль\
+    \ текущей сессии очищена.\"\n\n        if subcmd in (\"status\", \"show\", \"\
+    инфо\", \"статус\") and not subtext:\n            if not current_role:\n     \
+    \           return \"ℹ️ В текущей сессии роль не задана. Задайте: `/role set <текст>`\"\
+    \n            return (\n                \"\U0001F3AD **Установка и роль текущей\
+    \ сессии (несжимаемая):**\\n\\n\"\n                f\"{_wrap_hidden_quote(current_role)}\\\
+    n\\n\"\n                \"_Подсказка: используйте `/role add <текст>` для дополнения\
+    \ или `/role clear` для сброса._\"\n            )\n\n        if subcmd in (\"\
+    set\", \"установить\"):\n            if not subtext:\n                return \"\
+    ⚠️ Укажите текст роли: `/role set <текст>`\"\n            new_role = subtext\n\
+    \            if store and session_key and hasattr(store, \"set_session_metadata\"\
+    ):\n                store.set_session_metadata(session_key, \"session_role\",\
+    \ new_role)\n            cached_agent = self._cached_agent_for(session_key) if\
+    \ hasattr(self, \"_cached_agent_for\") and session_key else None\n           \
+    \ if cached_agent:\n                cached_agent._session_role = new_role\n  \
+    \          return \"✅ **Роль текущей сессии установлена.**\"\n\n        if subcmd\
+    \ in (\"add\", \"append\", \"+\", \"добавить\"):\n            if not subtext:\n\
+    \                return \"⚠️ Укажите текст для добавления: `/role add <текст>`\"\
+    \n            new_role = f\"{current_role}\\n{subtext}\".strip() if current_role\
+    \ else subtext\n            if store and session_key and hasattr(store, \"set_session_metadata\"\
+    ):\n                store.set_session_metadata(session_key, \"session_role\",\
+    \ new_role)\n            cached_agent = self._cached_agent_for(session_key) if\
+    \ hasattr(self, \"_cached_agent_for\") and session_key else None\n           \
+    \ if cached_agent:\n                cached_agent._session_role = new_role\n  \
+    \          return f\"\U0001F4DD **Правило добавлено к роли сессии:**\\n\\n{_wrap_hidden_quote(new_role)}\"\
+    \n\n        new_role = args\n        if store and session_key and hasattr(store,\
+    \ \"set_session_metadata\"):\n            store.set_session_metadata(session_key,\
+    \ \"session_role\", new_role)\n        cached_agent = self._cached_agent_for(session_key)\
+    \ if hasattr(self, \"_cached_agent_for\") and session_key else None\n        if\
+    \ cached_agent:\n            cached_agent._session_role = new_role\n        return\
+    \ \"✅ **Роль текущей сессии установлена.**\"\n\n    async def _handle_resume_command(self,\
+    \ event: MessageEvent) -> str:"
+- file: gateway/session_commands.py
+  description: register-role-in-control-commands
+  old_block: _CONTROL_COMMANDS = frozenset({'title', 'close'})
+  new_block: _CONTROL_COMMANDS = frozenset({'title', 'close', 'role'})
+  disabled: true
+  disabled_reason: Already included in session_commands._CONTROL_COMMANDS by command-close
+- file: tui_gateway/methods_slash.py
+  description: add-format-live-role-output
+  old_block: '    return "ℹ️ Сейчас нет активных запущенных задач."'
+  new_block: "    return \"ℹ️ Сейчас нет активных запущенных задач.\"\n\n\ndef _format_live_role_output(sid:\
+    \ str, session: Optional[dict], arg: str) -> str:\n    \"\"\"Show, set, append,\
+    \ or clear uncompressed role instructions for the live session.\"\"\"\n    def\
+    \ _wrap_hidden_quote(text: str) -> str:\n        if not text:\n            return\
+    \ \"\"\n        lines = str(text).strip().splitlines()\n        if not lines:\n\
+    \            return \"\"\n        quote_lines = [\"**> \" + lines[0]]\n      \
+    \  for l in lines[1:]:\n            s = l.strip()\n            quote_lines.append(\"\
+    > \" + s if s else \">\")\n        quote_lines[-1] += \"||\"\n        return \"\
+    \\n\".join(quote_lines)\n\n    if session is None:\n        return \"⚠️ В текущей\
+    \ сессии роль не задана. Задайте: `/role set <текст>`\"\n    args = (arg or \"\
+    \").strip()\n    current_role = (session.get(\"session_role\") or \"\").strip()\n\
+    \n    if not args or args.lower() in (\"status\", \"show\", \"инфо\", \"статус\"\
+    , \"?\"):\n        if not current_role:\n            return \"ℹ️ В текущей сессии\
+    \ роль не задана. Задайте: `/role set <текст>`\"\n        return (\n         \
+    \   \"\U0001F3AD **Установка и роль текущей сессии (несжимаемая):**\\n\\n\"\n\
+    \            f\"{_wrap_hidden_quote(current_role)}\\n\\n\"\n            \"_Подсказка:\
+    \ используйте `/role add <текст>` для дополнения или `/role clear` для сброса._\"\
+    \n        )\n\n    if args.lower() in (\"clear\", \"reset\", \"off\", \"del\"\
+    , \"remove\", \"сброс\", \"очистить\"):\n        session[\"session_role\"] = \"\
+    \"\n        agent = session.get(\"agent\")\n        if agent and hasattr(agent,\
+    \ \"_session_role\"):\n            agent._session_role = \"\"\n        return\
+    \ \"\U0001F5D1️ Роль текущей сессии очищена.\"\n\n    parts = args.split(None,\
+    \ 1)\n    subcmd = parts[0].lower()\n    subtext = parts[1].strip() if len(parts)\
+    \ > 1 else \"\"\n\n    if subcmd in (\"clear\", \"reset\", \"off\", \"del\", \"\
+    remove\", \"сброс\", \"очистить\") and not subtext:\n        session[\"session_role\"\
+    ] = \"\"\n        agent = session.get(\"agent\")\n        if agent and hasattr(agent,\
+    \ \"_session_role\"):\n            agent._session_role = \"\"\n        return\
+    \ \"\U0001F5D1️ Роль текущей сессии очищена.\"\n\n    if subcmd in (\"status\"\
+    , \"show\", \"инфо\", \"статус\") and not subtext:\n        if not current_role:\n\
+    \            return \"ℹ️ В текущей сессии роль не задана. Задайте: `/role set\
+    \ <текст>`\"\n        return (\n            \"\U0001F3AD **Установка и роль текущей\
+    \ сессии (несжимаемая):**\\n\\n\"\n            f\"{_wrap_hidden_quote(current_role)}\\\
+    n\\n\"\n            \"_Подсказка: используйте `/role add <текст>` для дополнения\
+    \ или `/role clear` для сброса._\"\n        )\n\n    if subcmd in (\"set\", \"\
+    установить\"):\n        if not subtext:\n            return \"⚠️ Укажите текст\
+    \ роли: `/role set <текст>`\"\n        new_role = subtext\n        session[\"\
+    session_role\"] = new_role\n        agent = session.get(\"agent\")\n        if\
+    \ agent:\n            agent._session_role = new_role\n        return \"✅ **Роль\
+    \ текущей сессии установлена.**\"\n\n    if subcmd in (\"add\", \"append\", \"\
+    +\", \"добавить\"):\n        if not subtext:\n            return \"⚠️ Укажите\
+    \ текст для добавления: `/role add <текст>`\"\n        new_role = f\"{current_role}\\\
+    n{subtext}\".strip() if current_role else subtext\n        session[\"session_role\"\
+    ] = new_role\n        agent = session.get(\"agent\")\n        if agent:\n    \
+    \        agent._session_role = new_role\n        return f\"\U0001F4DD **Правило\
+    \ добавлено к роли сессии:**\\n\\n{_wrap_hidden_quote(new_role)}\"\n\n    new_role\
+    \ = args\n    session[\"session_role\"] = new_role\n    agent = session.get(\"\
+    agent\")\n    if agent:\n        agent._session_role = new_role\n    return \"\
+    ✅ **Роль текущей сессии установлена.**\""
+- file: tui_gateway/methods_slash.py
+  description: register-role-in-live-slash-output
+  old_block: '    "faster": (None, _format_live_faster_output),'
+  new_block: "    \"faster\": (None, _format_live_faster_output),\n    \"role\": (None,\
+    \ _format_live_role_output),\n    \"instruct\": (None, _format_live_role_output),"

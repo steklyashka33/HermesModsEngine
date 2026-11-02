@@ -1,0 +1,17 @@
+name: سجل أوامر التعديلات
+description: التسجيل الأصلي والتخزين المؤقت وتوجيه أوامر الشرطة المائلة التصريحية من تعديلات Hermes النشطة
+mods:
+  command_registry:
+    usage: "ℹ️ الاستخدام: /{canonical_name} {hint}"
+    circuit_breaker_disabled: "⚠️ المود '{mod_id}' معطل مؤقتًا بواسطة قاطع الدائرة (Circuit Breaker) بسبب تكرار الأخطاء."
+    handler_not_found: "⚠️ لم يتم العثور على معالج الأمر: {handler_path}"
+    no_handler_configured: "⚠️ الأمر /{canonical_name} ليس له معالج مهيأ (handler_script, python, shell)."
+    timeout_isolated: "⏱️ تجاوز الأمر /{canonical_name} المهلة الزمنية. تم عزل المود '{mod_id}' بواسطة Circuit Breaker."
+    timeout: "⏱️ تجاوز الأمر /{canonical_name} مهلة التنفيذ (30 ثانية)."
+    error_isolated: "⚠️ خطأ في تنفيذ /{canonical_name}: {exc}. تم عزل المود '{mod_id}' بواسطة Circuit Breaker."
+    error: "⚠️ خطأ في تنفيذ /{canonical_name}: {exc}"
+    module_spec_error: "⚠️ فشل تحميل مواصفات الوحدة: {script_path}"
+    entrypoint_not_found: "⚠️ لم يتم العثور على دالة قابلة للاستدعاء '{entrypoint}' في السكربت {script_name}."
+    script_error: "⚠️ خطأ في السكربت (رمز الخروج {code}): {error}"
+    shell_error: "⚠️ خطأ في أمر shell (رمز الخروج {code}): {error}"
+    alias: "اسم مستعار"

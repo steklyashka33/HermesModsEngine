@@ -1,0 +1,184 @@
+targets:
+- file: gateway/slash_commands_status.py
+  description: Оценка контекста по транскрипту в /status при context_used == 0
+  old_block: "        from agent.context_breakdown import context_display_source\n\
+    \        mark = \"~\" if context_display_source(getattr(status_agent, \"context_compressor\"\
+    , None)) != \"provider_usage\" else \"\"\n        if context_total:\n        \
+    \    pct = min(100, round((context_used / context_total) * 100))\n           \
+    \ lines.append(t(\"gateway.status.context\", used=mark + _fmt(context_used), total=_fmt(context_total),\n\
+    \                           pct=f\"{mark}{pct}\"))\n        elif context_used:\n\
+    \            lines.append(t(\"gateway.status.context_used\", used=mark + _fmt(context_used)))"
+  new_block: "        from agent.context_breakdown import context_display_source\n\
+    \        mark = \"~\" if context_display_source(getattr(status_agent, \"context_compressor\"\
+    , None)) != \"provider_usage\" else \"\"\n        if context_used <= 0 and hasattr(self,\
+    \ \"async_session_store\"):\n            try:\n                history = await\
+    \ self.async_session_store.load_transcript(session_entry.session_id)\n       \
+    \         if history:\n                    approx, _ = _transcript_estimate(history)\n\
+    \                    if approx > 0:\n                        context_used = approx\n\
+    \                        mark = \"~\"\n            except Exception:\n       \
+    \         pass\n        if context_total:\n            pct = min(100, round((context_used\
+    \ / context_total) * 100))\n            lines.append(t(\"gateway.status.context\"\
+    , used=mark + _fmt(context_used), total=_fmt(context_total),\n               \
+    \            pct=f\"{mark}{pct}\"))\n        elif context_used:\n            lines.append(t(\"\
+    gateway.status.context_used\", used=mark + _fmt(context_used)))"
+- file: gateway/slash_commands_status.py
+  description: Оценка контекста по транскрипту в _resolve_context_figures при used
+    <= 0
+  old_block: "        if not context_length and model_name:\n            from agent.model_metadata\
+    \ import get_model_context_length\n            context_length = _int_value(\n\
+    \                await _quiet(lambda: asyncio.to_thread(get_model_context_length,\
+    \ model_name))\n            )\n        return used, context_length, model_name"
+  new_block: "        if not context_length and model_name:\n            from agent.model_metadata\
+    \ import get_model_context_length\n            context_length = _int_value(\n\
+    \                await _quiet(lambda: asyncio.to_thread(get_model_context_length,\
+    \ model_name))\n            )\n        if used <= 0 and session_entry and hasattr(self,\
+    \ \"async_session_store\"):\n            try:\n                history = await\
+    \ self.async_session_store.load_transcript(session_entry.session_id)\n       \
+    \         if history:\n                    approx, _ = _transcript_estimate(history)\n\
+    \                    if approx > 0:\n                        used = approx\n \
+    \           except Exception:\n                pass\n        return used, context_length,\
+    \ model_name"
+- file: gateway/slash_commands_status.py
+  description: Полноценная статистика использования из state.db в /usage без категорий
+  old_block: "        if agent and hasattr(agent, \"session_total_tokens\") and agent.session_api_calls\
+    \ > 0:\n            lines = _usage_agent_stats_lines(agent)\n            # Per-category\
+    \ breakdown (chars/4 estimate, same engine as the desktop popover): prompt\n \
+    \           # / tools / skills / memory off the live agent, conversation from\
+    \ the transcript.\n            breakdown_lines = await asyncio.to_thread(self._context_breakdown_lines,\
+    \ agent, source)\n            if breakdown_lines:\n                lines += [\"\
+    \"] + breakdown_lines\n            return _with_account_blocks(lines)\n\n    \
+    \    # No agent at all -- rough count from session history\n        session_entry\
+    \ = await self.async_session_store.get_or_create_session(source)\n        try:\n\
+    \            history = await self.async_session_store.load_transcript(session_entry.session_id)\n\
+    \        except TranscriptReadError:\n            return history_unreadable()\n\
+    \        if history:\n            approx, count = _transcript_estimate(history)\n\
+    \            return _with_account_blocks([\n                t(\"gateway.usage.header_session_info\"\
+    ),\n                t(\"gateway.usage.label_messages\", count=count),\n      \
+    \          t(\"gateway.usage.label_estimated_context\", count=_fmt(approx)),\n\
+    \                t(\"gateway.usage.detailed_after_first\"),\n            ])\n\
+    \        if account_lines or credits_lines:\n            return _with_account_blocks([])\n\
+    \        return t(\"gateway.usage.no_data\")"
+  new_block: "        session_entry = await self.async_session_store.get_or_create_session(source)\n\
+    \        u_sid = session_entry.session_id or str(getattr(agent, \"session_id\"\
+    , \"\") or \"\")\n        u_db = _active_window_usage_from_db(u_sid) if u_sid\
+    \ else {\"calls\": 0, \"input\": 0, \"output\": 0, \"reasoning\": 0, \"cache\"\
+    : 0, \"total\": 0, \"compressions\": 0}\n        calls = max(_n(agent, \"session_api_calls\"\
+    ), u_db.get(\"calls\", 0))\n\n        if calls > 0:\n            model_name =\
+    \ _clean_str(getattr(agent, \"model\", \"\")) if agent is not None else \"\"\n\
+    \            if not model_name and hasattr(self, \"_session_model_override\"):\n\
+    \                override = self._session_model_override(session_key) or {}\n\
+    \                model_name = _clean_str(override.get(\"model\", \"\"))\n    \
+    \        if not model_name and getattr(self, \"_session_db\", None) is not None:\n\
+    \                row = await _quiet(lambda: self._session_db.get_session(session_entry.session_id))\n\
+    \                model_name = _clean_str(row.get(\"model\", \"\")) if isinstance(row,\
+    \ dict) else \"\"\n            ctx = getattr(agent, \"context_compressor\", None)\
+    \ if agent else None\n            used, context_length, model_name = await self._resolve_context_figures(\n\
+    \                agent, ctx, session_entry, source\n            )\n          \
+    \  lines = _usage_agent_stats_lines(\n                agent, session_entry=session_entry,\
+    \ session_id=u_sid, model_name=model_name,\n                context_used=used,\
+    \ context_total=context_length,\n            )\n            return _with_account_blocks(lines)\n\
+    \n        # No agent and no DB usage calls -- rough count from session history\n\
+    \        try:\n            history = await self.async_session_store.load_transcript(session_entry.session_id)\n\
+    \        except TranscriptReadError:\n            return history_unreadable()\n\
+    \        if history:\n            approx, count = _transcript_estimate(history)\n\
+    \            return _with_account_blocks([\n                t(\"gateway.usage.header_session_info\"\
+    ),\n                t(\"gateway.usage.label_messages\", count=count),\n      \
+    \          t(\"gateway.usage.label_estimated_context\", count=_fmt(approx)),\n\
+    \                t(\"gateway.usage.detailed_after_first\"),\n            ])\n\
+    \        if account_lines or credits_lines:\n            return _with_account_blocks([])\n\
+    \        return t(\"gateway.usage.no_data\")"
+- file: gateway/slash_commands_status.py
+  description: Честное отображение маркера ~ оценки контекста в /context
+  old_block: "        from agent.context_breakdown import context_display_source\n\
+    \        mark = \"~\" if context_display_source(ctx) != \"provider_usage\" else\
+    \ \"\""
+  new_block: "        from agent.context_breakdown import context_display_source\n\
+    \        is_est = (context_display_source(ctx) != \"provider_usage\") or (not\
+    \ _n(ctx, \"last_prompt_tokens\") and not _int_value(getattr(session_entry, \"\
+    last_prompt_tokens\", 0)) and used > 0)\n        mark = \"~\" if is_est else \"\
+    \""
+- file: gateway/slash_commands_status.py
+  description: Поддержка выгруженного агента и плашка первого ответа при расчете breakdown
+    в /context
+  old_block: "            # Per-category estimated breakdown (+ optional expanded\
+    \ listings). Same chars/4 engine\n            # the desktop popover and /usage\
+    \ use; plain text (monospace isn't guaranteed on\n            # messaging platforms).\
+    \ Fail-open: rendering errors never break /context.\n            breakdown = await\
+    \ asyncio.to_thread(self._context_breakdown_block, agent, source, expanded) if\
+    \ agent else []\n            return \"\\n\".join(lines + ([\"\"] + breakdown if\
+    \ breakdown else []))"
+  new_block: "            # Per-category estimated breakdown (+ optional expanded\
+    \ listings). Same chars/4 engine\n            # the desktop popover and /usage\
+    \ use; plain text (monospace isn't guaranteed on\n            # messaging platforms).\
+    \ Fail-open: rendering errors never break /context.\n            breakdown = await\
+    \ asyncio.to_thread(self._context_breakdown_block, agent, source, expanded)\n\
+    \            if breakdown:\n                lines += [\"\"] + breakdown\n    \
+    \        if not agent:\n                lines += [\"\", t(\"gateway.context.detail_after_first\"\
+    )]\n            return \"\\n\".join(lines)"
+- file: gateway/slash_commands_status.py
+  description: Оценка breakdown из DB при выгруженном агенте в _session_context_breakdown
+  old_block: "    def _session_context_breakdown(self, agent, source) -> dict:\n \
+    \       \"\"\"Per-category context estimate (chars/4) for *agent* over the session\
+    \ transcript (sync).\n        Raises ``TranscriptReadError`` (unreadable rows\
+    \ must not pass as an empty transcript).\"\"\"\n        from agent.context_breakdown\
+    \ import compute_session_context_breakdown\n        store = self.session_store\n\
+    \        try:\n            history = store.load_transcript(store.get_or_create_session(source).session_id)\
+    \ or []\n        except TranscriptReadError:\n            raise\n        except\
+    \ Exception:\n            history = []\n        return compute_session_context_breakdown(agent,\
+    \ history)"
+  new_block: "    def _session_context_breakdown(self, agent, source) -> dict:\n \
+    \       \"\"\"Per-category context estimate (chars/4) for *agent* over the session\
+    \ transcript (sync).\n        Raises ``TranscriptReadError`` (unreadable rows\
+    \ must not pass as an empty transcript).\"\"\"\n        from agent.context_breakdown\
+    \ import compute_session_context_breakdown\n        store = self.session_store\n\
+    \        session_entry = store.get_or_create_session(source)\n        sid = getattr(session_entry,\
+    \ \"session_id\", \"\") or \"\"\n        try:\n            history = store.load_transcript(sid)\
+    \ or []\n        except TranscriptReadError:\n            raise\n        except\
+    \ Exception:\n            history = []\n        if agent is not None:\n      \
+    \      return compute_session_context_breakdown(agent, history)\n        return\
+    \ self._session_context_breakdown_from_db(sid, history)\n\n    def _session_context_breakdown_from_db(self,\
+    \ session_id: str, history: list[dict]) -> dict:\n        \"\"\"Estimate breakdown\
+    \ for evicted agent using stored prompt in DB and active transcript.\"\"\"\n \
+    \       if not session_id:\n            return {}\n        stored_prompt = \"\"\
+    \n        model = \"\"\n        try:\n            if getattr(self, \"_session_db\"\
+    , None) is not None:\n                row = _quiet_sync(lambda: self._session_db.get_session(session_id),\
+    \ None)\n                if isinstance(row, dict):\n                    stored_prompt\
+    \ = row.get(\"system_prompt\") or \"\"\n                    model = row.get(\"\
+    model\") or \"\"\n        except Exception:\n            pass\n\n        if not\
+    \ stored_prompt:\n            try:\n                import sqlite3\n         \
+    \       from hermes_cli.config import get_hermes_home\n                db_path\
+    \ = get_hermes_home() / \"state.db\"\n                if db_path.exists():\n \
+    \                   con = sqlite3.connect(f\"file:{db_path}?mode=ro\", uri=True,\
+    \ timeout=2.0)\n                    cur = con.cursor()\n                    cur.execute(\"\
+    SELECT system_prompt, model FROM sessions WHERE id = ?\", (session_id,))\n   \
+    \                 r = cur.fetchone()\n                    if r:\n            \
+    \            stored_prompt = r[0] or \"\"\n                        model = model\
+    \ or (r[1] or \"\")\n                    con.close()\n            except Exception:\n\
+    \                pass\n\n        from agent.context_breakdown import (\n     \
+    \       _skills_block, _chars_to_tokens, _strip_blocks, _category_label,\n   \
+    \         _CATEGORIES, _ALWAYS_REPORTED,\n        )\n        from agent.model_metadata\
+    \ import estimate_messages_tokens_rough\n\n        conv_toks = estimate_messages_tokens_rough(history)\
+    \ if history else 0\n        if not stored_prompt and conv_toks <= 0:\n      \
+    \      return {}\n\n        skills_block_str = _skills_block(stored_prompt) if\
+    \ stored_prompt else \"\"\n        clean_sys = _strip_blocks(stored_prompt, skills_block_str)\
+    \ if (stored_prompt and skills_block_str) else (stored_prompt or \"\")\n     \
+    \   sys_toks = _chars_to_tokens(clean_sys) if clean_sys else 0\n        skills_toks\
+    \ = _chars_to_tokens(skills_block_str) if skills_block_str else 0\n\n        tokens_by_id\
+    \ = {\n            \"system_prompt\": sys_toks,\n            \"tool_definitions\"\
+    : 0,\n            \"rules\": 0,\n            \"skills\": skills_toks,\n      \
+    \      \"mcp\": 0,\n            \"subagent_definitions\": 0,\n            \"memory\"\
+    : 0,\n            \"conversation\": conv_toks,\n        }\n        estimated_total\
+    \ = sum(tokens_by_id.values())\n        if estimated_total <= 0:\n           \
+    \ return {}\n\n        context_max = 0\n        if model:\n            try:\n\
+    \                from agent.model_metadata import get_model_context_length\n \
+    \               context_max = int(get_model_context_length(model) or 0)\n    \
+    \        except Exception:\n                context_max = 0\n\n        return\
+    \ {\n            \"categories\": [\n                {\"color\": color, \"id\"\
+    : cid, \"label\": _category_label(cid), \"tokens\": tokens_by_id[cid]}\n     \
+    \           for cid, (color, _) in _CATEGORIES.items()\n                if tokens_by_id[cid]\
+    \ > 0 or cid in _ALWAYS_REPORTED\n            ],\n            \"context_max\"\
+    : context_max,\n            \"context_percent\": max(0, min(100, round(estimated_total\
+    \ / context_max * 100))) if context_max else 0,\n            \"context_used\"\
+    : estimated_total,\n            \"context_source\": \"local_estimate\",\n    \
+    \        \"context_estimated\": True,\n            \"estimated_total\": estimated_total,\n\
+    \            \"model\": model,\n        }"

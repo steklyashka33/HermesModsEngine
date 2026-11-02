@@ -1,0 +1,64 @@
+id: inventory-moa-filter
+name: Inventory MoA Filter
+description: Hiding disabled or excluded MoA providers from model inventory
+version: 1.1.0
+author: Hermes Admin
+enabled: true
+targets:
+- file: hermes_cli/inventory.py
+  old_block: "def _moa_provider_row(current_provider: str = \"\") -> dict | None:\n\
+    \    \"\"\"The virtual ``moa`` row shared by the CLI inventory and gateway picker;\
+    \ ``None`` without presets.\n\n    Strictly opt-in (#63353): the row only appears\
+    \ when the user's raw config.yaml explicitly\n    enables at least one MoA preset.\
+    \ The synthesized ``default`` preset from\n    ``normalize_moa_config({})`` —\
+    \ which every user gets via DEFAULT_CONFIG defaults — must not\n    be treated\
+    \ as a user choice.\"\"\"\n    if not _raw_config_has_enabled_moa_preset():\n\
+    \        return None"
+  new_block: "def _moa_provider_row(current_provider: str = \"\") -> dict | None:\n\
+    \    \"\"\"The virtual ``moa`` row shared by the CLI inventory and gateway picker;\
+    \ ``None`` without presets.\n\n    Strictly opt-in (#63353): the row only appears\
+    \ when the user's raw config.yaml explicitly\n    enables at least one MoA preset.\
+    \ The synthesized ``default`` preset from\n    ``normalize_moa_config({})`` —\
+    \ which every user gets via DEFAULT_CONFIG defaults — must not\n    be treated\
+    \ as a user choice.\"\"\"\n    try:\n        from hermes_cli.config import load_config\n\
+    \        raw_cfg = load_config()\n        excl = (raw_cfg.get(\"model_catalog\"\
+    ) or {}).get(\"excluded_providers\") or []\n        if isinstance(excl, list)\
+    \ and any(str(x).strip().lower() == \"moa\" for x in excl):\n            return\
+    \ None\n    except Exception:\n        pass\n    if not _raw_config_has_enabled_moa_preset():\n\
+    \        return None"
+  description: hide-disabled-or-excluded-moa-provider
+i18n:
+  en:
+    name: Inventory MoA Filter
+    description: Hiding disabled or excluded MoA providers from model inventory
+  ru:
+    name: Inventory MoA Filter
+    description: Скрытие отключенных или исключенных MoA-провайдеров из инвентаря
+      моделей
+  es:
+    name: Inventory MoA Filter
+    description: Ocultación de proveedores MoA deshabilitados o excluidos del inventario
+      de modelos
+  fr:
+    name: Inventory MoA Filter
+    description: Masquage des fournisseurs MoA désactivés ou exclus de l'inventaire
+      des modèles
+  zh:
+    name: Inventory MoA Filter
+    description: 从模型清单中隐藏已禁用或已排除的MoA提供商
+  ar:
+    name: Inventory MoA Filter
+    description: إخفاء موفري MoA المعطلين أو المستبعدين من مخزون النماذج
+  de:
+    name: Inventory MoA Filter
+    description: Ausblenden deaktivierter oder ausgeschlossener MoA-Anbieter aus dem
+      Modellinventar
+  pt:
+    name: Inventory MoA Filter
+    description: Ocultação de provedores MoA desativados ou excluídos do inventário
+      de modelos
+tests:
+  test_moa_provider_row_filter: "from unittest.mock import patch\nfrom hermes_cli.inventory\
+    \ import _moa_provider_row\nwith patch(\"hermes_cli.config.load_config\", return_value={\"\
+    model_catalog\": {\"excluded_providers\": [\"moa\"]}}):\n    assert _moa_provider_row()\
+    \ is None\n"

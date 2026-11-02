@@ -1,0 +1,3 @@
+name: Erkennung und Integration von Ordner-Mod-Skills
+description: 'Unterstützung für Ordner-Mods mit kolokierten Skills: automatische Registrierung
+  in skills_list, skill_view und System-Prompt'

@@ -1,0 +1,15 @@
+targets:
+- file: hermes_cli/partial_compress.py
+  description: Превью-сообщение /compress --preview
+  old_block: "    if effective_partial:\n        lines.append(\n            f\"Boundary:\
+    \ keeping the last {keep_last} exchange(s) \"\n            f\"({len(tail)} message(s))\
+    \ verbatim.\"\n        )\n    elif partial:\n        lines.append(\"Boundary:\
+    \ 'here' split would keep everything — falling back to full compression.\")\n\
+    \    if focus_topic:\n        lines.append(f'Focus topic: \"{focus_topic}\"')\n\
+    \    lines.append(\"Run the command again without --preview to apply.\")"
+  new_block: "    if effective_partial:\n        lines.append(\n            f\"Boundary:\
+    \ keeping the last {keep_last} exchange(s) \"\n            f\"({len(tail)} message(s))\
+    \ verbatim.\"\n        )\n    elif partial:\n        lines.append(\"Boundary:\
+    \ split would keep everything — falling back to full compression.\")\n    if focus_topic:\n\
+    \        lines.append(f'Focus / instruction: \"{focus_topic}\"')\n    lines.append(\"\
+    Run the command again without --preview to apply.\")"

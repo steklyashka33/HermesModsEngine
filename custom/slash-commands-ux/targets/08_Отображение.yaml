@@ -1,0 +1,14 @@
+targets:
+- file: gateway/slash_commands_status.py
+  description: Отображение модели через алиас в /usage (Superseded by target 36)
+  disabled: true
+  disabled_reason: "Superseded by 36_Отображение_процента_кэша_usage_gateway.yaml"
+  old_block: |
+    lines += [
+        t("gateway.usage.header_session"),
+        t("gateway.usage.label_model", model=agent.model),
+  new_block: |
+    display_model = model_name or str(getattr(agent, "model", "") or "")
+    lines += [
+        t("gateway.usage.header_session"),
+        t("gateway.usage.label_model", model=_reverse_alias_for_display(display_model) if display_model else "?"),

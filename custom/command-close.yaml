@@ -1,0 +1,221 @@
+id: command-close
+name: Command Close
+description: Command /close and /topic close for closing Telegram topics and safe
+  session archiving
+version: 1.4.0
+author: Hermes Admin
+enabled: true
+targets:
+- file: hermes_cli/commands.py
+  description: register-close-command-in-registry
+  old_block: "    CommandDef(\"topic\", \"Enable or inspect Telegram DM topic sessions\"\
+    , \"Session\",\n               gateway_only=True, args_hint=\"[off|help|session-id]\"\
+    ),"
+  new_block: "    CommandDef(\"topic\", \"Enable or inspect Telegram DM topic sessions\"\
+    , \"Session\",\n               gateway_only=True, args_hint=\"[close|off|help|session-id]\"\
+    ),\n    CommandDef(\"close\", \"Close current Telegram topic and archive its session\"\
+    , \"Session\",\n               gateway_only=True, busy_policy=\"reject\"),"
+- file: gateway/run_busy.py
+  description: add-close-to-gateway-idle-commands
+  old_block: "    _IDLE_COMMANDS = (\n        \"topic\", \"whoami\", \"platform\"\
+    , \"stop\", \"reasoning\", \"memory\", \"skills\", \"fast\","
+  new_block: "    _IDLE_COMMANDS = (\n        \"topic\", \"close\", \"whoami\", \"\
+    platform\", \"stop\", \"reasoning\", \"memory\", \"skills\", \"fast\","
+- file: gateway/slash_commands_session.py
+  description: handle-topic-close-subcommand
+  old_block: "        if args.lower() in {\"off\", \"disable\", \"stop\"}:\n     \
+    \       return await self._disable_telegram_topic_mode_for_chat(source)\n    \
+    \    if args:"
+  new_block: "        if args.lower() in {\"off\", \"disable\", \"stop\"}:\n     \
+    \       return await self._disable_telegram_topic_mode_for_chat(source)\n    \
+    \    if args.lower() in {\"close\", \"delete\", \"rm\"}:\n            return await\
+    \ self._handle_close_command(event)\n        if args:"
+- file: gateway/slash_commands_session.py
+  description: implement-handle-close-command
+  old_block: "        return t(\"gateway.topic.bound_status\", label=title or t(\"\
+    gateway.topic.untitled_session\"),\n                 session_id=session_id)\n\n\
+    \    # ------------------------------------------------------------------ /save,\
+    \ /title"
+  new_block: "        return t(\"gateway.topic.bound_status\", label=title or t(\"\
+    gateway.topic.untitled_session\"),\n                 session_id=session_id)\n\n\
+    \    async def _handle_close_command(self, event: MessageEvent) -> str:\n    \
+    \    \"\"\"Close current Telegram DM forum topic and archive its session.\"\"\"\
+    \n        import time\n        source = event.source\n        if not source or\
+    \ getattr(source, \"platform\", None) != Platform.TELEGRAM or not getattr(source,\
+    \ \"thread_id\", None):\n            return \"⚠️ Команда `/close` доступна только\
+    \ внутри топика Telegram.\"\n        try:\n            if not self._is_user_authorized_for_source(source):\n\
+    \                return t(\"gateway.topic.unauthorized\")\n        except Exception:\n\
+    \            logger.debug(\"Topic close auth check failed\", exc_info=True)\n\
+    \            return t(\"gateway.topic.unauthorized\")\n\n        chat_id = str(source.chat_id)\n\
+    \        thread_id = str(source.thread_id)\n        profile_name = self._telegram_topic_profile_name(source)\n\
+    \n        binding = None\n        if self._session_db:\n            try:\n   \
+    \             binding = await self._session_db.get_telegram_topic_binding(\n \
+    \                   chat_id=chat_id, thread_id=thread_id, profile_name=profile_name\n\
+    \                )\n            except Exception:\n                binding = None\n\
+    \n        session_id = binding.get(\"session_id\") if isinstance(binding, dict)\
+    \ else None\n\n        # 1. Cleanly delete binding and archive session in state.db\n\
+    \        if self._session_db:\n            try:\n                await self._session_db.delete_telegram_topic_binding(\n\
+    \                    chat_id=chat_id, thread_id=thread_id, profile_name=profile_name\n\
+    \                )\n            except Exception as exc:\n                logger.warning(\n\
+    \                    \"delete_telegram_topic_binding failed for %s:%s: %s\", chat_id,\
+    \ thread_id, exc\n                )\n\n            if session_id:\n          \
+    \      try:\n                    now = time.time()\n                    raw_db\
+    \ = getattr(self._session_db, \"_db\", self._session_db)\n                   \
+    \ if hasattr(raw_db, \"end_session\"):\n                        await asyncio.to_thread(raw_db.end_session,\
+    \ session_id, \"topic_closed\")\n                    if hasattr(raw_db, \"set_session_archived\"\
+    ):\n                        await asyncio.to_thread(raw_db.set_session_archived,\
+    \ session_id, True)\n                    def _archive_tx(conn):\n            \
+    \            conn.execute(\n                            \"UPDATE sessions SET\
+    \ archived = 1, auto_archived = 0, ended_at = COALESCE(ended_at, ?), end_reason\
+    \ = COALESCE(end_reason, 'topic_closed') WHERE id = ?\",\n                   \
+    \         (now, session_id),\n                        )\n                    if\
+    \ hasattr(raw_db, \"_execute_write\"):\n                        await asyncio.to_thread(raw_db._execute_write,\
+    \ _archive_tx)\n                except Exception as exc:\n                   \
+    \ logger.warning(\"Session archive failed for %s: %s\", session_id, exc)\n\n \
+    \       # 2. Evict resident/cached agent and routing entry\n        session_key\
+    \ = self._session_key_for_source(source)\n        if session_key:\n          \
+    \  self._evict_cached_agent(session_key)\n            if hasattr(self, \"async_session_store\"\
+    ) and hasattr(self.async_session_store, \"delete_session\"):\n               \
+    \ try:\n                    await self.async_session_store.delete_session(session_key)\n\
+    \                except Exception:\n                    pass\n\n        # 3. Call\
+    \ Telegram Bot API to physically delete or close the forum topic\n        adapter\
+    \ = self._delivery_adapter_for(source)\n        bot = getattr(adapter, \"_bot\"\
+    , None)\n        telegram_deleted = False\n        telegram_err = None\n     \
+    \   if bot and hasattr(bot, \"delete_forum_topic\"):\n            try:\n     \
+    \           await bot.delete_forum_topic(chat_id=int(chat_id), message_thread_id=int(thread_id))\n\
+    \                telegram_deleted = True\n            except Exception as exc:\n\
+    \                telegram_err = str(exc)\n                logger.warning(\"delete_forum_topic\
+    \ failed for chat=%s thread=%s: %s\", chat_id, thread_id, exc)\n             \
+    \   if hasattr(bot, \"close_forum_topic\"):\n                    try:\n      \
+    \                  await bot.close_forum_topic(chat_id=int(chat_id), message_thread_id=int(thread_id))\n\
+    \                    except Exception:\n                        pass\n\n     \
+    \   if telegram_deleted:\n            return \"\"\n        return \"Топик закрыт,\
+    \ сессия заархивирована.\" + (f\" (Telegram API: {telegram_err})\" if telegram_err\
+    \ else \"\")\n\n    # ------------------------------------------------------------------\
+    \ /save, /title"
+- file: gateway/session_commands.py
+  description: register-close-in-control-commands-for-desktop-and-cli-graceful-fallback
+  old_block: _CONTROL_COMMANDS = frozenset({'title'})
+  new_block: _CONTROL_COMMANDS = frozenset({'title', 'close', 'role'})
+tests:
+  test_command_close_registry: 'from hermes_cli.commands import COMMAND_REGISTRY,
+    resolve_command
+
+    cmd = resolve_command("close")
+
+    assert cmd is not None, "/close command must be registered"
+
+    assert cmd.name == "close"
+
+    assert cmd.gateway_only is True
+
+    '
+  test_idle_commands_contains_close: 'from gateway.run_busy import GatewayBusySessionMixin
+
+    assert "close" in GatewayBusySessionMixin._IDLE_COMMANDS
+
+    '
+  test_handle_close_command_archives_session: "import asyncio, sqlite3, tempfile\n\
+    from pathlib import Path\nfrom hermes_state import SessionDB, AsyncSessionDB\n\
+    from gateway.slash_commands_session import GatewaySessionCommandsMixin\nfrom gateway.platforms.event\
+    \ import MessageEvent\nfrom gateway.session import SessionSource\nfrom gateway.config\
+    \ import Platform\n\nclass DummyRunner(GatewaySessionCommandsMixin):\n    def\
+    \ __init__(self, db):\n        self._session_db = AsyncSessionDB(db)\n    def\
+    \ _is_user_authorized_for_source(self, source):\n        return True\n    def\
+    \ _telegram_topic_profile_name(self, source):\n        return \"default\"\n  \
+    \  def _session_key_for_source(self, source):\n        return \"test_key\"\n \
+    \   def _evict_cached_agent(self, key):\n        pass\n    def _delivery_adapter_for(self,\
+    \ source):\n        return None\n\nasync def _test():\n    with tempfile.TemporaryDirectory()\
+    \ as td:\n        db_file = Path(td) / \"state.db\"\n        db = SessionDB(db_file)\n\
+    \        db.create_session(\"s_close_1\", \"telegram\")\n        db.append_messages_batch(\"\
+    s_close_1\", [{\"role\": \"user\", \"content\": \"preserve this message\"}])\n\
+    \        db.bind_telegram_topic(\n            chat_id=\"111\", thread_id=\"222\"\
+    , user_id=\"u1\", session_key=\"test_key\", session_id=\"s_close_1\", profile_name=\"\
+    default\"\n        )\n        runner = DummyRunner(db)\n        event = MessageEvent(text=\"\
+    /close\", source=SessionSource(platform=Platform.TELEGRAM, chat_id=\"111\", thread_id=\"\
+    222\"))\n        reply = await runner._handle_close_command(event)\n        assert\
+    \ reply == \"Топик закрыт, сессия заархивирована.\"\n        assert db.get_telegram_topic_binding(chat_id=\"\
+    111\", thread_id=\"222\", profile_name=\"default\") is None\n\n        row = db.get_session(\"\
+    s_close_1\")\n        assert row is not None, \"Session row must be preserved\
+    \ (not deleted)\"\n        assert row[\"archived\"] == 1, \"Session must be archived\"\
+    \n        assert row[\"ended_at\"] is not None, \"Session must have ended_at timestamp\"\
+    \n        assert row[\"end_reason\"] == \"topic_closed\", \"Session end_reason\
+    \ must be topic_closed\"\n\n        conn = sqlite3.connect(db_file)\n        count\
+    \ = conn.execute(\"SELECT count(*) FROM messages WHERE session_id = ?\", (\"s_close_1\"\
+    ,)).fetchone()[0]\n        conn.close()\n        assert count == 1, \"Messages\
+    \ must be fully preserved in messages table\"\n\nasyncio.run(_test())\n"
+i18n:
+  en:
+    name: Command Close
+    description: Command /close and /topic close for closing Telegram topics and safe
+      session archiving
+    commands:
+      close:
+        description: Close current Telegram topic and archive its session
+        not_in_topic: ⚠️ The `/close` command is only available inside a Telegram
+          topic.
+        success: Topic closed, session archived.
+  ru:
+    name: Command Close
+    description: Команда /close и /topic close для закрытия топиков Telegram и безопасной
+      архивации сессий
+    commands:
+      close:
+        description: Закрыть текущий топик Telegram и заархивировать сессию
+        not_in_topic: ⚠️ Команда `/close` доступна только внутри топика Telegram.
+        success: Топик закрыт, сессия заархивирована.
+  es:
+    name: Command Close
+    description: Comando /close y /topic close para cerrar temas de Telegram y archivar
+      sesiones de forma segura
+    commands:
+      close:
+        description: Cerrar el tema actual de Telegram y archivar su sesión
+        not_in_topic: ⚠️ El comando `/close` solo está disponible dentro de un tema
+          de Telegram.
+        success: Tema cerrado, sesión archivada.
+  fr:
+    name: Command Close
+    description: Commande /close et /topic close pour fermer les sujets Telegram et
+      archiver les sessions en toute sécurité
+    commands:
+      close:
+        description: Fermer le sujet Telegram actuel et archiver sa session
+        not_in_topic: ⚠️ La commande `/close` n'est disponible que dans un sujet Telegram.
+        success: Sujet fermé, session archivée.
+  zh:
+    name: Command Close
+    description: 用于关闭Telegram话题和安全归档会话的命令 /close 和 /topic close
+    commands:
+      close:
+        description: 关闭当前Telegram话题并归档其会话
+        not_in_topic: ⚠️ `/close` 命令仅在Telegram话题内可用。
+        success: 话题已关闭，会话已归档。
+  ar:
+    name: Command Close
+    description: أمر /close و/topic close لإغلاق مواضيع تيليجرام وأرشفة الجلسات بأمان
+    commands:
+      close:
+        description: إغلاق موضوع تيليجرام الحالي وأرشفة جلسته
+        not_in_topic: ⚠️ أمر `/close` متاح فقط داخل موضوع تيليجرام.
+        success: تم إغلاق الموضوع وأرشفة الجلسة.
+  de:
+    name: Command Close
+    description: Befehl /close und /topic close zum Schließen von Telegram-Themen
+      und sicheren Archivieren von Sitzungen
+    commands:
+      close:
+        description: Aktuelles Telegram-Thema schließen und Sitzung archivieren
+        not_in_topic: ⚠️ Der Befehl `/close` ist nur innerhalb eines Telegram-Themas
+          verfügbar.
+        success: Thema geschlossen, Sitzung archiviert.
+  pt:
+    name: Command Close
+    description: Comando /close e /topic close para fechar tópicos do Telegram e arquivar
+      sessões com segurança
+    commands:
+      close:
+        description: Fechar o tópico atual do Telegram e arquivar sua sessão
+        not_in_topic: ⚠️ O comando `/close` está disponível apenas dentro de um tópico
+          do Telegram.
+        success: Tópico fechado, sessão arquivada.

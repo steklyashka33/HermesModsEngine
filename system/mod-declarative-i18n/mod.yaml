@@ -1,0 +1,8 @@
+id: mod-declarative-i18n
+name: Mod Declarative i18n
+description: Declarative collocated mod localization with highest-priority Mod Overlay
+  layer
+version: 1.2.0
+author: Engine
+tier: 0
+enabled: true

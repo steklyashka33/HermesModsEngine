@@ -1,0 +1,16 @@
+# ==============================================================================
+# Modular Targets Specification: Example Feature
+# ==============================================================================
+# Files inside targets/*.yaml are automatically aggregated by the mod loader.
+# You can split patches into logical feature files instead of maintaining a monolithic manifest.
+# ==============================================================================
+
+targets:
+  - file: hermes_cli/commands.py
+    description: Feature hook in Hermes CLI
+    old_block: |
+      # Target matching block inside Hermes repository
+    new_block: |
+      # Patched replacement code block
+    disabled: true
+    disabled_reason: "Template placeholder; customize and enable before applying"

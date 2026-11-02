@@ -1,0 +1,24 @@
+targets:
+- file: hermes_cli/goal_command.py
+  old_block: "    state = mgr.set(headline or arg, contract=contract)\n    output\
+    \ = render(\"gateway.goal.set\", \"⊙ Goal set ({budget}-turn budget): {goal}\"\
+    ,\n                    budget=state.max_turns, goal=state.goal)\n    if previous\
+    \ and previous != state.goal:\n        output += f\"\\n(replaced the previous\
+    \ goal)\\n  was: {previous}\"\n    if state.has_contract():\n        label = \"\
+    Drafted completion contract:\" if drafting else \"Completion contract:\"\n   \
+    \     output += f\"\\n{label}\\n{state.contract.render_block()}\"\n    if drafting:\n\
+    \        output += (\"\\nTighten any field by re-setting the goal with inline\
+    \ lines \"\n                   \"(e.g. verify: <command>), then /goal resume.\
+    \ Use /goal show to review.\"\n                   if state.has_contract() else\n\
+    \                   \"\\nCouldn't draft a contract (aux model unavailable) — running\
+    \ as a \"\n                   \"free-form goal. The per-turn judge still applies.\"\
+    )\n    else:\n        against = \" against the contract above\" if state.has_contract()\
+    \ else \"\"\n        output += (f\"\\nAfter each turn, a judge model checks if\
+    \ the goal is done{against}. \"\n                   \"Hermes keeps working until\
+    \ it is, you pause/clear it, or the budget is \"\n                   \"exhausted.\
+    \ Use /goal status, /goal show, /goal pause, /goal resume, /goal clear.\")"
+  new_block: "    state = mgr.set(headline or arg, contract=contract)\n    output\
+    \ = (\n        f\"\U0001F3AF Цель создана (бюджет {state.max_turns} ходов).\\\
+    n\"\n        \"Управление: /goal status · /goal pause · /goal resume · /goal clear\"\
+    \n    )"
+  description: compact-goal-set-response

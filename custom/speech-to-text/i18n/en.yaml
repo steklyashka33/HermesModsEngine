@@ -1,0 +1,25 @@
+name: Speech to Text
+description: Speech-to-Text module via multimodal API with speculative parallel fallback
+  to local faster-whisper
+config:
+  fallback_whisper:
+    title: Fallback to Whisper
+    description: Automatic failover to faster-whisper when remote STT gateway is unreachable
+  downscale_heavy_audio:
+    title: Compress Heavy Audio
+    description: Automatically re-encode audio >750KB via ffmpeg into compact mono-Opus
+  api_key:
+    title: STT API Key
+    description: Optional STT API key (defaults to native config.yaml inheritance)
+  base_url:
+    title: STT Base URL
+    description: OmniRoute STT gateway base URL (defaults to config.yaml inheritance)
+  model:
+    title: STT Model
+    description: Optional STT model override (defaults to stt.openai.model in config.yaml)
+  timeout:
+    title: Request Timeout
+    description: Request timeout for remote STT API in seconds
+  speculative_fallback_delay:
+    title: Fallback Delay
+    description: Delay in seconds before speculative parallel launch of local Whisper

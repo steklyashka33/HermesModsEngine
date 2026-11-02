@@ -1,0 +1,179 @@
+id: skill-prompt-desc-limit
+name: Skill Prompt Description Limit Configuration
+description: Configurable skill description limit in system prompt with clean whitespace
+  trimming and validation
+version: 1.3.0
+author: Hermes Admin
+enabled: true
+config:
+  limit:
+    type: integer
+    default: 60
+    description: Maximum skill description character length in system prompt (0 to
+      disable truncation)
+targets:
+- file: agent/skill_utils.py
+  description: Make SKILL_PROMPT_DESC_LIMIT configurable via mods.skill-prompt-desc-limit.limit
+    and fix truncation
+  old_block: "SKILL_PROMPT_DESC_LIMIT = 60\n\n\ndef _normalize_skill_description(frontmatter:\
+    \ dict[str, Any]) -> str:\n    \"\"\"Normalize a skill's description field for\
+    \ comparison/truncation.\"\"\"\n    raw_desc = frontmatter.get(\"description\"\
+    , \"\")\n    return str(raw_desc).strip().strip(\"'\\\"\") if raw_desc else \"\
+    \"\n\n\ndef extract_skill_description(frontmatter: dict[str, Any]) -> str:\n \
+    \   \"\"\"Extract a system-prompt-length description from parsed frontmatter.\"\
+    \"\"\n    desc = _normalize_skill_description(frontmatter)\n    return desc[:SKILL_PROMPT_DESC_LIMIT\
+    \ - 3] + \"...\" if len(desc) > SKILL_PROMPT_DESC_LIMIT else desc\n\n\ndef is_skill_description_truncated_for_prompt(frontmatter:\
+    \ dict[str, Any]) -> bool:\n    \"\"\"True when the description will be truncated\
+    \ in the system prompt skill index.\"\"\"\n    return len(_normalize_skill_description(frontmatter))\
+    \ > SKILL_PROMPT_DESC_LIMIT"
+  new_block: "DEFAULT_SKILL_PROMPT_DESC_LIMIT = 60\n\n\ndef get_skill_prompt_desc_limit()\
+    \ -> int:\n    \"\"\"Resolve skill description limit from config.yaml (`mods.skill-prompt-desc-limit.limit`\
+    \ or fallback).\"\"\"\n    raw_cfg = _load_raw_config()\n    if isinstance(raw_cfg,\
+    \ dict):\n        mods_cfg = raw_cfg.get(\"mods\")\n        if isinstance(mods_cfg,\
+    \ dict):\n            mod_val = mods_cfg.get(\"skill-prompt-desc-limit\")\n  \
+    \          if isinstance(mod_val, dict) and \"limit\" in mod_val:\n          \
+    \      try:\n                    return int(mod_val[\"limit\"])\n            \
+    \    except (ValueError, TypeError):\n                    pass\n        skills_cfg\
+    \ = raw_cfg.get(\"skills\")\n        if isinstance(skills_cfg, dict):\n      \
+    \      val = skills_cfg.get(\"prompt_desc_limit\") or skills_cfg.get(\"description_limit\"\
+    )\n            if val is not None:\n                try:\n                   \
+    \ return int(val)\n                except (ValueError, TypeError):\n         \
+    \           pass\n    return DEFAULT_SKILL_PROMPT_DESC_LIMIT\n\n\nclass _DynamicSkillDescLimit(int):\n\
+    \    \"\"\"Dynamically resolves the skill prompt description limit from config\
+    \ while remaining an int.\"\"\"\n    def __new__(cls):\n        return super().__new__(cls,\
+    \ DEFAULT_SKILL_PROMPT_DESC_LIMIT)\n    def __int__(self):\n        return get_skill_prompt_desc_limit()\n\
+    \    def __gt__(self, other):\n        return int(self) > other\n    def __lt__(self,\
+    \ other):\n        return int(self) < other\n    def __ge__(self, other):\n  \
+    \      return int(self) >= other\n    def __le__(self, other):\n        return\
+    \ int(self) <= other\n    def __eq__(self, other):\n        return int(self) ==\
+    \ other\n    def __sub__(self, other):\n        return int(self) - other\n   \
+    \ def __rsub__(self, other):\n        return other - int(self)\n    def __str__(self):\n\
+    \        return str(int(self))\n    def __repr__(self):\n        return repr(int(self))\n\
+    \n\nSKILL_PROMPT_DESC_LIMIT = _DynamicSkillDescLimit()\n\n\ndef _normalize_skill_description(frontmatter:\
+    \ dict[str, Any]) -> str:\n    \"\"\"Normalize a skill's description field for\
+    \ comparison/truncation.\"\"\"\n    raw_desc = frontmatter.get(\"description\"\
+    , \"\")\n    return str(raw_desc).strip().strip(\"'\\\"\") if raw_desc else \"\
+    \"\n\n\ndef extract_skill_description(frontmatter: dict[str, Any]) -> str:\n \
+    \   \"\"\"Extract a system-prompt-length description from parsed frontmatter.\"\
+    \"\"\n    desc = _normalize_skill_description(frontmatter)\n    limit = int(SKILL_PROMPT_DESC_LIMIT)\n\
+    \    if limit <= 0:\n        return desc\n    return desc[:limit] + \"...\" if\
+    \ len(desc) > limit else desc\n\n\ndef is_skill_description_truncated_for_prompt(frontmatter:\
+    \ dict[str, Any]) -> bool:\n    \"\"\"True when the description will be truncated\
+    \ in the system prompt skill index.\"\"\"\n    limit = int(SKILL_PROMPT_DESC_LIMIT)\n\
+    \    if limit <= 0:\n        return False\n    return len(_normalize_skill_description(frontmatter))\
+    \ > limit"
+- file: tools/skill_manager_tool.py
+  description: Make skill_manage tool docstring dynamically pull current limit
+  old_block: "def _skill_manage_description() -> str:\n    return (\n        \"Create,\
+    \ update, or delete skills — your procedural memory for \"\n        \"recurring\
+    \ task types. The call is an operations array (a single \"\n        \"edit is\
+    \ a list of one); it applies atomically — any failure rolls \"\n        \"every\
+    \ touched skill back. Ops: create (full SKILL.md; lands in \"\n        \"the profile's\
+    \ skills directory or configured skills.create_dir; must precede that skill's\
+    \ other \"\n        \"ops), patch (targeted old_string/new_string fix — preferred;\
+    \ \"\n        \"content alone REPLACES the whole file, read it via skill_view()\
+    \ \"\n        \"first), write_file/remove_file (supporting files), delete (sole\
+    \ \"\n        \"op only). Existing skills are modified wherever they live. Keep\
+    \ \"\n        \"the description's first 57 chars a self-contained trigger: 'Use\
+    \ \"\n        \"when <trigger>. <one-line behavior>.' Write lessons, not logs:\
+    \ \"\n        \"imperative rule + why, no PR numbers/dates/incident narration,\
+    \ one \"\n        \"rule per lesson, references/ named by topic (extend before\
+    \ adding). \"\n        \"skill_view() shows format conventions.\"\n    )"
+  new_block: "def _skill_manage_description() -> str:\n    limit = int(SKILL_PROMPT_DESC_LIMIT)\n\
+    \    return (\n        \"Create, update, or delete skills — your procedural memory\
+    \ for \"\n        \"recurring task types. The call is an operations array (a single\
+    \ \"\n        \"edit is a list of one); it applies atomically — any failure rolls\
+    \ \"\n        \"every touched skill back. Ops: create (full SKILL.md; lands in\
+    \ \"\n        \"the profile's skills directory or configured skills.create_dir;\
+    \ must precede that skill's other \"\n        \"ops), patch (targeted old_string/new_string\
+    \ fix — preferred; \"\n        \"content alone REPLACES the whole file, read it\
+    \ via skill_view() \"\n        \"first), write_file/remove_file (supporting files),\
+    \ delete (sole \"\n        \"op only). Existing skills are modified wherever they\
+    \ live. Keep \"\n        f\"the description under the configured budget (currently\
+    \ {limit} chars) as a self-contained trigger: 'Use \"\n        \"when <trigger>.\
+    \ <one-line behavior>.' Write lessons, not logs: \"\n        \"imperative rule\
+    \ + why, no PR numbers/dates/incident narration, one \"\n        \"rule per lesson,\
+    \ references/ named by topic (extend before adding). \"\n        \"skill_view()\
+    \ shows format conventions.\"\n    )"
+i18n:
+  en:
+    name: Skill Prompt Description Limit Configuration
+    description: Configurable skill description limit in system prompt with clean
+      whitespace trimming and validation
+    config:
+      limit:
+        title: Description Length Limit
+        description: Length limit for skill descriptions in system prompt (0 to disable
+          trimming)
+  ru:
+    name: Skill Prompt Description Limit Configuration
+    description: Настраиваемый лимит длины описания скилла в системном промпте
+    config:
+      limit:
+        title: Лимит длины описания
+        description: Лимит длины описания скилла в системном промпте (0 - отключить
+          обрезку)
+  es:
+    name: Skill Prompt Description Limit Configuration
+    description: Límite configurable de la longitud de descripción de habilidades
+      en el prompt del sistema con recorte limpio de espacios
+    config:
+      limit:
+        title: Límite de longitud de descripción
+        description: Límite de longitud de la descripción de habilidades en el prompt
+          del sistema (0 para desactivar el recorte)
+  fr:
+    name: Skill Prompt Description Limit Configuration
+    description: Limite configurable de la description des compétences dans le prompt
+      système avec nettoyage des espaces
+    config:
+      limit:
+        title: Limite de longueur de description
+        description: Limite de longueur de la description de compétence dans le prompt
+          système (0 pour désactiver le découpage)
+  zh:
+    name: Skill Prompt Description Limit Configuration
+    description: 系统提示词中技能描述长度的可配置限制，具有纯净的空格修剪与验证功能
+    config:
+      limit:
+        title: 描述长度限制
+        description: 系统提示词中技能描述的长度限制（0表示禁用截断）
+  ar:
+    name: Skill Prompt Description Limit Configuration
+    description: حد قابل للتهيئة لطول وصف المهارة في توجيه النظام مع مسافات بيضاء
+      مقصوصة بدقة
+    config:
+      limit:
+        title: حد طول الوصف
+        description: حد طول وصف المهارة في توجيه النظام (0 لتعطيل الاقتطاع)
+  de:
+    name: Skill Prompt Description Limit Configuration
+    description: Konfigurierbare Begrenzung der Skill-Beschreibungsdaten im System-Prompt
+      mit sauberer Leerzeichenbereinigung
+    config:
+      limit:
+        title: Beschreibungs-Längenlimit
+        description: Limit für die Länge von Skill-Beschreibungen im System-Prompt
+          (0 = Abschneiden deaktivieren)
+  pt:
+    name: Skill Prompt Description Limit Configuration
+    description: Limite configurável da extensão da descrição de habilidades no prompt
+      do sistema com recorte limpo de espaços
+    config:
+      limit:
+        title: Limite de tamanho da descrição
+        description: Limite de tamanho da descrição de habilidades no prompt do sistema
+          (0 para desativar recorte)
+tests:
+  test_skill_prompt_description_limit: 'from agent.skill_utils import extract_skill_description,
+    SKILL_PROMPT_DESC_LIMIT
+
+    from tools.skill_manager_tool import _skill_manage_description
+
+    lim = int(SKILL_PROMPT_DESC_LIMIT)
+
+    assert f"currently {lim} chars" in _skill_manage_description()
+
+    assert extract_skill_description({"description": "a"*(lim+10)}) == "a"*lim + "..."
+
+    '

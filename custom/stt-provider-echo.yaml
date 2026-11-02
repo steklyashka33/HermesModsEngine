@@ -1,0 +1,184 @@
+id: stt-provider-echo
+name: STT Provider Tracking & Echo
+description: Record actual STT provider in transcripts, safe tuple/STTTranscript handling
+  in clarify, and clean audio logging
+version: 1.3.0
+author: Hermes Admin
+enabled: true
+dependencies:
+- speech-to-text
+targets:
+- file: gateway/run_inbound_transcription.py
+  old_block: '# Log-record parity with the origin module.
+
+    logger = logging.getLogger("gateway.run")
+
+
+
+    class GatewayInboundTranscriptionMixin:
+
+    '
+  new_block: "# Log-record parity with the origin module.\nlogger = logging.getLogger(\"\
+    gateway.run\")\n\n\nclass STTTranscript(str):\n    \"\"\"Transcript string carrying\
+    \ the STT provider name while maintaining 100% str compatibility.\"\"\"\n    provider:\
+    \ str\n\n    def __new__(cls, text: str, provider: str = \"\"):\n        obj =\
+    \ super().__new__(cls, text)\n        obj.provider = str(provider)\n        return\
+    \ obj\n\n\nclass GatewayInboundTranscriptionMixin:\n"
+  description: stt-transcript-str-subclass
+- file: gateway/run_inbound_transcription.py
+  old_block: "        result = await asyncio.to_thread(transcribe_audio, path, None,\
+    \ \"gateway\")\n        if not result.get(\"success\"):\n            fallback\
+    \ = await asyncio.to_thread(transcribe_audio_local_fallback, path)\n         \
+    \   if fallback.get(\"success\"):\n                logger.info(\"Configured STT\
+    \ failed for %s; recovered with local STT\", path)\n                result = fallback\n\
+    \        if not result[\"success\"]:\n            logger.info(\"Voice transcription\
+    \ failed for %s: %s\", path, result.get(\"error\", \"unknown error\"))\n     \
+    \       return None, self._untranscribed_audio_note(path)\n        transcript\
+    \ = result[\"transcript\"]\n"
+  new_block: "        result = None\n        used_provider = \"stt\"\n        max_attempts\
+    \ = 2\n        for attempt in range(1, max_attempts + 1):\n            result\
+    \ = await asyncio.to_thread(transcribe_audio, path, None, \"gateway\")\n     \
+    \       if result.get(\"success\"):\n                break\n            err_msg\
+    \ = str(result.get(\"error\") or \"unknown error\")\n            err_lower = err_msg.lower()\n\
+    \            non_retryable = any(sig in err_lower for sig in (\n             \
+    \   \"not found\", \"code 127\", \"code 126\", \"exited with code\",\n       \
+    \         \"not configured\", \"credentials\", \"unregistered\",\n           \
+    \     \"no such file\", \"unsupported\", \"http 4\", \"did not produce a file\"\
+    , \"timed out\"\n            ))\n            if non_retryable or attempt >= max_attempts:\n\
+    \                if attempt > 1 or not non_retryable:\n                    logger.info(\"\
+    Configured STT failed for %s (%s); falling back to local STT\", path, err_msg)\n\
+    \                break\n            logger.warning(\n                \"Configured\
+    \ STT attempt %d/%d failed for %s (%s); retrying in 0.5s...\",\n             \
+    \   attempt, max_attempts, path, err_msg\n            )\n            await asyncio.sleep(0.5)\n\
+    \n        if not result or not result.get(\"success\"):\n            fallback\
+    \ = await asyncio.to_thread(transcribe_audio_local_fallback, path)\n         \
+    \   if fallback.get(\"success\"):\n                logger.info(\"Configured STT\
+    \ failed for %s; recovered with local STT\", path)\n                result = fallback\n\
+    \                used_provider = \"local (whisper)\"\n\n        if not result\
+    \ or not result.get(\"success\"):\n            logger.info(\"Voice transcription\
+    \ failed for %s: %s\", path, (result or {}).get(\"error\", \"unknown error\"))\n\
+    \            return None, self._untranscribed_audio_note(path)\n        if used_provider\
+    \ != \"local (whisper)\":\n            used_provider = str(result.get(\"provider\"\
+    ) or \"stt\").strip() or \"stt\"\n        transcript = result[\"transcript\"]\n"
+  description: stt-track-real-provider-in-transcripts
+- file: gateway/run_inbound_transcription.py
+  old_block: 'return transcript, f''"{transcript}"''
+
+    '
+  new_block: 'return STTTranscript(transcript, used_provider), f''"{transcript}"''
+
+    '
+  description: stt-preserve-provider-in-transcript-list
+- file: gateway/run_inbound.py
+  old_block: "    async def _prepare_clarify_reply_text(self, event) -> str:\n   \
+    \     \"\"\"Return raw text or successful voice transcripts for a clarify reply.\"\
+    \"\"\n        if not self._pending_event_audio_paths(event):\n            return\
+    \ (event.text or \"\").strip()\n        _, successful_transcripts = await self._transcribe_pending_audio_event_once(event,\
+    \ \"\")\n        return \"\\n\\n\".join(t.strip() for t in successful_transcripts\
+    \ if t.strip())"
+  new_block: "    async def _prepare_clarify_reply_text(self, event) -> str:\n   \
+    \     \"\"\"Return raw text or successful voice transcripts for a clarify reply.\"\
+    \"\"\n        if not self._pending_event_audio_paths(event):\n            return\
+    \ (event.text or \"\").strip()\n        _, successful_transcripts = await self._transcribe_pending_audio_event_once(event,\
+    \ \"\")\n        _texts = [str(t[0] if isinstance(t, tuple) else t).strip() for\
+    \ t in (successful_transcripts or [])]\n        return \"\\n\\n\".join(t for t\
+    \ in _texts if t)"
+  description: stt-clarify-reply-tuple-safe
+  disabled: true
+  disabled_reason: Absorbed upstream
+- file: gateway/run_inbound.py
+  old_block: "    async def _echo_stt_transcripts(\n        self, adapter, source:\
+    \ SessionSource, transcripts: list[str], *, metadata=None, log_context: str =\
+    \ \"Transcript\"\n    ) -> None:\n        \"\"\"Send each transcript back as ``\U0001F399\
+    ️ \"…\"`` (best-effort; failures are logged, never raised).\"\"\"\n        for\
+    \ tx in transcripts:\n            try:\n                await adapter.send(source.chat_id,\
+    \ t(\"gateway.voice.transcript_echo_short\", text=tx), metadata=metadata)\n  \
+    \          except Exception as echo_exc:\n                logger.debug(\"%s echo\
+    \ failed (non-fatal): %s\", log_context, echo_exc)\n"
+  new_block: "    async def _echo_stt_transcripts(\n        self, adapter, source:\
+    \ SessionSource, transcripts: list[str], *, metadata=None, log_context: str =\
+    \ \"Transcript\"\n    ) -> None:\n        \"\"\"Send each transcript back as an\
+    \ expandable blockquote with provider header on Telegram, safely draining on other\
+    \ platforms.\"\"\"\n        if not adapter or not hasattr(adapter, \"send\"):\n\
+    \            return\n        platform = getattr(source, \"platform\", None)\n\
+    \        is_telegram = platform == \"telegram\" or getattr(platform, \"value\"\
+    , None) == \"telegram\" or getattr(adapter, \"_is_telegram\", False)\n       \
+    \ if not is_telegram:\n            return\n\n        from tools.transcription_tools\
+    \ import _load_stt_config\n        cfg = _load_stt_config()\n        configured_prov\
+    \ = str(cfg.get(\"provider\") or \"provider\").strip()\n        quote_chars =\
+    \ chr(34) + chr(39)\n        nl = chr(10)\n\n        for item in transcripts:\n\
+    \            try:\n                if isinstance(item, tuple) and len(item) ==\
+    \ 2:\n                    tx, prov = item\n                elif hasattr(item,\
+    \ \"provider\") and item.provider:\n                    tx, prov = str(item),\
+    \ item.provider\n                else:\n                    tx, prov = str(item),\
+    \ configured_prov\n\n                cleaned = (tx or \"\").strip().strip(quote_chars)\n\
+    \                if not cleaned:\n                    continue\n\n           \
+    \     if hasattr(adapter, \"_bot\"):\n                    raw_lines = cleaned.splitlines()\n\
+    \                    while raw_lines and not raw_lines[0].strip():\n         \
+    \               raw_lines.pop(0)\n                    while raw_lines and not\
+    \ raw_lines[-1].strip():\n                        raw_lines.pop()\n          \
+    \          if not raw_lines:\n                        continue\n\n           \
+    \         quote_lines = [\"**> \" + raw_lines[0].strip()]\n                  \
+    \  for l in raw_lines[1:]:\n                        s = l.strip()\n          \
+    \              if s:\n                            quote_lines.append(\"> \" +\
+    \ s)\n                        else:\n                            if quote_lines[-1]\
+    \ != \">\":\n                                quote_lines.append(\">\")\n\n   \
+    \                 quote_lines[-1] += \"||\"\n                    quote_body =\
+    \ nl.join(quote_lines)\n\n                    prov_label = str(prov or configured_prov).strip()\n\
+    \                    echo_msg = f\"\U0001F399️ {prov_label}{nl}{quote_body}\"\n\
+    \                else:\n                    echo_msg = f'\U0001F399️ \"{cleaned}\"\
+    '\n\n                await adapter.send(source.chat_id, echo_msg, metadata=metadata)\n\
+    \            except Exception as echo_exc:\n                logger.debug(\"%s\
+    \ echo failed (non-fatal): %s\", log_context, echo_exc)\n\n"
+  description: stt-echo-expandable-blockquote-with-provider
+- file: tools/transcription_command.py
+  description: Распаковка JSON payload из command STT (чистый transcript + provider)
+  old_block: "    if transcript_text.startswith(\"{\") and transcript_text.endswith(\"\
+    }\"):\n        try:\n            parsed_json = json.loads(transcript_text)"
+  new_block: "    if transcript_text.startswith(\"{\") and transcript_text.endswith(\"\
+    }\"):\n        try:\n            import json\n            parsed_json = json.loads(transcript_text)"
+i18n:
+  en:
+    name: STT Provider Tracking & Echo
+    description: Record actual STT provider in transcripts, safe tuple/STTTranscript
+      handling in clarify, and clean audio logging
+  ru:
+    name: STT Provider Tracking & Echo
+    description: Фиксация реального STT-провайдера в транскриптах, безопасная обработка
+      tuple/STTTranscript в clarify и чистый лог аудио
+  es:
+    name: STT Provider Tracking & Echo
+    description: Registro del proveedor real de STT en transcripciones, manejo seguro
+      de tuple/STTTranscript en clarify y registro de audio limpio
+  fr:
+    name: STT Provider Tracking & Echo
+    description: Enregistrement du fournisseur STT réel dans les transcriptions, gestion
+      sécurisée de tuple/STTTranscript dans clarify et journalisation audio propre
+  zh:
+    name: STT Provider Tracking & Echo
+    description: 在转录文本中记录实际STT提供商，在clarify中安全处理tuple/STTTranscript并保持音频日志纯净
+  ar:
+    name: STT Provider Tracking & Echo
+    description: تسجيل موفر STT الفعلي في النصوص المنقولة، ومعالجة آمنة لـ tuple/STTTranscript
+      في التوضيح وسجل صوتي نظيف
+  de:
+    name: STT Provider Tracking & Echo
+    description: Erfassung des tatsächlichen STT-Anbieters in Transkripten, sichere
+      Behandlung von tuple/STTTranscript in clarify und saubere Audio-Protokollierung
+  pt:
+    name: STT Provider Tracking & Echo
+    description: Registro do provedor real de STT em transcrições, manipulação segura
+      de tupla/STTTranscript em clarify e registro limpo de áudio
+tests:
+  test_stt_provider_tracking_and_echo: 'from gateway.run_inbound import GatewayInboundMixin
+
+    from gateway.run_inbound_transcription import GatewayInboundTranscriptionMixin,
+    STTTranscript
+
+    assert hasattr(GatewayInboundTranscriptionMixin, "_transcribe_one_clip")
+
+    assert hasattr(GatewayInboundMixin, "_prepare_clarify_reply_text")
+
+    assert hasattr(GatewayInboundMixin, "_echo_stt_transcripts")
+
+    '

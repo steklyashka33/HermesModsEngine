@@ -1,0 +1,6 @@
+name: Command Role
+description: 'أمر /role (الاسم المستعار: /instruct) لتعليمات الجلسة غير القابلة للضغط
+  والقواعد ودور النظام'
+slash:
+  role:
+    description: تحديد دور الجلسة

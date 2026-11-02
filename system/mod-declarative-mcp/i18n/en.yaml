@@ -1,0 +1,3 @@
+name: Declarative MCP Servers in Hermes Mods
+description: Declarative integration of MCP servers in mod manifests with variable
+  interpolation and transparent runtime bridge

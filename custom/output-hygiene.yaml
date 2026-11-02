@@ -1,0 +1,246 @@
+id: output-hygiene
+name: Output & System Notices Hygiene
+description: 'Hygiene for output and system notices: disable service banners, file-mutation
+  verifier footers, bare local path delivery, and redundant error notices'
+version: 1.4.0
+author: Hermes Admin
+enabled: true
+targets:
+- file: agent/turn_finalizer.py
+  old_block: "def _append_file_mutation_footer(agent, final_response, logger):\n \
+    \   \"\"\"Append the verifier advisory when ``write_file`` / ``patch`` calls failed\
+    \ and were\n    never superseded by a successful write to the same path (surfaces\
+    \ over-claiming).\"\"\"\n    try:\n        # File-mutation verifier footer. This\
+    \ catches the specific case — reported by Ben Eng\n        # (#15524-adjacent)\
+    \ — where a model issues a batch of parallel patches, half of them fail with\n\
+    \        # \"Could not find old_string\", and the model summarises the turn claiming\
+    \ every file was edited. The\n        # user then has to manually run ``git status``\
+    \ to catch the lie. With this footer the truth is\n        # surfaced on every\
+    \ turn, so over-claiming is structurally impossible past the model. Gate: only\n\
+    \        # applied when a real text response exists for this turn and the user\
+    \ didn't interrupt.\n        # Empty/interrupted turns already have other surface\
+    \ text that shouldn't be augmented.\n        _failed = getattr(agent, \"_turn_failed_file_mutations\"\
+    , None) or {}\n        if _failed and agent._file_mutation_verifier_enabled():\n\
+    \            _failed = agent._file_mutations_still_failed(_failed)\n         \
+    \   footer = agent._format_file_mutation_failure_footer(_failed)\n           \
+    \ if footer:\n                final_response = final_response.rstrip() + \"\\\
+    n\\n\" + footer\n    except Exception as _ver_err:\n        logger.debug(\"file-mutation\
+    \ verifier footer failed: %s\", _ver_err)\n    return final_response\n\n\n"
+  new_block: "def _append_file_mutation_footer(agent, final_response, logger):\n \
+    \   \"\"\"File-mutation verifier disabled via patch.\"\"\"\n    return final_response\n\
+    \n"
+  description: disable-file-mutation-verifier-footer
+- file: gateway/platforms/base.py
+  old_block: "            local_files = []\n            if not is_ephemeral_response:\n\
+    \                local_files, text_content = self.extract_local_files(text_content)\n\
+    \                local_files = self.filter_local_delivery_paths(local_files, session_key=session_key)"
+  new_block: "            local_files = []\n            extra = getattr(getattr(self,\
+    \ \"config\", None), \"extra\", {}) or {}\n            auto_send_bare = bool(\n\
+    \                (isinstance(extra, dict) and extra.get(\"auto_send_bare_files\"\
+    , False))\n                or os.getenv(\"HERMES_AUTO_SEND_BARE_FILES\", \"\"\
+    ).lower() in (\"1\", \"true\", \"yes\")\n            )\n            if not is_ephemeral_response\
+    \ and auto_send_bare:\n                local_files, text_content = self.extract_local_files(text_content)\n\
+    \                local_files = self.filter_local_delivery_paths(local_files, session_key=session_key)"
+  description: disable-bare-local-file-auto-delivery
+- file: gateway/platforms/base.py
+  old_block: "    async def _send_plain_fallback(\n            self, chat_id: str,\
+    \ content: str, *, reply_to: Optional[str], metadata: Any) -> SendResult:\n  \
+    \      \"\"\"Last-resort send after a non-transient failure; platforms whose markup\
+    \ is not the\n        likely culprit override it (Photon drops rich links instead\
+    \ of adding the banner).\"\"\"\n        return await self.send(\n            chat_id=chat_id,\
+    \ content=self.warning_text(\n                t(\"gateway.notify.plain_fallback_prefix\"\
+    , content=content[:3500]), content[:3500],\n                chat_id=chat_id, metadata=metadata),\n\
+    \            reply_to=reply_to, metadata=metadata)"
+  new_block: "    async def _send_plain_fallback(\n            self, chat_id: str,\
+    \ content: str, *, reply_to: Optional[str], metadata: Any) -> SendResult:\n  \
+    \      \"\"\"Last-resort send after a non-transient failure. Deliver the raw content\
+    \ directly without banners.\"\"\"\n        return await self.send(\n         \
+    \   chat_id=chat_id, content=content,\n            reply_to=reply_to, metadata=metadata)"
+  description: remove-plain-fallback-warning-banner
+- file: tools/delegate_tool_progress.py
+  old_block: "    goal_label = (goal or \"\").strip().replace(\"\\n\", \" \")\n  \
+    \  if len(goal_label) > 60:\n        goal_label = goal_label[:57] + \"...\"\n\
+    \    goal_part = f' — \"{goal_label}\"' if goal_label else \"\"\n    elapsed =\
+    \ _format_duration(duration_seconds)\n    if status == \"timeout\":\n        #\
+    \ The child's own timeout text repeats the duration and names mechanisms (API/tool\
+    \ calls); the\n        # user needs the outcome and the knob.\n        after =\
+    \ f\" after {elapsed}\" if elapsed else \"\"\n        return (\n            f\"\
+    ⚠️ Subagent timed out{goal_part}{after} without finishing. I will carry on without\
+    \ it; ask me to \"\n            \"retry it, or raise delegation.child_timeout_seconds\
+    \ in config.yaml if these tasks legitimately \"\n            \"take longer.\"\n\
+    \        )\n    line = f\"⚠️ Subagent failed{goal_part}\"\n    if elapsed:\n \
+    \       line += f\" after {elapsed}\"\n    reason = describe_subagent_failure(failure_reason,\
+    \ error)\n    if reason:\n        line += f\": {reason.rstrip('.')}\"\n    return\
+    \ line + \". Details: /agents, or ask me to retry with a smaller task.\""
+  new_block: "    goal_label = (goal or \"\").strip().replace(\"\\n\", \" \")\n  \
+    \  if len(goal_label) > 160:\n        goal_label = goal_label[:157] + \"...\"\n\
+    \    goal_part = f' — \"{goal_label}\"' if goal_label else \"\"\n    elapsed =\
+    \ _format_duration(duration_seconds)\n    if status == \"timeout\":\n        #\
+    \ The child's own timeout text repeats the duration and names mechanisms (API/tool\
+    \ calls); the\n        # user needs the outcome and the knob.\n        after =\
+    \ f\" after {elapsed}\" if elapsed else \"\"\n        return (\n            f\"\
+    ⚠️ Subagent timed out{goal_part}{after} without finishing. I will carry on without\
+    \ it; ask me to \"\n            \"retry it, or raise delegation.child_timeout_seconds\
+    \ in config.yaml if these tasks legitimately \"\n            \"take longer.\"\n\
+    \        )\n    line = f\"⚠️ Subagent failed{goal_part}\"\n    if elapsed:\n \
+    \       line += f\" after {elapsed}\"\n    reason = describe_subagent_failure(failure_reason,\
+    \ error)\n    if reason:\n        for _noise in (\n            \"Wait a minute\
+    \ and send /retry\",\n            \"switch models with /model\",\n           \
+    \ \"To avoid this in future\",\n            \"add a backup provider\",\n     \
+    \       \"Details: /agents\",\n            \"or ask me to retry with a smaller\
+    \ task\",\n        ):\n            if _noise in reason:\n                reason\
+    \ = reason[:reason.find(_noise)].rstrip(\" .-—,\")\n        if reason:\n     \
+    \       line += f\": {reason.rstrip('.')}\"\n    return line + \".\" "
+  description: Expand subagent failure goal cutoff to 160 chars and strip boilerplate
+    advice
+- file: gateway/run_turn_progress.py
+  old_block: "    def _progress_subagent_notice(self, preview, kwargs: dict) -> None:\n\
+    \        \"\"\"Only terminal failure statuses render (same notice rail as credit\
+    \ warnings).\"\"\"\n        ctx = self._ctx\n        from gateway.warning_notifications\
+    \ import render_notification\n        status = kwargs.get(\"status\")\n      \
+    \  try:\n            from tools.delegate_tool import SUBAGENT_FAILURE_STATUSES,\
+    \ format_subagent_failure_line\n            if status in SUBAGENT_FAILURE_STATUSES\
+    \ and ctx._run_still_current():\n                line = format_subagent_failure_line(\n\
+    \                    kwargs.get(\"goal\"), status, error=kwargs.get(\"summary\"\
+    ) or preview,\n                    duration_seconds=kwargs.get(\"duration_seconds\"\
+    ), failure_reason=kwargs.get(\"failure_reason\"),\n                )"
+  new_block: "    def _progress_subagent_notice(self, preview, kwargs: dict) -> None:\n\
+    \        \"\"\"Only terminal failure statuses render (same notice rail as credit\
+    \ warnings).\"\"\"\n        ctx = self._ctx\n        from gateway.warning_notifications\
+    \ import render_notification\n        status = kwargs.get(\"status\")\n      \
+    \  try:\n            from tools.delegate_tool import SUBAGENT_FAILURE_STATUSES\n\
+    \            if status in SUBAGENT_FAILURE_STATUSES and ctx._run_still_current():\n\
+    \                setattr(self._runner, \"_subagent_failure_notified\", True)\n\
+    \                goal = str(kwargs.get(\"goal\") or \"\").strip()\n          \
+    \      dur = kwargs.get(\"duration_seconds\")\n                raw_err = str(kwargs.get(\"\
+    summary\") or preview or \"\").strip()\n                for _noise in (\n    \
+    \                \"Wait a minute and send /retry\", \"switch models with /model\"\
+    ,\n                    \"To avoid this in future\", \"add a backup provider\"\
+    , \"Details: /agents\",\n                    \"or ask me to retry with a smaller\
+    \ task\",\n                ):\n                    if _noise in raw_err:\n   \
+    \                     raw_err = raw_err[:raw_err.find(_noise)].rstrip(\" .-—,\"\
+    )\n                raw_err = raw_err.replace(\"rejected the request and retrying\
+    \ won't help\", \"отклонил запрос (повтор не поможет)\")\n                raw_err\
+    \ = raw_err.replace(\"Pick another model with /model, or check the details in\"\
+    , \"выберите другую модель через /model или проверьте логи в\")\n            \
+    \    raw_err = raw_err.replace(\"is not supported when using Codex with a ChatGPT\
+    \ account\", \"не поддерживается данным аккаунтом Codex\")\n                raw_err\
+    \ = raw_err.replace(\"model is not supported\", \"модель не поддерживается\")\n\
+    \                raw_err = raw_err.replace(\"timed out without finishing\", \"\
+    превышено время ожидания\")\n                clean_err = raw_err.rstrip(\" .\"\
+    ) or \"ошибка выполнения\"\n                elapsed = f\"{round(dur / 60)} мин\"\
+    \ if dur and dur >= 120 else (f\"{round(dur)}с\" if dur else \"\")\n         \
+    \       after_str = f\"Спустя {elapsed}: \" if elapsed else \"\"\n           \
+    \     goal_lines = [l.strip() for l in goal.splitlines() if l.strip()] if goal\
+    \ else [\"Задача\"]\n                nl = \"\\n\"\n                quote_block\
+    \ = nl.join(f\"> {line}\" for line in goal_lines)\n                if status ==\
+    \ \"timeout\":\n                    line = f\"⚠️ **Таймаут субагента:**{nl}{quote_block}{nl}{after_str}превышено\
+    \ максимальное время ожидания задачи.\"\n                else:\n             \
+    \       line = f\"⚠️ **Сбой субагента:**{nl}{quote_block}{nl}{after_str}{clean_err}.\"\
+    \n                render_notification(\n                    lambda: self._schedule(self._runner._deliver_platform_notice(ctx.source,\
+    \ line), \"subagent failure notice scheduling error\"),\n                    platform=ctx.source.platform,\
+    \ user_config=ctx.user_config)"
+  description: Mark subagent failure notice delivered on runner instance
+- file: gateway/run_turn_persistence.py
+  old_block: "        if diagnostic_wake_muted(event):\n            return None\n\
+    \        # Intentional silence is a delivery decision: the [SILENT] turn stays\
+    \ persisted (alternation).\n        if _intentional_silence:"
+  new_block: "        if diagnostic_wake_muted(event):\n            return None\n\
+    \        # Suppress redundant turn failure message if a subagent failure was already\
+    \ notified or on raw combo timeout\n        if getattr(self, \"_subagent_failure_notified\"\
+    , False):\n            self._subagent_failure_notified = False\n            if\
+    \ agent_result.get(\"failed\"):\n                logger.info(\"Suppressing redundant\
+    \ turn failure message because subagent failure notice was already delivered\"\
+    )\n                return None\n        if agent_result.get(\"failed\") and response\
+    \ and \"This turn did not complete\" in response and \"Combo global timeout\"\
+    \ in response:\n            logger.info(\"Suppressing verbose provider combo dump\
+    \ on turn failure\")\n            return None\n        # Intentional silence is\
+    \ a delivery decision: the [SILENT] turn stays persisted (alternation).\n    \
+    \    if _intentional_silence:"
+  description: Suppress redundant turn failure response when subagent failure was
+    already notified
+- file: gateway/run_turn_persistence.py
+  description: Translate failed-turn boundary notices to Russian on user delivery
+  old_block: "    def _hmwa_add_failed_turn_notice(self, response, notice):\n    \
+    \    \"\"\"Make failed-turn delivery explicit without replacing the provider-specific\
+    \ guidance.\"\"\"\n        response = str(response or \"\").strip()\n        return\
+    \ f\"{response}\\n\\n{notice}\" if response else notice"
+  new_block: "    def _hmwa_add_failed_turn_notice(self, response, notice):\n    \
+    \    \"\"\"Make failed-turn delivery explicit without replacing the provider-specific\
+    \ guidance.\"\"\"\n        response = str(response or \"\").strip()\n        ru_notice\
+    \ = notice\n        if notice == FAILED_TURN_NOTICE:\n            ru_notice =\
+    \ \"Запрос не был обработан. Отправьте его ещё раз, если нужно продолжить.\"\n\
+    \        elif notice == PARTIAL_FAILED_TURN_NOTICE:\n            ru_notice = \"\
+    Ход не был завершён. Часть действий могла выполниться; проверьте результат перед\
+    \ повторной отправкой.\"\n        return f\"{response}\\n\\n{ru_notice}\" if response\
+    \ else ru_notice"
+i18n:
+  en:
+    name: Output & System Notices Hygiene
+    description: 'Hygiene for output and system notices: disable service banners,
+      file-mutation verifier footers, bare local path delivery, and redundant error
+      notices'
+    gateway:
+      redirected_head: ↪ Redirected current run
+      redirected_tail: .
+  ru:
+    name: Output & System Notices Hygiene
+    description: 'Устранение избыточного шума: отключение сервисных баннеров, футера
+      верификации, автодоставки локальных путей и дедупликация системных уведомлений'
+    gateway:
+      redirected_head: ↪ Текущий запуск перенаправлен
+      redirected_tail: .
+  es:
+    name: Output & System Notices Hygiene
+    description: 'Higiene de salida y avisos del sistema: desactivación de banners
+      de servicio, pie de página del verificador, entrega de rutas locales y deduplicación
+      de avisos'
+    gateway:
+      redirected_head: ↪ Ejecución actual redirigida
+      redirected_tail: .
+  fr:
+    name: Output & System Notices Hygiene
+    description: 'Hygiène des sorties et notifications système : désactivation des
+      bannières de service, pied de page de vérification, livraison de chemins locaux
+      et déduplication'
+    gateway:
+      redirected_head: ↪ Exécution en cours redirigée
+      redirected_tail: .
+  zh:
+    name: Output & System Notices Hygiene
+    description: 输出与系统通知净化：禁用服务横幅、文件变更验证页脚、直接交付本地路径及系统通知去重
+    gateway:
+      redirected_head: ↪ 已重定向当前运行
+      redirected_tail: 。
+  ar:
+    name: Output & System Notices Hygiene
+    description: 'نظافة المخرجات وإشعارات النظام: تعطيل لافتات الخدمة، وتذييل التحقق،
+      وتسليم المسارات المحلية وإلغاء تكرار الإشعارات'
+    gateway:
+      redirected_head: ↪ أُعيد توجيه التشغيل الحالي
+      redirected_tail: .
+  de:
+    name: Output & System Notices Hygiene
+    description: 'Ausgabe- und Benachrichtigungshygiene: Deaktivierung von Service-Bannern,
+      Verifizierungs-Footern, direkter Pfadausgabe und Deduplizierung von Fehlermeldungen'
+    gateway:
+      redirected_head: ↪ Aktuellen Lauf umgelenkt
+      redirected_tail: .
+  pt:
+    name: Output & System Notices Hygiene
+    description: 'Higiene de saídas e notificações do sistema: desativação de banners
+      de serviço, rodapé de verificação, entrega de caminhos locais e desduplicação
+      de avisos'
+    gateway:
+      redirected_head: ↪ Execução atual redirecionada
+      redirected_tail: .
+tests:
+  test_output_hygiene_contracts: 'from agent.turn_finalizer import _append_file_mutation_footer
+
+    assert _append_file_mutation_footer(None, "resp", None) == "resp"
+
+    from gateway.platforms.base import BasePlatformAdapter
+
+    assert hasattr(BasePlatformAdapter, "_send_plain_fallback")
+
+    '

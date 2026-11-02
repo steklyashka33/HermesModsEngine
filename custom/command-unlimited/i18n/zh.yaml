@@ -1,0 +1,5 @@
+name: Command Unlimited
+description: 命令 /unlimited [on|off|status]：解除Agent与子Agent迭代轮数限制，支持全局会话树计数与config.yaml调优
+slash:
+  unlimited:
+    description: 为当前会话启用或禁用无限制模式（Agent与子Agent迭代）

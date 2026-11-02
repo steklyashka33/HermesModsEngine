@@ -1,0 +1,7 @@
+name: Command Unlimited
+description: 'أمر /unlimited [on|off|status]: إزالة حدود تكرار الوكيل والوكلاء الفرعيين
+  مع عد شجرة الجلسة الشاملة وضبط config.yaml'
+slash:
+  unlimited:
+    description: تفعيل أو تعطيل الوضع غير المحدود للجلسة الحالية (تكرارات الوكيل والوكلاء
+      الفرعيين)

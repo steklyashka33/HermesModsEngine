@@ -1,0 +1,289 @@
+name: Command Queue Next
+version: 1.2.0
+description: 'Extension for the /queue command: /queue next mode to queue the next
+  message (text or voice STT) without interrupting the active task'
+targets:
+- file: hermes_cli/commands.py
+  description: 'Обновление CommandDef queue: поддержка аргументов next [off], status,
+    cancel'
+  old_block: "    CommandDef(\"queue\", \"Queue a prompt for the next turn, or list/edit/rm/move/clear\
+    \ queued prompts\", \"Session\",\n               aliases=(\"q\",), args_hint=\"\
+    [<prompt>|list|edit N <prompt>|rm N|move A B|clear]\",\n               subcommands=(\"\
+    list\", \"edit\", \"rm\", \"move\", \"clear\", \"add\"),\n               busy_policy=\"\
+    dispatch\", busy_handler=\"queue\"),"
+  new_block: "    CommandDef(\"queue\", \"Queue a prompt for the next turn, or list/edit/rm/move/clear\
+    \ queued prompts\", \"Session\",\n               aliases=(\"q\",), args_hint=\"\
+    [next [off]|status|<prompt>|list|edit N <prompt>|rm N|move A B|clear]\",\n   \
+    \            subcommands=(\"next\", \"status\", \"cancel\", \"clear\", \"list\"\
+    , \"edit\", \"rm\", \"move\", \"add\"),\n               busy_policy=\"dispatch\"\
+    , busy_handler=\"queue\"),"
+- file: gateway/run_busy.py
+  description: Сессионный фиксатор очереди _queue_next_sessions (arm/disarm/is_armed/consume
+    с TTL 1ч)
+  old_block: "    def _queue_during_drain_enabled(self, busy_input_mode: Optional[str]\
+    \ = None) -> bool:\n        # \"queue\"/\"steer\" mean messages survive a restart\
+    \ (queued for the new process); \"interrupt\" drops.\n        mode = busy_input_mode\
+    \ or self._busy_input_mode\n        return self._restart_requested and mode in\
+    \ {\"queue\", \"steer\"}\n\n    def _overflow_queue(self, session_key: str):"
+  new_block: "    def _queue_during_drain_enabled(self, busy_input_mode: Optional[str]\
+    \ = None) -> bool:\n        # \"queue\"/\"steer\" mean messages survive a restart\
+    \ (queued for the new process); \"interrupt\" drops.\n        mode = busy_input_mode\
+    \ or self._busy_input_mode\n        return self._restart_requested and mode in\
+    \ {\"queue\", \"steer\"}\n\n    _queue_next_sessions: dict[str, float] = {}\n\n\
+    \    def _arm_queue_next(self, session_key: str) -> None:\n        if not hasattr(self,\
+    \ \"_queue_next_sessions\") or self._queue_next_sessions is None:\n          \
+    \  self._queue_next_sessions = {}\n        self._queue_next_sessions[session_key]\
+    \ = time.time()\n\n    def _disarm_queue_next(self, session_key: str) -> bool:\n\
+    \        if not hasattr(self, \"_queue_next_sessions\") or not self._queue_next_sessions:\n\
+    \            return False\n        return self._queue_next_sessions.pop(session_key,\
+    \ None) is not None\n\n    def _is_queue_next_armed(self, session_key: str) ->\
+    \ bool:\n        if not hasattr(self, \"_queue_next_sessions\") or not self._queue_next_sessions:\n\
+    \            return False\n        ts = self._queue_next_sessions.get(session_key)\n\
+    \        if not ts:\n            return False\n        if time.time() - ts > 3600:\n\
+    \            self._queue_next_sessions.pop(session_key, None)\n            return\
+    \ False\n        return True\n\n    def _consume_queue_next(self, session_key:\
+    \ str) -> bool:\n        if self._is_queue_next_armed(session_key):\n        \
+    \    self._queue_next_sessions.pop(session_key, None)\n            return True\n\
+    \        return False\n\n    def _overflow_queue(self, session_key: str):"
+- file: gateway/run_busy.py
+  description: Перехват активного фиксатора queue_next в _handle_active_session_busy_message
+    с предварительной STT расшифровкой голосовых
+  old_block: "        effective_mode = self._effective_busy_input_mode(event.source)\n\
+    \        if self._draining:  # gateway restarting/stopping\n            await\
+    \ self._send_busy_drain_notice(event, session_key, effective_mode)\n         \
+    \   return True\n        if await self._route_plaintext_approval_while_busy(event,\
+    \ session_key):\n            return True\n        adapter = self._delivery_adapter_for(event.source)\n\
+    \        if not adapter:\n            return False  # let default path handle\
+    \ it\n        _skill, _skill_reply = await self._busy_skill_turn(event, event.source,\
+    \ session_key, adapter)\n        if _skill:\n            if _skill_reply:\n  \
+    \              await self._send_busy_reply(event, adapter, _skill_reply)\n   \
+    \         return True\n        # Internal synthetic events (delegation / background\
+    \ completions) must never interrupt or"
+  new_block: "        effective_mode = self._effective_busy_input_mode(event.source)\n\
+    \        if self._draining:  # gateway restarting/stopping\n            await\
+    \ self._send_busy_drain_notice(event, session_key, effective_mode)\n         \
+    \   return True\n        if await self._route_plaintext_approval_while_busy(event,\
+    \ session_key):\n            return True\n        adapter = self._delivery_adapter_for(event.source)\n\
+    \        if not adapter:\n            return False  # let default path handle\
+    \ it\n        _skill, _skill_reply = await self._busy_skill_turn(event, event.source,\
+    \ session_key, adapter)\n        if _skill:\n            if _skill_reply:\n  \
+    \              await self._send_busy_reply(event, adapter, _skill_reply)\n   \
+    \         return True\n        is_queue_next = self._consume_queue_next(session_key)\n\
+    \        if is_queue_next:\n            effective_mode = \"queue\"\n         \
+    \   if self._pending_event_audio_paths(event):\n                await self._transcribe_and_echo_pending_voice(\n\
+    \                    event, adapter, event.source, event.text or \"\", log_context=\"\
+    Voice-queue-ack\"\n                )\n        # Internal synthetic events (delegation\
+    \ / background completions) must never interrupt or"
+- file: gateway/run_busy.py
+  description: Обработка подкоманд /queue next, /queue status, /queue next off в _busy_queue_command
+  old_block: "    async def _busy_queue_command(self, event: MessageEvent, quick_key:\
+    \ str, source):\n        # Each /queue is its own full agent turn, run FIFO after\
+    \ the current run; never merged.\n        queued_text = event.get_command_args().strip()\n\
+    \        # A /queue carrying media or reply context is valid with no prompt text\
+    \ (image caption).\n        has_media = bool(getattr(event, \"media_urls\", None))\n\
+    \        if not queued_text and not has_media:\n            return t(\"gateway.queue.usage\"\
+    )\n        await _busy_accepted()\n        adapter = self._delivery_adapter_for(source)"
+  new_block: "    async def _busy_queue_command(self, event: MessageEvent, quick_key:\
+    \ str, source):\n        # Each /queue is its own full agent turn, run FIFO after\
+    \ the current run; never merged.\n        queued_text = event.get_command_args().strip()\n\
+    \        lowered = queued_text.lower()\n        if lowered in (\"next\", \"след\"\
+    , \"следующее\", \"next on\"):\n            self._arm_queue_next(quick_key)\n\
+    \            return \"\U0001F4E5 Следующее сообщение будет поставлено в очередь\
+    \ без прерывания текущей задачи.\"\n        if lowered in (\"next off\", \"next\
+    \ clear\", \"cancel\"):\n            if self._disarm_queue_next(quick_key):\n\
+    \                return \"❌ Режим очереди для следующего сообщения отменён.\"\n\
+    \            return \"ℹ️ Режим очереди для следующего сообщения не был активен.\"\
+    \n        if lowered == \"status\":\n            adapter = self._delivery_adapter_for(source)"
+- file: gateway/run_inbound.py
+  description: Применение фиксатора queue_next на уровне раннера _hm_handle_running_session_message
+  old_block: "        effective_busy_input_mode = self._effective_busy_input_mode(source)\n\
+    \        if self._hm_busy_telegram_grace_queue(event, source, _quick_key, effective_busy_input_mode):\n\
+    \            return None"
+  new_block: "        effective_busy_input_mode = self._effective_busy_input_mode(source)\n\
+    \        is_queue_next = self._consume_queue_next(_quick_key)\n        if is_queue_next:\n\
+    \            effective_busy_input_mode = \"queue\"\n        if self._hm_busy_telegram_grace_queue(event,\
+    \ source, _quick_key, effective_busy_input_mode):\n            return None"
+- file: gateway/run_inbound.py
+  description: STT-расшифровка и эхо голосовых при очереди раннера в _hm_handle_running_session_message
+  old_block: "        if effective_busy_input_mode == \"queue\":\n            logger.debug(\"\
+    PRIORITY queue follow-up for session %s\", _quick_key)\n            self._queue_or_replace_pending_event(_quick_key,\
+    \ event)\n            return None"
+  new_block: "        if effective_busy_input_mode == \"queue\":\n            logger.debug(\"\
+    PRIORITY queue follow-up for session %s\", _quick_key)\n            if self._pending_event_audio_paths(event):\n\
+    \                await self._transcribe_and_echo_pending_voice(\n            \
+    \        event, self._delivery_adapter_for(source), source, event.text or \"\"\
+    ,\n                    log_context=\"Voice-queue-drain\",\n                )\n\
+    \            self._queue_or_replace_pending_event(_quick_key, event)\n       \
+    \     return None"
+- file: gateway/run_inbound.py
+  description: Обработка /queue next на пути простоя (idle) в _hm_cmd_queue без отправки
+    в модель
+  old_block: "    # /queue and /steer on the idle path: no agent is running, so strip\
+    \ the prefix and send the\n    # payload as a regular user turn; an empty payload\
+    \ surfaces the usage hint.\n    async def _hm_cmd_queue(self, event, source, _quick_key):\n\
+    \        return self._hm_send_payload_as_turn(event, t(\"gateway.queue.usage\"\
+    ))"
+  new_block: "    # /queue and /steer on the idle path: no agent is running, so strip\
+    \ the prefix and send the\n    # payload as a regular user turn; an empty payload\
+    \ surfaces the usage hint.\n    async def _hm_cmd_queue(self, event, source, _quick_key):\n\
+    \        payload = event.get_command_args().strip()\n        lowered = payload.lower()\n\
+    \        if lowered in (\"next\", \"след\", \"следующее\", \"next on\"):\n   \
+    \         self._arm_queue_next(_quick_key)\n            return True, \"\U0001F4E5\
+    \ Режим очереди взведён: следующее сообщение в этой сессии встанет в очередь без\
+    \ прерывания при занятости агента.\"\n        if lowered in (\"next off\", \"\
+    next clear\", \"cancel\"):\n            if self._disarm_queue_next(_quick_key):\n\
+    \                return True, \"❌ Режим очереди для следующего сообщения отменён.\"\
+    \n            return True, \"ℹ️ Режим очереди для следующего сообщения не был\
+    \ активен.\"\n        return self._hm_send_payload_as_turn(event, t(\"gateway.queue.usage\"\
+    ))"
+- file: tui_gateway/methods_tools.py
+  description: Поддержка /queue next, cancel, status в Desktop TUI Gateway
+  old_block: "def _cmd_queue(rid, params, session, name, arg):\n    return _ok(rid,\
+    \ {\"type\": \"send\", \"message\": arg}) if arg else _err(rid, 4004, \"usage:\
+    \ /queue <prompt>\")"
+  new_block: "def _cmd_queue(rid, params, session, name, arg):\n    _ok_res = globals().get(\"\
+    _ok\") or (lambda r, res: {\"id\": r, \"result\": res})\n    _err_res = globals().get(\"\
+    _err\") or (lambda r, code, msg: {\"id\": r, \"error\": {\"code\": code, \"message\"\
+    : msg}})\n    arg_stripped = (arg or \"\").strip()\n    lowered = arg_stripped.lower()\n\
+    \    if lowered in (\"next\", \"след\", \"следующее\", \"next on\"):\n       \
+    \ if session is not None:\n            session[\"queue_next\"] = True\n      \
+    \  return _ok_res(rid, {\"output\": \"\U0001F4E5 Следующее сообщение будет поставлено\
+    \ в очередь без прерывания текущей задачи.\"})\n    if lowered in (\"next off\"\
+    , \"next clear\", \"cancel\"):\n        if session is not None and session.pop(\"\
+    queue_next\", None):\n            return _ok_res(rid, {\"output\": \"❌ Режим очереди\
+    \ для следующего сообщения отменён.\"})\n        return _ok_res(rid, {\"output\"\
+    : \"ℹ️ Режим очереди для следующего сообщения не был активен.\"})\n    if lowered\
+    \ == \"status\":\n        armed = bool(session.get(\"queue_next\")) if session\
+    \ else False\n        status_txt = \"включён (следующее сообщение встанет в очередь)\"\
+    \ if armed else \"выключен\"\n        return _ok_res(rid, {\"output\": f\"ℹ️ Режим\
+    \ /queue next: {status_txt}\"})\n    return _ok_res(rid, {\"type\": \"send\",\
+    \ \"message\": arg}) if arg else _err_res(rid, 4004, \"usage: /queue <prompt>\"\
+    )"
+- file: tui_gateway/session_auto_continue.py
+  description: Применение фиксатора queue_next при busy submit в Desktop TUI Gateway
+  old_block: "    mode = \"queue\" if queued else _load_busy_input_mode()\n    agent\
+    \ = session.get(\"agent\")"
+  new_block: "    mode = \"queue\" if queued else _load_busy_input_mode()\n    agent\
+    \ = session.get(\"agent\")\n    if session.pop(\"queue_next\", None):\n      \
+    \  mode = \"queue\""
+- file: hermes_cli/cli_loops_mixin.py
+  description: Поддержка /queue next, cancel, status в CLI
+  old_block: "        verb, _, rest = payload.partition(\" \")\n        verb, rest\
+    \ = verb.lower(), rest.strip()\n        if verb == \"add\":"
+  new_block: "        verb, _, rest = payload.partition(\" \")\n        verb, rest\
+    \ = verb.lower(), rest.strip()\n        if verb in (\"next\", \"след\", \"следующее\"\
+    ):\n            if rest.lower() in (\"off\", \"clear\", \"cancel\"):\n       \
+    \         was = getattr(self, \"_queue_next_armed\", False)\n                self._queue_next_armed\
+    \ = False\n                if was:\n                    _cprint(\"  ❌ Режим очереди\
+    \ для следующего сообщения отменён.\")\n                else:\n              \
+    \      _cprint(\"  ℹ️ Режим очереди для следующего сообщения не был активен.\"\
+    )\n            else:\n                self._queue_next_armed = True\n        \
+    \        _cprint(\"  \U0001F4E5 Режим очереди взведён: следующее сообщение в этой\
+    \ сессии встанет в очередь без прерывания текущей задачи.\")\n            return\n\
+    \        if verb in (\"cancel\",) and not rest:\n            was = getattr(self,\
+    \ \"_queue_next_armed\", False)\n            self._queue_next_armed = False\n\
+    \            if was:\n                _cprint(\"  ❌ Режим очереди для следующего\
+    \ сообщения отменён.\")\n            else:\n                _cprint(\"  ℹ️ Режим\
+    \ очереди для следующего сообщения не был активен.\")\n            return\n  \
+    \      if verb == \"status\" and not rest:\n            armed = getattr(self,\
+    \ \"_queue_next_armed\", False)\n            st = \"включён (следующее сообщение\
+    \ встанет в очередь)\" if armed else \"выключен\"\n            _cprint(f\"  ℹ️\
+    \ Режим /queue next: {st}\")\n            return\n        if verb == \"add\":"
+- file: hermes_cli/cli_tui_mixin.py
+  description: Применение фиксатора queue_next при отправке во время работы агента
+    в CLI
+  old_block: "        from cli import CLI_CONFIG, _ACCENT, _DIM, _RST, _cprint, _hermes_home\n\
+    \        _effective_mode = mode or self.busy_input_mode\n        redirected =\
+    \ False"
+  new_block: "        from cli import CLI_CONFIG, _ACCENT, _DIM, _RST, _cprint, _hermes_home\n\
+    \        _effective_mode = mode or self.busy_input_mode\n        if getattr(self,\
+    \ \"_queue_next_armed\", False):\n            self._queue_next_armed = False\n\
+    \            _effective_mode = \"queue\"\n        redirected = False"
+tests:
+  test_command_queue_subcommands: 'from hermes_cli.commands import COMMAND_REGISTRY,
+    resolve_command
+
+    cmd = resolve_command("queue")
+
+    assert cmd is not None, "/queue command must be registered"
+
+    assert "next" in cmd.subcommands
+
+    assert "status" in cmd.subcommands
+
+    '
+  test_queue_next_busy_policy: 'from hermes_cli.commands import resolve_command
+
+    cmd = resolve_command("queue")
+
+    assert cmd.busy_policy == "dispatch"
+
+    assert cmd.busy_handler == "queue"
+
+    '
+i18n:
+  en:
+    name: Command Queue Next
+    description: 'Extension for the /queue command: /queue next mode to queue the
+      next message (text or voice STT) without interrupting the active task'
+    slash:
+      queue:
+        description: Queue prompt for next turn (/queue next for next incoming message)
+          or list/clear
+  ru:
+    name: Command Queue Next
+    description: 'Расширение команды /queue: режим /queue next для гарантированной
+      отправки следующего сообщения (текст или голосовое STT) в очередь без прерывания
+      текущей задачи'
+    slash:
+      queue:
+        description: Поставить промпт в очередь на следующий ход (/queue next для
+          следующего сообщения) или list/clear
+  es:
+    name: Command Queue Next
+    description: 'Extensión del comando /queue: modo /queue next para poner en cola
+      el siguiente mensaje (texto o voz STT) sin interrumpir la tarea activa'
+    slash:
+      queue:
+        description: Poner un prompt en cola para el siguiente turno (/queue next
+          para el siguiente mensaje) o list/clear
+  fr:
+    name: Command Queue Next
+    description: 'Extension de la commande /queue : mode /queue next pour mettre en
+      file d''attente le prochain message (texte ou voix STT) sans interrompre la
+      tâche active'
+    slash:
+      queue:
+        description: Mettre un prompt en file d'attente pour le prochain tour (/queue
+          next pour le prochain message) ou list/clear
+  zh:
+    name: Command Queue Next
+    description: 扩展 /queue 命令：/queue next 模式可将下一条消息（文本或语音STT）加入队列而不打断当前活动任务
+    slash:
+      queue:
+        description: 将提示词排入下一轮执行队列（/queue next 用于下一条消息）或 list/clear
+  ar:
+    name: Command Queue Next
+    description: 'توسيع أمر /queue: وضع /queue next لإدراج الرسالة التالية (نص أو
+      صوت STT) في قائمة الانتظار دون مقاطعة المهمة النشطة'
+    slash:
+      queue:
+        description: وضع التوجيه في قائمة الانتظار للدور التالي (/queue next للرسالة
+          التالية) أو list/clear
+  de:
+    name: Command Queue Next
+    description: 'Erweiterung für den /queue-Befehl: /queue next-Modus zum Einreihen
+      der nächsten Nachricht (Text oder Sprach-STT) ohne Unterbrechung der aktiven
+      Aufgabe'
+    slash:
+      queue:
+        description: Prompt für den nächsten Zug in die Warteschlange einreihen (/queue
+          next für die nächste Nachricht) oder list/clear
+  pt:
+    name: Command Queue Next
+    description: 'Extensão para o comando /queue: modo /queue next para enfileirar
+      a próxima mensagem (texto ou voz STT) sem interromper a tarefa ativa'
+    slash:
+      queue:
+        description: Colocar prompt na fila para o próximo turno (/queue next para
+          a próxima mensagem) ou list/clear

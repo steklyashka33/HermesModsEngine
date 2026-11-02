@@ -1,0 +1,206 @@
+targets:
+- file: gateway/slash_commands_status.py
+  description: agents-status-turn-metrics-helpers
+  old_block: "def _n(obj, attr: str):\n    return getattr(obj, attr, 0) or 0\n\n\n\
+    def _fmt(n) -> str:\n    return f\"{n:,}\""
+  new_block: "def _n(obj, attr: str):\n    return getattr(obj, attr, 0) or 0\n\n\n\
+    def _fmt(n) -> str:\n    return f\"{n:,}\"\n\n\ndef _format_tokens_compact(n)\
+    \ -> str:\n    \"\"\"Format token count compactly: 42000 -> 42k, 1048576 -> 1M.\"\
+    \"\"\n    try:\n        val = int(n or 0)\n    except Exception:\n        return\
+    \ \"0\"\n    if val <= 0:\n        return \"0\"\n    if val >= 1_000_000:\n  \
+    \      s = f\"{val / 1_000_000:.1f}M\"\n        return s[:-3] + \"M\" if s.endswith(\"\
+    .0M\") else s\n    if val >= 1_000:\n        s = f\"{val / 1_000:.1f}k\"\n   \
+    \     return s[:-3] + \"k\" if s.endswith(\".0k\") else s\n    return str(val)\n\
+    \n\n_REVERSE_ALIAS_CACHE: Optional[dict[str, str]] = None\n\n\ndef _get_reverse_alias_map(user_config:\
+    \ Optional[dict] = None) -> dict[str, str]:\n    global _REVERSE_ALIAS_CACHE\n\
+    \    if user_config is None and _REVERSE_ALIAS_CACHE is not None:\n        return\
+    \ _REVERSE_ALIAS_CACHE\n\n    cfg = user_config\n    if cfg is None:\n       \
+    \ try:\n            from gateway.run import _load_gateway_config\n           \
+    \ cfg = _load_gateway_config() or {}\n        except Exception:\n            cfg\
+    \ = {}\n    if not isinstance(cfg, dict):\n        cfg = {}\n\n    rmap: dict[str,\
+    \ str] = {}\n\n    def _put(m: str, alias: str) -> None:\n        m = str(m or\
+    \ \"\").strip()\n        alias = str(alias or \"\").strip()\n        if m and\
+    \ alias:\n            if m not in rmap or len(alias) < len(rmap[m]):\n       \
+    \         rmap[m] = alias\n\n    for section in (\"providers\", \"custom_providers\"\
+    ):\n        provs = cfg.get(section)\n        if isinstance(provs, dict):\n  \
+    \          for _pname, pdata in provs.items():\n                if isinstance(pdata,\
+    \ dict):\n                    models = pdata.get(\"models\")\n               \
+    \     if isinstance(models, dict):\n                        for mid, mdata in\
+    \ models.items():\n                            if isinstance(mdata, dict):\n \
+    \                               aliases = mdata.get(\"aliases\") or []\n     \
+    \                           if isinstance(aliases, str):\n                   \
+    \                 aliases = [aliases]\n                                if isinstance(aliases,\
+    \ (list, tuple)):\n                                    for a in aliases:\n   \
+    \                                     if isinstance(a, str) and a.strip():\n \
+    \                                           _put(mid, a)\n                   \
+    \                         _put(f\"{_pname}/{mid}\", a)\n                    elif\
+    \ isinstance(models, (list, tuple)):\n                        for item in models:\n\
+    \                            if isinstance(item, dict):\n                    \
+    \            mid = item.get(\"id\") or item.get(\"model\") or item.get(\"name\"\
+    )\n                                aliases = item.get(\"aliases\") or []\n   \
+    \                             if isinstance(aliases, str):\n                 \
+    \                   aliases = [aliases]\n                                if isinstance(aliases,\
+    \ (list, tuple)):\n                                    for a in aliases:\n   \
+    \                                     if isinstance(a, str) and a.strip() and\
+    \ mid:\n                                            _put(mid, a)\n           \
+    \                                 _put(f\"{_pname}/{mid}\", a)\n        elif isinstance(provs,\
+    \ list):\n            for pdata in provs:\n                if isinstance(pdata,\
+    \ dict):\n                    _pname = str(pdata.get(\"name\") or pdata.get(\"\
+    provider_key\") or \"\").strip()\n                    models = pdata.get(\"models\"\
+    )\n                    if isinstance(models, dict):\n                        for\
+    \ mid, mdata in models.items():\n                            if isinstance(mdata,\
+    \ dict):\n                                aliases = mdata.get(\"aliases\") or\
+    \ []\n                                if isinstance(aliases, str):\n         \
+    \                           aliases = [aliases]\n                            \
+    \    if isinstance(aliases, (list, tuple)):\n                                \
+    \    for a in aliases:\n                                        if isinstance(a,\
+    \ str) and a.strip():\n                                            _put(mid, a)\n\
+    \                                            if _pname:\n                    \
+    \                            _put(f\"{_pname}/{mid}\", a)\n                  \
+    \  elif isinstance(models, (list, tuple)):\n                        for item in\
+    \ models:\n                            if isinstance(item, dict):\n          \
+    \                      mid = item.get(\"id\") or item.get(\"model\") or item.get(\"\
+    name\")\n                                aliases = item.get(\"aliases\") or []\n\
+    \                                if isinstance(aliases, str):\n              \
+    \                      aliases = [aliases]\n                                if\
+    \ isinstance(aliases, (list, tuple)):\n                                    for\
+    \ a in aliases:\n                                        if isinstance(a, str)\
+    \ and a.strip() and mid:\n                                            _put(mid,\
+    \ a)\n                                            if _pname:\n               \
+    \                                 _put(f\"{_pname}/{mid}\", a)\n\n    ma = cfg.get(\"\
+    model_aliases\")\n    if isinstance(ma, dict):\n        for alias, entry in ma.items():\n\
+    \            if isinstance(entry, dict) and entry.get(\"model\"):\n          \
+    \      _put(str(entry.get(\"model\")), alias)\n            elif isinstance(entry,\
+    \ str) and entry.strip():\n                _put(entry, alias)\n\n    mdl = cfg.get(\"\
+    model\")\n    if isinstance(mdl, dict):\n        simple = mdl.get(\"aliases\"\
+    )\n        if isinstance(simple, dict):\n            for alias, val in simple.items():\n\
+    \                if isinstance(val, str) and val.strip():\n                  \
+    \  v = val.strip()\n                    _put(v.split(\"/\", 1)[1] if \"/\" in\
+    \ v else v, alias)\n                    _put(v, alias)\n                elif isinstance(val,\
+    \ dict) and val.get(\"model\"):\n                    _put(str(val.get(\"model\"\
+    )), alias)\n\n    if user_config is None:\n        _REVERSE_ALIAS_CACHE = rmap\n\
+    \    return rmap\n\n\ndef _reverse_alias_for_display(model_name: str, user_config:\
+    \ Optional[dict] = None) -> str:\n    name = str(model_name or \"\").strip()\n\
+    \    if not name:\n        return \"\"\n    rmap = _get_reverse_alias_map(user_config)\n\
+    \    if name in rmap:\n        return rmap[name]\n    cleaned = re.sub(r\"\\([^)]*\\\
+    )\", \"\", name).strip()\n    if cleaned and cleaned in rmap:\n        return\
+    \ rmap[cleaned]\n    if \"/\" in name:\n        after_slash = name.split(\"/\"\
+    , 1)[1]\n        if after_slash in rmap:\n            return rmap[after_slash]\n\
+    \        if after_slash in rmap.values():\n            return after_slash\n  \
+    \      last_part = name.rsplit(\"/\", 1)[-1]\n        if last_part in rmap:\n\
+    \            return rmap[last_part]\n        if last_part in rmap.values():\n\
+    \            return last_part\n    if cleaned and \"/\" in cleaned:\n        after_slash\
+    \ = cleaned.split(\"/\", 1)[1]\n        if after_slash in rmap:\n            return\
+    \ rmap[after_slash]\n        if after_slash in rmap.values():\n            return\
+    \ after_slash\n    probe = cleaned or name\n    if \"gemini-3.8-flash-\" in probe:\n\
+    \        suffix = probe.split(\"gemini-3.8-flash-\", 1)[1].split()[0].strip()\n\
+    \        candidate_cpa = f\"cpa/gemini-3.8-{suffix}\"\n        if candidate_cpa\
+    \ in rmap:\n            return rmap[candidate_cpa]\n        candidate_alias =\
+    \ f\"gemini-3.8-{suffix}\"\n        if candidate_alias in rmap.values():\n   \
+    \         return candidate_alias\n    return name\n\n\ndef _current_turn_iters_from_agent(agent)\
+    \ -> Optional[int]:\n    \"\"\"Calculate iterations strictly for the CURRENT turn\
+    \ from agent in-memory messages.\"\"\"\n    if not agent:\n        return None\n\
+    \    msgs = getattr(agent, \"_session_messages\", None)\n    if not isinstance(msgs,\
+    \ list) or not msgs:\n        return None\n    iters = 0\n    for m in reversed(msgs):\n\
+    \        if not isinstance(m, dict):\n            continue\n        role = m.get(\"\
+    role\")\n        content = str(m.get(\"content\") or \"\")\n        if role ==\
+    \ \"user\":\n            if \"reached the maximum number of tool-calling\" in\
+    \ content or \"[CONTEXT COMPACTION\" in content:\n                continue\n \
+    \           break\n        if role == \"assistant\":\n            iters += 1\n\
+    \    return iters\n\n\ndef _current_turn_iters_from_db(session_id: str) -> int:\n\
+    \    \"\"\"Calculate iterations strictly for the CURRENT turn from state.db messages.\"\
+    \"\"\n    if not session_id:\n        return 0\n    try:\n        import sqlite3\n\
+    \        from hermes_cli.config import get_hermes_home\n        db_path = get_hermes_home()\
+    \ / \"state.db\"\n        if not db_path.exists():\n            return 0\n   \
+    \     con = sqlite3.connect(f\"file:{db_path}?mode=ro\", uri=True, timeout=3.0)\n\
+    \        cur = con.cursor()\n        cur.execute(\n            \"\"\"\n      \
+    \      SELECT id FROM messages \n            WHERE session_id = ? \n         \
+    \     AND role = 'user' \n              AND (content NOT LIKE '%reached the maximum\
+    \ number%' AND content NOT LIKE '%[CONTEXT COMPACTION%')\n            ORDER BY\
+    \ id DESC LIMIT 1\n            \"\"\",\n            (session_id,),\n        )\n\
+    \        row = cur.fetchone()\n        if not row:\n            con.close()\n\
+    \            return 0\n        last_u_id = row[0]\n        cur.execute(\n    \
+    \        \"SELECT COUNT(*) FROM messages WHERE session_id = ? AND role = 'assistant'\
+    \ AND id > ?\",\n            (session_id, last_u_id),\n        )\n        iters\
+    \ = cur.fetchone()[0]\n        con.close()\n        return int(iters or 0)\n \
+    \   except Exception:\n        return 0\n\n\ndef _human_topic_label(session_key:\
+    \ str) -> str:\n    \"\"\"Extract clean topic / chat label from session key with\
+    \ inline-code topic ID.\"\"\"\n    if not session_key:\n        return \"неизвестно\"\
+    \n    parts = session_key.split(\":\")\n    if \"subagent\" in parts or session_key.startswith(\"\
+    subagent\"):\n        return \"Субагент\"\n    if \"local\" in parts or \"cli\"\
+    \ in parts or \"desktop\" in parts:\n        return \"Локальный сеанс (CLI/Desktop)\"\
+    \n    if \"telegram\" in parts:\n        t_idx = parts.index(\"telegram\")\n \
+    \       after = parts[t_idx + 1:]\n        # e.g. ['dm', '<user_id>', '<thread_id>']\
+    \ or ['group', '<group_id>', '<thread_id>']\n        if len(after) >= 3 and after[2]:\n\
+    \            return f\"топик `#{after[2]}`\"\n        elif len(after) >= 1 and\
+    \ after[0] == \"dm\":\n            return \"ЛС\"\n        elif len(after) >= 2\
+    \ and after[1]:\n            return f\"чат `#{after[1]}`\"\n        elif len(after)\
+    \ >= 1 and after[0]:\n            return f\"чат `#{after[0]}`\"\n        return\
+    \ \"Telegram\"\n    if len(session_key) > 24:\n        return f\"`{session_key[:20]}...`\"\
+    \n    return f\"`{session_key}`\"\n\n\ndef _plural_subagents(n: int) -> str:\n\
+    \    \"\"\"Pluralization helper for subagents count in Russian.\"\"\"\n    if\
+    \ 11 <= (n % 100) <= 19:\n        return f\"{n} субагентов\"\n    last = n % 10\n\
+    \    if last == 1:\n        return f\"{n} субагент\"\n    elif 2 <= last <= 4:\n\
+    \        return f\"{n} субагента\"\n    return f\"{n} субагентов\"\n\n\ndef _active_window_usage_from_db(session_id:\
+    \ str) -> dict[str, int]:\n    \"\"\"Calculate cumulative usage (calls, input,\
+    \ output, reasoning, cache, total, compressions)\n    from state.db for session_id.\n\
+    \    \"\"\"\n    res = {\"calls\": 0, \"input\": 0, \"output\": 0, \"reasoning\"\
+    : 0, \"cache\": 0, \"total\": 0, \"compressions\": 0}\n    if not session_id:\n\
+    \        return res\n    try:\n        import sqlite3\n        from hermes_cli.config\
+    \ import get_hermes_home\n        db_path = get_hermes_home() / \"state.db\"\n\
+    \        if not db_path.exists():\n            return res\n        con = sqlite3.connect(f\"\
+    file:{db_path}?mode=ro\", uri=True, timeout=3.0)\n        cur = con.cursor()\n\
+    \n        try:\n            cur.execute(\n                \"\"\"\n           \
+    \     SELECT COUNT(*) FROM messages\n                WHERE session_id = ?\n  \
+    \                AND role = 'user'\n                  AND (content LIKE '[CONTEXT\
+    \ COMPACTION — REFERENCE ONLY]%' OR _compressed_summary = 1)\n               \
+    \ \"\"\",\n                (session_id,),\n            )\n            c_row =\
+    \ cur.fetchone()\n            res[\"compressions\"] = int(c_row[0] or 0) if c_row\
+    \ else 0\n        except Exception:\n            pass\n\n        has_session_data\
+    \ = False\n        try:\n            cur.execute(\n                \"\"\"\n  \
+    \              SELECT api_call_count, input_tokens, output_tokens, cache_read_tokens,\
+    \ cache_write_tokens, reasoning_tokens\n                FROM sessions\n      \
+    \          WHERE id = ?\n                \"\"\",\n                (session_id,),\n\
+    \            )\n            s_row = cur.fetchone()\n            if s_row and any(s_row):\n\
+    \                has_session_data = True\n                calls, inp, out, cr,\
+    \ cw, rea = (int(x or 0) for x in s_row)\n                cache = cr + cw\n  \
+    \              res[\"calls\"] = calls\n                res[\"input\"] = inp\n\
+    \                res[\"output\"] = out\n                res[\"cache\"] = cache\n\
+    \                res[\"reasoning\"] = rea\n                res[\"total\"] = inp\
+    \ + out\n        except Exception:\n            pass\n\n        if not has_session_data\
+    \ or res[\"calls\"] == 0:\n            try:\n                from agent.model_metadata\
+    \ import estimate_tokens_rough\n                cur.execute(\n               \
+    \     \"\"\"\n                    SELECT MAX(id) FROM messages\n             \
+    \       WHERE session_id = ?\n                      AND role = 'user'\n      \
+    \                AND (content LIKE '[CONTEXT COMPACTION — REFERENCE ONLY]%' OR\
+    \ _compressed_summary = 1)\n                    \"\"\",\n                    (session_id,),\n\
+    \                )\n                row = cur.fetchone()\n                last_compaction_id\
+    \ = row[0] if (row and row[0] is not None) else 0\n\n                summary_tokens\
+    \ = 0\n                if last_compaction_id > 0:\n                    cur.execute(\"\
+    SELECT content FROM messages WHERE id = ?\", (last_compaction_id,))\n        \
+    \            s_row = cur.fetchone()\n                    if s_row and s_row[0]:\n\
+    \                        summary_tokens = estimate_tokens_rough(s_row[0])\n\n\
+    \                cur.execute(\n                    \"\"\"\n                  \
+    \  SELECT role, content, tool_calls, reasoning_content, reasoning\n          \
+    \          FROM messages\n                    WHERE session_id = ? AND id > ?\n\
+    \                    ORDER BY id ASC\n                    \"\"\",\n          \
+    \          (session_id, last_compaction_id),\n                )\n            \
+    \    msgs = cur.fetchall()\n\n                calls = 0\n                running\
+    \ = summary_tokens\n                total_in = 0\n                total_out =\
+    \ 0\n                total_reasoning = 0\n\n                for role, content,\
+    \ tool_calls, r_content, reasoning in msgs:\n                    text_toks = estimate_tokens_rough(content\
+    \ or \"\") + estimate_tokens_rough(tool_calls or \"\")\n                    r_toks\
+    \ = estimate_tokens_rough((r_content or \"\") or (reasoning or \"\"))\n\n    \
+    \                if role == \"assistant\":\n                        calls += 1\n\
+    \                        total_in += running\n                        total_out\
+    \ += text_toks\n                        total_reasoning += r_toks\n          \
+    \          running += text_toks\n\n                if not has_session_data or\
+    \ res[\"calls\"] == 0:\n                    res[\"calls\"] = calls\n         \
+    \           if res[\"input\"] == 0:\n                        res[\"input\"] =\
+    \ total_in\n                    if res[\"output\"] == 0:\n                   \
+    \     res[\"output\"] = total_out\n                    if res[\"reasoning\"] ==\
+    \ 0:\n                        res[\"reasoning\"] = total_reasoning\n         \
+    \           if res[\"total\"] == 0:\n                        res[\"total\"] =\
+    \ total_in + total_out\n            except Exception:\n                pass\n\n\
+    \        con.close()\n        return res\n    except Exception:\n        return\
+    \ res\n"

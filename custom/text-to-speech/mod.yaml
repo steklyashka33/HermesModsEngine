@@ -1,0 +1,6 @@
+id: text-to-speech
+name: Text to Speech
+version: 1.4.0
+description: Text-to-Speech synthesis module via API with neural adaptation to conversational
+  style
+enabled: true

@@ -1,0 +1,20 @@
+name: Smart Compaction Dual-Trigger
+description: 'ضغط سياق ذكي ثنائي المستوى (Dual-Trigger): تشذيب مباشر استباقي لمخرجات
+  الأدوات وضغط في الخلفية عند الخمول'
+config:
+  enabled:
+    title: تفعيل Dual-Trigger
+    description: تفعيل ضغط السياق الذكي (Dual-Trigger)
+  idle_seconds:
+    title: مهلة الخمول
+    description: عتبة عدم النشاط (بالثواني) لضغط السياق البارد بين الأدوار
+  live_threshold_ratio:
+    title: نسبة عتبة التشذيب المباشر
+    description: نسبة عتبة التشذيب المباشر لنتائج الأدوات القديمة من threshold_tokens
+      (0.70 = 70%)
+  min_prune_chars:
+    title: الحد الأدنى لحجم الأداة
+    description: عتبة طول مخرجات الأداة بالأحرف للتشذيب
+  min_reclaim_tokens:
+    title: الحد الأدنى للاسترداد
+    description: الحد الأدنى لعدد الرموز المستردة لتأكيد تشذيب الأدوات

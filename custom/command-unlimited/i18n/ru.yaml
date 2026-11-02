@@ -1,0 +1,7 @@
+name: Command Unlimited
+description: 'Команда /unlimited [on|off|status]: снятие ограничений итераций агента
+  и субагентов'
+slash:
+  unlimited:
+    description: Включить или выключить режим без ограничений для текущей сессии (итерации
+      агента и субагентов)

@@ -1,0 +1,670 @@
+name: Core Tools Enhancements
+version: 1.3.0
+description: 'Comprehensive core tools enhancements: literal flag -F in search_files,
+  atomic write_file, safe error handling in browser_vision and vision_analyze'
+tests:
+  test_delegate_task_resume_payload: 'from tools.delegate_tool_dispatch import _dispatched_payload
+
+    from types import SimpleNamespace
+
+    c = SimpleNamespace(_subagent_id=''child-1'', _resumed_from_subagent_id=''parent-orig-id'')
+
+    b = SimpleNamespace(task_list=[{''goal'': ''test''}], children=[(0, {}, c)], refused=None,
+    live_paths=[], group=''default'', live_deleg_id=None)
+
+    payload = _dispatched_payload(b, [(b, ''uid-1'')])
+
+    assert payload.get(''resumed_from'') == ''parent-orig-id''
+
+    '
+  test_search_files_literal_signature: 'from tools.file_operations import ShellFileOperations,
+    FileOperations
+
+    import inspect
+
+    sig = inspect.signature(ShellFileOperations.search)
+
+    assert "literal" in sig.parameters, "ShellFileOperations.search must have literal
+    param"
+
+    assert sig.parameters["literal"].default is False
+
+    sig_fo = inspect.signature(FileOperations.search)
+
+    assert "literal" in sig_fo.parameters, "FileOperations.search must have literal
+    param"
+
+    '
+  test_search_tool_literal_execution: 'import os
+
+    from pathlib import Path
+
+    from tools.file_tools import search_tool
+
+    import json
+
+    mods_path = str(Path(os.environ.get("HERMES_MODS_DIR", Path(os.environ.get("HERMES_HOME",
+    Path.home() / ".hermes")) / "mods")))
+
+    res_str = search_tool(pattern="def main", path=mods_path, limit=5, literal=True)
+
+    res = json.loads(res_str)
+
+    assert "error" not in res, f"search_tool failed: {res}"
+
+    '
+  test_write_file_create_only: 'import inspect
+
+    from tools.file_tools import write_file_tool, WRITE_FILE_SCHEMA
+
+    sig = inspect.signature(write_file_tool)
+
+    assert ''create_only'' in sig.parameters
+
+    assert ''create_only'' in WRITE_FILE_SCHEMA[''parameters''][''properties'']
+
+    '
+  test_delegate_task_resume_schema: 'from tools.delegate_tool import DELEGATE_TASK_SCHEMA
+
+    action_prop = DELEGATE_TASK_SCHEMA["parameters"]["properties"]["action"]
+
+    assert "resume" in action_prop.get("enum", [])
+
+    assert "resume" in action_prop.get("description", "")
+
+    assert "resume" in DELEGATE_TASK_SCHEMA["parameters"]["properties"]["subagent_id"]["description"]
+
+    '
+  test_delegate_task_resume_validation: "from tools.delegate_tool import delegate_task\n\
+    class MockParent:\n    pass\nparent = MockParent()\nres = delegate_task(action=\"\
+    resume\", parent_agent=parent)\nassert \"requires 'subagent_id'\" in res or \"\
+    requires subagent_id\" in res\nres2 = delegate_task(action=\"resume\", subagent_id=\"\
+    sa-nonexistent-99999\", parent_agent=parent)\nassert \"No completed subagent found\"\
+    \ in res2 or \"error\" in res2.lower()\n"
+  test_delegate_task_resume_discovery: "from tools.delegate_tool import _find_resumable_subagent_context\n\
+    from tools.delegate_tool_registry import _recent_subagents, _active_subagents_lock\n\
+    with _active_subagents_lock:\n    _recent_subagents[\"sa-test-resume-discovery\"\
+    ] = {\n        \"goal\": \"Test goal for resume\",\n        \"context\": \"Test\
+    \ context\",\n        \"model\": \"test-model-resume\",\n        \"delegation_id\"\
+    : \"deleg_test_res\",\n        \"session_id\": \"sess_test_res\",\n    }\nctx,\
+    \ err = _find_resumable_subagent_context(\"sa-test-resume-discovery\")\nassert\
+    \ err is None\nassert ctx is not None\nassert ctx[\"goal\"] == \"Test goal for\
+    \ resume\"\nassert ctx[\"model\"] == \"test-model-resume\"\n"
+targets:
+- file: tools/file_tools.py
+  description: Add literal property to SEARCH_FILES_SCHEMA
+  old_block: '            "target": {"type": "string", "enum": ["content", "files"],
+    "description": "''content'' searches inside file contents, ''files'' searches
+    for files by name", "default": "content"},'
+  new_block: "            \"target\": {\"type\": \"string\", \"enum\": [\"content\"\
+    , \"files\"], \"description\": \"'content' searches inside file contents, 'files'\
+    \ searches for files by name\", \"default\": \"content\"},\n            \"literal\"\
+    : {\"type\": \"boolean\", \"description\": \"When true, perform exact literal\
+    \ string search instead of regex (passes -F/--fixed-strings to ripgrep)\", \"\
+    default\": False},"
+- file: tools/file_tools.py
+  description: Support literal in search_tool function
+  old_block: "def search_tool(pattern: str, target: str = \"content\", path: str =\
+    \ \".\",\n                file_glob: str | None = None, limit: int = 50, offset:\
+    \ int = 0,\n                output_mode: str = \"content\", context: int = 0,\n\
+    \                order: str = \"discovery\",\n                task_id: str = \"\
+    default\") -> str:"
+  new_block: "def search_tool(pattern: str, target: str = \"content\", path: str =\
+    \ \".\",\n                file_glob: str | None = None, limit: int = 50, offset:\
+    \ int = 0,\n                output_mode: str = \"content\", context: int = 0,\n\
+    \                order: str = \"discovery\",\n                task_id: str = \"\
+    default\",\n                literal: bool = False) -> str:"
+- file: tools/file_tools.py
+  description: Include literal in search_key and pass literal to search()
+  old_block: "        search_key = (\"search\", pattern, target, str(path), file_glob\
+    \ or \"\", limit, offset, order)\n        with _read_tracker_lock:\n         \
+    \   task_data = _read_tracker.setdefault(task_id, {\n                \"last_key\"\
+    : None, \"consecutive\": 0, \"read_history\": set()})\n            count = _bump_consecutive(task_data,\
+    \ search_key)"
+  new_block: "        search_key = (\"search\", pattern, target, str(path), file_glob\
+    \ or \"\", limit, offset, order, literal)\n        with _read_tracker_lock:\n\
+    \            task_data = _read_tracker.setdefault(task_id, {\n               \
+    \ \"last_key\": None, \"consecutive\": 0, \"read_history\": set()})\n        \
+    \    count = _bump_consecutive(task_data, search_key)"
+- file: tools/file_tools.py
+  description: Pass literal to ops search call
+  old_block: "        result = _get_file_ops(task_id).search(\n            pattern=pattern,\
+    \ path=path, target=target, file_glob=file_glob,\n            limit=limit, offset=offset,\
+    \ output_mode=output_mode, context=context, order=order)"
+  new_block: "        result = _get_file_ops(task_id).search(\n            pattern=pattern,\
+    \ path=path, target=target, file_glob=file_glob,\n            limit=limit, offset=offset,\
+    \ output_mode=output_mode, context=context, order=order,\n            literal=literal)"
+- file: tools/file_tools.py
+  description: Pass literal from _handle_search_files
+  old_block: "    return search_tool(\n        pattern=args.get(\"pattern\", \"\"\
+    ), target=target, path=path,\n        file_glob=args.get(\"file_glob\"), limit=args.get(\"\
+    limit\", 50), offset=args.get(\"offset\", 0),\n        output_mode=args.get(\"\
+    output_mode\", \"content\"), context=args.get(\"context\", 0),\n        order=args.get(\"\
+    order\", \"discovery\"), task_id=tid)"
+  new_block: "    return search_tool(\n        pattern=args.get(\"pattern\", \"\"\
+    ), target=target, path=path,\n        file_glob=args.get(\"file_glob\"), limit=args.get(\"\
+    limit\", 50), offset=args.get(\"offset\", 0),\n        output_mode=args.get(\"\
+    output_mode\", \"content\"), context=args.get(\"context\", 0),\n        order=args.get(\"\
+    order\", \"discovery\"), task_id=tid,\n        literal=bool(args.get(\"literal\"\
+    , False)))"
+- file: tools/file_operations.py
+  description: Add literal to FileOperations.search and ShellFileOperations.search
+  old_block: "    @abstractmethod\n    def search(self, pattern: str, path: str =\
+    \ \".\", target: str = \"content\",\n               file_glob: Optional[str] =\
+    \ None, limit: int = 50, offset: int = 0,\n               output_mode: str = \"\
+    content\", context: int = 0,\n               order: str = \"discovery\") -> SearchResult:"
+  new_block: "    @abstractmethod\n    def search(self, pattern: str, path: str =\
+    \ \".\", target: str = \"content\",\n               file_glob: Optional[str] =\
+    \ None, limit: int = 50, offset: int = 0,\n               output_mode: str = \"\
+    content\", context: int = 0,\n               order: str = \"discovery\", literal:\
+    \ bool = False) -> SearchResult:"
+- file: tools/file_operations.py
+  description: Update ShellFileOperations.search signature and dispatch
+  old_block: "    # --- SEARCH -------------------------------------------------------------\n\
+    \n    def search(self, pattern: str, path: str = \".\", target: str = \"content\"\
+    ,\n               file_glob: Optional[str] = None, limit: int = 50, offset: int\
+    \ = 0,\n               output_mode: str = \"content\", context: int = 0,\n   \
+    \            order: str = \"discovery\") -> SearchResult:"
+  new_block: "    # --- SEARCH -------------------------------------------------------------\n\
+    \n    def search(self, pattern: str, path: str = \".\", target: str = \"content\"\
+    ,\n               file_glob: Optional[str] = None, limit: int = 50, offset: int\
+    \ = 0,\n               output_mode: str = \"content\", context: int = 0,\n   \
+    \            order: str = \"discovery\", literal: bool = False) -> SearchResult:"
+- file: tools/file_operations.py
+  description: Pass literal to _dispatch_search
+  old_block: "        result = self._dispatch_search(pattern, path, target, file_glob,\
+    \ limit, offset,\n                                       output_mode, context,\
+    \ order)"
+  new_block: "        result = self._dispatch_search(pattern, path, target, file_glob,\
+    \ limit, offset,\n                                       output_mode, context,\
+    \ order, literal=literal)"
+- file: tools/file_operations_search.py
+  description: Update _dispatch_search to accept and forward literal
+  old_block: "    def _dispatch_search(self, pattern: str, path: str, target: str,\n\
+    \                         file_glob: Optional[str], limit: int, offset: int,\n\
+    \                         output_mode: str, context: int, order: str = \"discovery\"\
+    ) -> SearchResult:\n        if target == \"files\":\n            return self._search_files(pattern,\
+    \ path, limit, offset, order)\n        return self._search_content(pattern, path,\
+    \ file_glob, limit, offset, output_mode, context)"
+  new_block: "    def _dispatch_search(self, pattern: str, path: str, target: str,\n\
+    \                         file_glob: Optional[str], limit: int, offset: int,\n\
+    \                         output_mode: str, context: int, order: str = \"discovery\"\
+    ,\n                         literal: bool = False) -> SearchResult:\n        if\
+    \ target == \"files\":\n            return self._search_files(pattern, path, limit,\
+    \ offset, order)\n        return self._search_content(pattern, path, file_glob,\
+    \ limit, offset, output_mode, context, literal=literal)"
+- file: tools/file_operations_search.py
+  description: Update _search_content to forward literal
+  old_block: "    def _search_content(self, pattern: str, path: str, file_glob: Optional[str],\n\
+    \                        limit: int, offset: int, output_mode: str, context: int)\
+    \ -> SearchResult:\n        \"\"\"Content search: rg, else grep; attaches zero-match\
+    \ steering hints.\"\"\"\n        used_rg = self._has_command('rg')\n        if\
+    \ used_rg:\n            result = self._search_with_rg(pattern, path, file_glob,\
+    \ limit, offset, output_mode, context,\n                                     \
+    \     rg_executable=self._resolve_command(\"rg\") or \"rg\")"
+  new_block: "    def _search_content(self, pattern: str, path: str, file_glob: Optional[str],\n\
+    \                        limit: int, offset: int, output_mode: str, context: int,\n\
+    \                        literal: bool = False) -> SearchResult:\n        \"\"\
+    \"Content search: rg, else grep; attaches zero-match steering hints.\"\"\"\n \
+    \       used_rg = self._has_command('rg')\n        if used_rg:\n            result\
+    \ = self._search_with_rg(pattern, path, file_glob, limit, offset, output_mode,\
+    \ context,\n                                          rg_executable=self._resolve_command(\"\
+    rg\") or \"rg\",\n                                          literal=literal)"
+- file: tools/file_operations_search.py
+  description: Pass -F flag to ripgrep when literal is enabled
+  old_block: "    def _search_with_rg(self, pattern: str, path: str, file_glob: Optional[str],\n\
+    \                        limit: int, offset: int, output_mode: str, context: int,\n\
+    \                        rg_executable: Optional[str] = None) -> SearchResult:\n\
+    \        \"\"\"Search using ripgrep.\"\"\"\n        rg_executable = rg_executable\
+    \ or self._resolve_command(\"rg\")\n        if not rg_executable:\n          \
+    \  return SearchResult(error=\"Content search requires ripgrep (rg).\")\n    \
+    \    cmd_parts = [self._quote_executable(rg_executable), \"--line-number\", \"\
+    --no-heading\", \"--with-filename\"]"
+  new_block: "    def _search_with_rg(self, pattern: str, path: str, file_glob: Optional[str],\n\
+    \                        limit: int, offset: int, output_mode: str, context: int,\n\
+    \                        rg_executable: Optional[str] = None,\n              \
+    \          literal: bool = False) -> SearchResult:\n        \"\"\"Search using\
+    \ ripgrep.\"\"\"\n        rg_executable = rg_executable or self._resolve_command(\"\
+    rg\")\n        if not rg_executable:\n            return SearchResult(error=\"\
+    Content search requires ripgrep (rg).\")\n        cmd_parts = [self._quote_executable(rg_executable),\
+    \ \"--line-number\", \"--no-heading\", \"--with-filename\"]\n        if literal:\n\
+    \            cmd_parts.append(\"-F\")"
+- file: tools/file_tools.py
+  description: Add EEXIST to expected write errnos
+  old_block: _EXPECTED_WRITE_ERRNOS = {errno.EACCES, errno.EPERM, errno.EROFS}
+  new_block: _EXPECTED_WRITE_ERRNOS = {errno.EACCES, errno.EPERM, errno.EROFS, errno.EEXIST}
+- file: tools/file_tools.py
+  description: Accept create_only in write_file_tool
+  old_block: "def write_file_tool(path: str, content: str, task_id: str = \"default\"\
+    ,\n                    cross_profile: bool = False,\n                    session_id:\
+    \ str | None = None) -> str:"
+  new_block: "def write_file_tool(path: str, content: str, task_id: str = \"default\"\
+    ,\n                    cross_profile: bool = False,\n                    session_id:\
+    \ str | None = None,\n                    create_only: bool = False) -> str:"
+- file: tools/file_tools.py
+  description: Implement atomic create_only write path
+  old_block: "            warnings = _edit_warnings([path], path_to_resolved, task_id)\n\
+    \            rewrite_hint = _whole_file_rewrite_hint(task_id, _resolved, content)\n\
+    \            result = _get_file_ops(task_id).write_file(_resolved or path, content)"
+  new_block: "            warnings = []\n            rewrite_hint = None\n       \
+    \     if create_only:\n                target_p = _resolved or path\n        \
+    \        parent_d = os.path.dirname(target_p)\n                if parent_d:\n\
+    \                    os.makedirs(parent_d, exist_ok=True)\n                fd\
+    \ = os.open(target_p, os.O_WRONLY | os.O_CREAT | os.O_EXCL)\n                with\
+    \ open(fd, \"w\", encoding=\"utf-8\") as f:\n                    f.write(content)\n\
+    \                from tools.file_operations_common import WriteResult\n      \
+    \          result = WriteResult(bytes_written=len(content.encode('utf-8')), verified=True)\n\
+    \            else:\n                warnings = _edit_warnings([path], path_to_resolved,\
+    \ task_id)\n                rewrite_hint = _whole_file_rewrite_hint(task_id, _resolved,\
+    \ content)\n                result = _get_file_ops(task_id).write_file(_resolved\
+    \ or path, content)"
+- file: tools/file_tools.py
+  description: Add create_only property to WRITE_FILE_SCHEMA
+  old_block: "            \"path\": {\"type\": \"string\", \"description\": \"Path\
+    \ to the file to write (will be created if it doesn't exist, overwritten if it\
+    \ does)\"},\n            \"content\": {\"type\": \"string\", \"description\":\
+    \ \"Complete content to write to the file\"},"
+  new_block: "            \"path\": {\"type\": \"string\", \"description\": \"Path\
+    \ to the file to write (will be created if it doesn't exist, overwritten if it\
+    \ does)\"},\n            \"content\": {\"type\": \"string\", \"description\":\
+    \ \"Complete content to write to the file\"},\n            \"create_only\": {\"\
+    type\": \"boolean\", \"description\": \"If true, fail with FileExistsError if\
+    \ the file already exists instead of overwriting it\", \"default\": False},"
+- file: tools/file_tools.py
+  description: Pass create_only in _handle_write_file
+  old_block: "    return record_file_edit(\"write_file\", \"whole_file\", lambda:\
+    \ _owned(kw.get(\"session_id\") or tid, write_file_tool,\n        path=args[\"\
+    path\"], content=args[\"content\"], task_id=tid,\n        cross_profile=bool(args.get(\"\
+    cross_profile\", False)),\n        session_id=kw.get(\"session_id\"),\n    ))"
+  new_block: "    return record_file_edit(\"write_file\", \"whole_file\", lambda:\
+    \ _owned(kw.get(\"session_id\") or tid, write_file_tool,\n        path=args[\"\
+    path\"], content=args[\"content\"], task_id=tid,\n        cross_profile=bool(args.get(\"\
+    cross_profile\", False)),\n        session_id=kw.get(\"session_id\"),\n      \
+    \  create_only=bool(args.get(\"create_only\", False)),\n    ))"
+- file: tools/registry.py
+  description: Add check_fn probe timeout constant and bounded executor
+  old_block: "def _run_check_fn_uncached(fn: Callable) -> bool:\n    \"\"\"Run an\
+    \ availability check without cache/grace handling.\"\"\"\n    from agent.secret_scope\
+    \ import UnscopedSecretError, current_secret_scope\n    try:\n        return bool(fn())"
+  new_block: "_CHECK_FN_TIMEOUT_SECONDS = 2.5\n\ndef _invoke_check_fn(fn: Callable,\
+    \ timeout: Optional[float] = None) -> bool:\n    \"\"\"Run check_fn probe with\
+    \ a bounded timeout and propagated contextvars.\"\"\"\n    import contextvars\n\
+    \    effective_timeout = _CHECK_FN_TIMEOUT_SECONDS if timeout is None else timeout\n\
+    \    res: list[bool] = []\n    exc: list[BaseException] = []\n    ctx = contextvars.copy_context()\n\
+    \n    def _worker():\n        try:\n            if inspect.iscoroutinefunction(fn):\n\
+    \                import asyncio\n                res.append(bool(asyncio.run(fn())))\n\
+    \            else:\n                val = fn()\n                if inspect.iscoroutine(val):\n\
+    \                    import asyncio\n                    res.append(bool(asyncio.run(val)))\n\
+    \                else:\n                    res.append(bool(val))\n        except\
+    \ BaseException as e:\n            exc.append(e)\n\n    thread = threading.Thread(target=ctx.run,\
+    \ args=(_worker,), name=f\"check-fn-{_fn_label(fn)}\", daemon=True)\n    thread.start()\n\
+    \    thread.join(timeout=effective_timeout)\n    if thread.is_alive():\n     \
+    \   raise TimeoutError(f\"check_fn {_fn_label(fn)} timed out after {effective_timeout:.1f}s\"\
+    )\n    if exc:\n        raise exc[0]\n    return res[0] if res else False\n\n\
+    def _run_check_fn_uncached(fn: Callable) -> bool:\n    \"\"\"Run an availability\
+    \ check without cache/grace handling.\"\"\"\n    from agent.secret_scope import\
+    \ UnscopedSecretError, current_secret_scope\n    try:\n        return bool(_invoke_check_fn(fn))"
+- file: tools/registry.py
+  description: Handle TimeoutError in uncached probe
+  old_block: "            logger.warning(\n                \"check_fn %s raised UnscopedSecretError\
+    \ while the profile cache \"\n                \"scope was resolved; dependent\
+    \ tools will be unavailable this turn\",\n                _fn_label(fn), exc_info=True)\n\
+    \    except Exception:"
+  new_block: "            logger.warning(\n                \"check_fn %s raised UnscopedSecretError\
+    \ while the profile cache \"\n                \"scope was resolved; dependent\
+    \ tools will be unavailable this turn\",\n                _fn_label(fn), exc_info=True)\n\
+    \    except TimeoutError:\n        logger.warning(\n            \"check_fn %s\
+    \ timed out; dependent tools will be unavailable this turn\",\n            _fn_label(fn),\
+    \ exc_info=True)\n    except Exception:"
+- file: tools/registry.py
+  description: Execute check_fn with timeout and handle TimeoutError in cached probe
+  old_block: "    exc_info = None\n    try:\n        value, outcome = bool(fn()),\
+    \ \"returned False\"\n    except Exception as exc:"
+  new_block: "    exc_info = None\n    try:\n        value, outcome = bool(_invoke_check_fn(fn)),\
+    \ \"returned False\"\n    except TimeoutError as exc:\n        value, outcome,\
+    \ exc_info = False, \"timed out\", exc\n    except Exception as exc:"
+- file: tools/delegate_tool.py
+  description: Add action='resume' to DELEGATE_TASK_SCHEMA
+  old_block: "            # `background` (bool) is also accepted — DEPRECATED, ignored:\
+    \ top-level\n            # delegations always run in the background. Unadvertised;\
+    \ do not re-add.\n            \"action\": _p(\n                \"string\",\n \
+    \               \"Default 'spawn'. Live control of running children: \"\n    \
+    \            \"'list' = ids/goals/status/transcripts; 'steer' = queue \"\n   \
+    \             \"course-correction text into one child (subagent_id + \"\n    \
+    \            \"message) without stopping it; 'stop' = end one child \"\n     \
+    \           \"early (subagent_id; partial result still returns). \"\n        \
+    \        \"Control actions return immediately; goal/tasks are ignored unless spawning.\"\
+    ,\n                enum=[\"spawn\", \"list\", \"steer\", \"stop\"],\n        \
+    \    ),\n            \"subagent_id\": _p(\"string\", \"Target for action='steer'/'stop'\
+    \ (ids from the spawn response or action='list').\"),\n            \"message\"\
+    : _p(\n                \"string\",\n                \"For action='steer': the\
+    \ course correction, appended to \"\n                \"the child's next tool result\
+    \ mid-run. Be directive and specific.\",\n            ),"
+  new_block: "            # `background` (bool) is also accepted — DEPRECATED, ignored:\
+    \ top-level\n            # delegations always run in the background. Unadvertised;\
+    \ do not re-add.\n            \"action\": _p(\n                \"string\",\n \
+    \               \"Default 'spawn'. Control or continuation of subagents: \"\n\
+    \                \"'list' = ids/goals/status/transcripts; 'steer' = queue \"\n\
+    \                \"course-correction text into one child (subagent_id + \"\n \
+    \               \"message) without stopping it; 'stop' = end one child \"\n  \
+    \              \"early (subagent_id; partial result still returns); \"\n     \
+    \           \"'resume' = resume a finished subagent (subagent_id + optional message).\
+    \ \"\n                \"Control actions return immediately; goal/tasks are ignored\
+    \ unless spawning.\",\n                enum=[\"spawn\", \"list\", \"steer\", \"\
+    stop\", \"resume\"],\n            ),\n            \"subagent_id\": _p(\"string\"\
+    , \"Target for action='steer'/'stop'/'resume' (ids from the spawn response or\
+    \ action='list').\"),\n            \"message\": _p(\n                \"string\"\
+    ,\n                \"For action='steer'/'resume': the course correction or continuation\
+    \ instructions. \"\n                \"Be directive and specific.\",\n        \
+    \    ),"
+- file: tools/delegate_tool.py
+  description: Helper _find_resumable_subagent_context and handling action='resume'
+    in delegate_task
+  old_block: "def delegate_task(\n    goal: Optional[str] = None, context: Optional[str]\
+    \ = None, tasks: Optional[list[dict[str, Any]]] = None,\n    max_iterations: Optional[int]\
+    \ = None, role: Optional[str] = None, background: Optional[bool] = None,\n   \
+    \ output_schema: Optional[dict[str, Any]] = None, images: Optional[list[str]]\
+    \ = None, action: Optional[str] = None,\n    subagent_id: Optional[str] = None,\
+    \ message: Optional[str] = None, parent_agent=None,\n    credentials_cfg: Optional[dict[str,\
+    \ Any]] = None,\n) -> str:\n    \"\"\"Spawn child agents (single ``goal`` or ``tasks=[...]``\
+    \ batch) or control running ones. ``action``\n    list/steer/stop run synchronously\
+    \ and bypass the pause gate, depth limit and async dispatch. ``role`` is legacy\n\
+    \    (per-task beats top-level; capability is depth-derived). Returns JSON with\
+    \ one results entry per task, or a\n    dispatch handle when running in the background.\"\
+    \"\"\n    if parent_agent is None:\n        return tool_error(\"delegate_task\
+    \ requires a parent agent context.\")\n\n    normalized_action = (action or \"\
+    \").strip().lower()\n    if normalized_action in _CONTROL_ACTIONS:\n        return\
+    \ _handle_control_action(normalized_action, subagent_id, message, parent_agent)\n\
+    \    if normalized_action and normalized_action != \"spawn\":\n        return\
+    \ tool_error(f\"Unknown action '{action}'. Use spawn (default), list, steer, or\
+    \ stop.\")"
+  new_block: "_pending_resumes = {}\ndef _find_resumable_subagent_context(sid: str,\
+    \ parent_agent: Any = None) -> tuple[Optional[dict[str, Any]], Optional[str]]:\n\
+    \    \"\"\"Locate session context and transcript for a finished subagent by its\
+    \ subagent_id, delegation_id, or session_id.\"\"\"\n    import json\n    sid =\
+    \ str(sid or \"\").strip()\n    if not sid:\n        return None, \"action='resume'\
+    \ requires a non-empty 'subagent_id'.\"\n\n    found_info: dict[str, Any] = {}\n\
+    \n    # 1. In-memory recent subagents\n    from tools.delegate_tool_registry import\
+    \ _recent_subagents, _active_subagents_lock\n    with _active_subagents_lock:\n\
+    \        if sid in _recent_subagents:\n            rec = _recent_subagents[sid]\n\
+    \            found_info[\"subagent_id\"] = sid\n            found_info[\"goal\"\
+    ] = rec.get(\"goal\")\n            found_info[\"delegation_id\"] = rec.get(\"\
+    delegation_id\")\n            found_info[\"session_id\"] = rec.get(\"session_id\"\
+    )\n            found_info[\"model\"] = rec.get(\"model\")\n            found_info[\"\
+    live_transcript_path\"] = rec.get(\"live_transcript_path\")\n            found_info[\"\
+    context\"] = rec.get(\"context\")\n\n    # 2. Check SessionDB\n    session_id\
+    \ = found_info.get(\"session_id\") or sid\n    db = getattr(parent_agent, \"_session_db\"\
+    , None)\n    if db is None:\n        try:\n            from hermes_state import\
+    \ SessionDB\n            db = SessionDB()\n        except Exception:\n       \
+    \     db = None\n\n    if db is not None:\n        try:\n            target_sid\
+    \ = None\n            rows = db._read_all(\n                \"SELECT id, model,\
+    \ model_config, title, started_at FROM sessions \"\n                \"WHERE id\
+    \ = ? OR display_name = ? OR model_config LIKE ? OR model_config LIKE ? \"\n \
+    \               \"ORDER BY started_at DESC LIMIT 1\",\n                (sid, sid,\
+    \ f'%\"subagent_id\": \"{sid}\"%', f'%\"delegation_id\": \"{sid}\"%')\n      \
+    \      )\n            if rows:\n                r = rows[0]\n                target_sid\
+    \ = r[\"id\"]\n                found_info.setdefault(\"session_id\", target_sid)\n\
+    \                found_info.setdefault(\"model\", r[\"model\"])\n            \
+    \    if r[\"title\"] and not found_info.get(\"goal\"):\n                    title\
+    \ = r[\"title\"]\n                    found_info[\"goal\"] = title[10:] if title.startswith(\"\
+    Subagent: \") else title\n            elif session_id:\n                row_by_id\
+    \ = db._read_one(\"SELECT id, model, title FROM sessions WHERE id = ?\", (session_id,))\n\
+    \                if row_by_id:\n                    target_sid = row_by_id[0]\n\
+    \                    found_info.setdefault(\"session_id\", target_sid)\n     \
+    \               found_info.setdefault(\"model\", row_by_id[1])\n\n           \
+    \ if target_sid:\n                msgs = db.get_messages_as_conversation(target_sid,\
+    \ repair_alternation=True)\n                if msgs:\n                    clean_msgs\
+    \ = [m for m in msgs if m.get(\"role\") != \"system\"]\n                    if\
+    \ clean_msgs:\n                        if clean_msgs[-1].get(\"role\") != \"assistant\"\
+    :\n                            clean_msgs.append({\n                         \
+    \       \"role\": \"assistant\",\n                                \"content\"\
+    : \"(Subagent execution paused/interrupted at this point. Ready for continuation.)\"\
+    \n                            })\n                        found_info[\"messages\"\
+    ] = clean_msgs\n\n                    if not found_info.get(\"goal\"):\n     \
+    \                   first_user = next((m.get(\"content\") for m in msgs if m.get(\"\
+    role\") == \"user\"), None)\n                        if first_user and isinstance(first_user,\
+    \ str):\n                            found_info[\"goal\"] = first_user\n\n   \
+    \                 last_asst = next((m.get(\"content\") for m in reversed(msgs)\
+    \ if m.get(\"role\") == \"assistant\"), None)\n                    if last_asst\
+    \ and isinstance(last_asst, str):\n                        found_info.setdefault(\"\
+    transcript_summary\", last_asst[:1000])\n        except Exception:\n         \
+    \   pass\n\n    # 3. Check Live Transcripts root (cache/delegation/live/)\n  \
+    \  try:\n        from tools.delegation_live_log import live_transcript_root\n\
+    \        live_root = live_transcript_root(_parent_live_home(parent_agent))\n \
+    \   except Exception:\n        live_root = Path.home() / \".hermes\" / \"cache\" / \"delegation\" / \"live\"\n\n    if live_root and live_root.is_dir():\n        log_file: Optional[Path]\
+    \ = None\n        if found_info.get(\"live_transcript_path\"):\n            candidate\
+    \ = Path(found_info[\"live_transcript_path\"])\n            if candidate.is_file():\n\
+    \                log_file = candidate\n\n        if log_file is None:\n      \
+    \      direct_dir = live_root / sid\n            dirs_to_check = [direct_dir]\
+    \ if direct_dir.is_dir() else sorted(\n                [p for p in live_root.iterdir()\
+    \ if p.is_dir()],\n                key=lambda p: p.stat().st_mtime,\n        \
+    \        reverse=True\n            )[:40]\n\n            for d in dirs_to_check:\n\
+    \                mf = d / \"manifest.json\"\n                if mf.is_file():\n\
+    \                    try:\n                        mdata = json.loads(mf.read_text(encoding=\"\
+    utf-8\"))\n                        deleg_id = mdata.get(\"delegation_id\")\n \
+    \                       tasks = mdata.get(\"tasks\", [])\n                   \
+    \     matched = None\n                        if deleg_id == sid and tasks:\n\
+    \                            matched = tasks[0]\n                        else:\n\
+    \                            for t in tasks:\n                               \
+    \ if t.get(\"subagent_id\") == sid or (t.get(\"log\") and sid in str(t.get(\"\
+    log\"))):\n                                    matched = t\n                 \
+    \                   break\n                        if matched:\n             \
+    \               found_info.setdefault(\"goal\", matched.get(\"goal\"))\n     \
+    \                       found_info.setdefault(\"model\", mdata.get(\"model\"))\n\
+    \                            log_path = matched.get(\"log\")\n               \
+    \             if log_path and Path(log_path).is_file():\n                    \
+    \            log_file = Path(log_path)\n                            break\n  \
+    \                  except Exception:\n                        pass\n\n       \
+    \ if log_file and log_file.is_file():\n            found_info[\"live_transcript_path\"\
+    ] = str(log_file)\n            try:\n                log_lines = log_file.read_text(encoding=\"\
+    utf-8\").splitlines()\n                for line in log_lines[:25]:\n         \
+    \           if line.startswith(\"goal: \") and not found_info.get(\"goal\"):\n\
+    \                        found_info[\"goal\"] = line[6:].strip()\n           \
+    \         if \"user     | kickoff: \" in line:\n                        parts\
+    \ = line.split(\"user     | kickoff: \", 1)[1]\n                        if \"\
+    \ | context: \" in parts:\n                            k_goal, k_ctx = parts.split(\"\
+    \ | context: \", 1)\n                            found_info.setdefault(\"goal\"\
+    , k_goal.strip())\n                            found_info.setdefault(\"context\"\
+    , k_ctx.strip())\n                        elif not found_info.get(\"goal\"):\n\
+    \                            found_info[\"goal\"] = parts.strip()\n\n        \
+    \        for line in reversed(log_lines[-30:]):\n                    if \"final\
+    \    |\" in line and not found_info.get(\"transcript_summary\"):\n           \
+    \             found_info[\"transcript_summary\"] = line.split(\"final    |\",\
+    \ 1)[1].strip()\n                    elif \"assistant|\" in line and not found_info.get(\"\
+    transcript_summary\"):\n                        found_info[\"transcript_summary\"\
+    ] = line.split(\"assistant|\", 1)[1].strip()\n            except Exception:\n\
+    \                pass\n\n    if not found_info or not (found_info.get(\"goal\"\
+    ) or found_info.get(\"messages\") or found_info.get(\"live_transcript_path\")):\n\
+    \        return None, (\n            f\"No completed subagent found matching '{sid}'.\
+    \ \"\n            \"Ensure the subagent has finished and subagent_id is correct\
+    \ (from the spawn dispatch response, result entry, or action='list').\"\n    \
+    \    )\n\n    return found_info, None\n\n\ndef delegate_task(\n    goal: Optional[str]\
+    \ = None, context: Optional[str] = None, tasks: Optional[list[dict[str, Any]]]\
+    \ = None,\n    max_iterations: Optional[int] = None, role: Optional[str] = None,\
+    \ background: Optional[bool] = None,\n    output_schema: Optional[dict[str, Any]]\
+    \ = None, images: Optional[list[str]] = None, action: Optional[str] = None,\n\
+    \    subagent_id: Optional[str] = None, message: Optional[str] = None, parent_agent=None,\n\
+    \    credentials_cfg: Optional[dict[str, Any]] = None,\n) -> str:\n    \"\"\"\
+    Spawn child agents (single ``goal`` or ``tasks=[...]`` batch) or control running\
+    \ ones. ``action``\n    list/steer/stop run synchronously and bypass the pause\
+    \ gate, depth limit and async dispatch. ``role`` is legacy\n    (per-task beats\
+    \ top-level; capability is depth-derived). Returns JSON with one results entry\
+    \ per task, or a\n    dispatch handle when running in the background.\"\"\"\n\
+    \    if parent_agent is None:\n        return tool_error(\"delegate_task requires\
+    \ a parent agent context.\")\n\n    normalized_action = (action or \"\").strip().lower()\n\
+    \    if normalized_action in _CONTROL_ACTIONS:\n        return _handle_control_action(normalized_action,\
+    \ subagent_id, message, parent_agent)\n    if normalized_action == \"resume\"\
+    :\n        sid = (subagent_id or \"\").strip()\n        if not sid:\n        \
+    \    return tool_error(\"action='resume' requires 'subagent_id' (from the spawn\
+    \ dispatch response, result entry, or action='list').\")\n        with _active_subagents_lock:\n\
+    \            if sid in _active_subagents:\n                return tool_error(\n\
+    \                    f\"Subagent '{sid}' is still running. Use action='steer'\
+    \ to redirect an active child, \"\n                    f\"or wait for it to finish\
+    \ before resuming.\"\n                )\n        prev_ctx, resume_err = _find_resumable_subagent_context(sid,\
+    \ parent_agent)\n        if resume_err:\n            return tool_error(resume_err)\n\
+    \n        cont_msg = (message or \"\").strip()\n        orig_goal = prev_ctx.get(\"\
+    goal\") or \"Subagent task\"\n        continuation_goal = cont_msg if cont_msg\
+    \ else f\"Continue working on task to completion: {orig_goal}\"\n\n        resume_note\
+    \ = f\"[Continuation of subagent {sid}]\\nOriginal task: {orig_goal}\"\n     \
+    \   if prev_ctx.get(\"transcript_summary\"):\n            resume_note += f\"\\\
+    nPrevious progress summary:\\n{prev_ctx['transcript_summary']}\"\n\n        task_ctx\
+    \ = prev_ctx.get(\"context\") or \"\"\n        if context:\n            task_ctx\
+    \ = (task_ctx + \"\\n\\n\" + context).strip() if task_ctx else context\n     \
+    \   task_ctx = (resume_note + \"\\n\\n\" + task_ctx).strip() if resume_note else\
+    \ task_ctx\n\n        goal = continuation_goal\n        context = task_ctx\n \
+    \       _pending_resumes[continuation_goal] = (sid, prev_ctx.get(\"messages\"\
+    ))\n        resume_task = {\n            \"goal\": continuation_goal,\n      \
+    \      \"context\": task_ctx,\n        }\n        if prev_ctx.get(\"model\"):\n\
+    \            resume_task[\"model\"] = prev_ctx[\"model\"]\n        tasks = [resume_task]\n\
+    \    elif normalized_action and normalized_action != \"spawn\":\n        return\
+    \ tool_error(f\"Unknown action '{action}'. Use spawn (default), list, steer, stop,\
+    \ or resume.\")"
+- file: tools/delegate_tool.py
+  description: Attach conversation history and resumed_from to child in _build_children
+  old_block: "        if route.report() is not None:\n            child._delegate_route\
+    \ = route.report()\n        if live_deleg_id:\n            child._delegation_id\
+    \ = live_deleg_id\n            _ident_ref = getattr(child, \"_progress_identity_ref\"\
+    , None)\n            if isinstance(_ident_ref, dict):\n                _ident_ref[\"\
+    delegation_id\"] = live_deleg_id\n        children.append((i, t, child))"
+  new_block: "        if route.report() is not None:\n            child._delegate_route\
+    \ = route.report()\n        _pres = _pending_resumes.pop(t.get(\"goal\"), None)\
+    \ if \"_pending_resumes\" in globals() else None\n        if _pres:\n        \
+    \    child._resumed_from_subagent_id, child._delegate_conversation_history = _pres\n\
+    \        if live_deleg_id:\n            child._delegation_id = live_deleg_id\n\
+    \            _ident_ref = getattr(child, \"_progress_identity_ref\", None)\n \
+    \           if isinstance(_ident_ref, dict):\n                _ident_ref[\"delegation_id\"\
+    ] = live_deleg_id\n        children.append((i, t, child))"
+- file: tools/delegate_tool.py
+  description: Stamp subagent_id and delegation_id into child model config
+  old_block: "    if parent_sid and getattr(child, \"_session_init_model_config\"\
+    , None) is not None:\n        child._session_init_model_config[\"_delegate_from\"\
+    ] = parent_sid\n    child._delegate_profile_home = profile_home  # _ChildRun.await_child\
+    \ runs the conversation in this scope"
+  new_block: "    if getattr(child, \"_session_init_model_config\", None) is not None:\n\
+    \        if parent_sid:\n            child._session_init_model_config[\"_delegate_from\"\
+    ] = parent_sid\n        child._session_init_model_config[\"subagent_id\"] = subagent_id\n\
+    \        if getattr(child, \"_delegation_id\", None):\n            child._session_init_model_config[\"\
+    delegation_id\"] = child._delegation_id\n    child._delegate_profile_home = profile_home\
+    \  # _ChildRun.await_child runs the conversation in this scope"
+- file: tools/delegate_tool_child_run.py
+  description: Pass conversation_history to child.run_conversation in await_child
+  old_block: "            with child_profile_scope(child), delegated_child_context(str(getattr(child,\
+    \ \"session_id\", \"\") or \"\")):\n                return child.run_conversation(\n\
+    \                    user_message=user_message, task_id=self.child_task_id, stream_callback=self.relay_text,\n\
+    \                )"
+  new_block: "            history = getattr(child, \"_delegate_conversation_history\"\
+    , None)\n            history_kw = {\"conversation_history\": history} if history\
+    \ is not None else {}\n            with child_profile_scope(child), delegated_child_context(str(getattr(child,\
+    \ \"session_id\", \"\") or \"\")):\n                return child.run_conversation(\n\
+    \                    user_message=user_message, task_id=self.child_task_id, stream_callback=self.relay_text,\n\
+    \                    **history_kw,\n                )"
+- file: tools/delegate_tool_child_run.py
+  description: Stamp subagent_id and resumed_from in result entry
+  old_block: "    # Model-visible per-delegation spend (unlike _child_cost_usd above).\n\
+    \    entry[\"cost_usd\"] = round(entry[\"_child_cost_usd\"], 6)\n    entry[\"\
+    cost_status\"] = _cost_status if isinstance(_cost_status, str) and _cost_status\
+    \ else \"unknown\""
+  new_block: "    # Model-visible per-delegation spend (unlike _child_cost_usd above).\n\
+    \    entry[\"cost_usd\"] = round(entry[\"_child_cost_usd\"], 6)\n    entry[\"\
+    cost_status\"] = _cost_status if isinstance(_cost_status, str) and _cost_status\
+    \ else \"unknown\"\n    _sid = getattr(child, \"_subagent_id\", None)\n    if\
+    \ _sid:\n        entry[\"subagent_id\"] = _sid\n    _resumed = getattr(child,\
+    \ \"_resumed_from_subagent_id\", None)\n    if _resumed:\n        entry[\"resumed_from\"\
+    ] = _resumed"
+- file: tools/delegate_tool_child_run.py
+  description: Store session_id and live_transcript_path in _register_child
+  old_block: "        \"started_at\": time.time(), \"status\": \"running\", \"tool_count\"\
+    : 0, \"agent\": child,\n        # Owning conversation's durable session id (same\
+    \ lineage completion delivery routes by), sourced from the\n        # child's\
+    \ stamp so it survives a parent_agent rebuild between dispatch and run; used for\
+    \ list/steer/stop\n        # ownership when the weakref chain breaks.\n      \
+    \  \"owner_agent_session_id\": (\n            str(getattr(child, \"_parent_session_id\"\
+    , \"\") or \"\") or str(getattr(parent_agent, \"session_id\", \"\") or \"\") or\
+    \ None\n        ),"
+  new_block: "        \"started_at\": time.time(), \"status\": \"running\", \"tool_count\"\
+    : 0, \"agent\": child,\n        \"session_id\": str(getattr(child, \"session_id\"\
+    , \"\") or \"\") or None,\n        \"live_transcript_path\": getattr(child, \"\
+    _live_transcript_path\", None),\n        # Owning conversation's durable session\
+    \ id (same lineage completion delivery routes by), sourced from the\n        #\
+    \ child's stamp so it survives a parent_agent rebuild between dispatch and run;\
+    \ used for list/steer/stop\n        # ownership when the weakref chain breaks.\n\
+    \        \"owner_agent_session_id\": (\n            str(getattr(child, \"_parent_session_id\"\
+    , \"\") or \"\") or str(getattr(parent_agent, \"session_id\", \"\") or \"\") or\
+    \ None\n        ),"
+- file: tools/delegate_tool_registry.py
+  description: Retain session_id and live_transcript_path in _recent_subagents
+  old_block: "        sid = record.get(\"subagent_id\")\n        if not sid:\n   \
+    \         return\n        _recent_subagents[sid] = {k: record.get(k) for k in\
+    \ (\"goal\", \"delegation_id\", \"owner_agent_session_id\")}\n        while len(_recent_subagents)\
+    \ > _RECENT_SUBAGENTS_CAP:\n            _recent_subagents.pop(next(iter(_recent_subagents)),\
+    \ None)"
+  new_block: "        sid = record.get(\"subagent_id\")\n        if not sid:\n   \
+    \         return\n        _recent_subagents[sid] = {\n            k: record.get(k)\n\
+    \            for k in (\n                \"goal\", \"delegation_id\", \"owner_agent_session_id\"\
+    ,\n                \"session_id\", \"live_transcript_path\", \"model\",\n    \
+    \        )\n        }\n        while len(_recent_subagents) > _RECENT_SUBAGENTS_CAP:\n\
+    \            _recent_subagents.pop(next(iter(_recent_subagents)), None)"
+- file: tools/delegation_live_log.py
+  description: Record subagent_id in manifest.json tasks
+  old_block: "        for task in manifest.get(\"tasks\", []):\n            r = by_index.get(task.get(\"\
+    index\"))\n            if r is not None:\n                task[\"status\"] = r.get(\"\
+    status\", task.get(\"status\"))\n                if r.get(\"exit_reason\"):\n\
+    \                    task[\"exit_reason\"] = r[\"exit_reason\"]\n            \
+    \    if r.get(\"model\"):\n                    task[\"model\"] = r[\"model\"]"
+  new_block: "        for task in manifest.get(\"tasks\", []):\n            r = by_index.get(task.get(\"\
+    index\"))\n            if r is not None:\n                task[\"status\"] = r.get(\"\
+    status\", task.get(\"status\"))\n                if r.get(\"exit_reason\"):\n\
+    \                    task[\"exit_reason\"] = r[\"exit_reason\"]\n            \
+    \    if r.get(\"model\"):\n                    task[\"model\"] = r[\"model\"]\n\
+    \                if r.get(\"subagent_id\"):\n                    task[\"subagent_id\"\
+    ] = r[\"subagent_id\"]"
+- file: tools/delegate_tool_dispatch.py
+  description: Include resumed_from in _dispatched_payload when resumed child is present
+  old_block: "    sids = [getattr(c, \"_subagent_id\", None) for (_, _, c) in batch.children]\n\
+    \    if any(isinstance(s, str) and s for s in sids):\n        payload[\"subagent_ids\"\
+    ] = sids\n        payload[\"control_hint\"] = _BACKGROUND_NOTES[\"control_hint\"\
+    ]\n    if batch.refused:\n        payload[\"refused\"] = batch.refused\n"
+  new_block: "    sids = [getattr(c, \"_subagent_id\", None) for (_, _, c) in batch.children]\n\
+    \    if any(isinstance(s, str) and s for s in sids):\n        payload[\"subagent_ids\"\
+    ] = sids\n        payload[\"control_hint\"] = _BACKGROUND_NOTES[\"control_hint\"\
+    ]\n    resumed = [getattr(c, \"_resumed_from_subagent_id\", None) for (_, _, c)\
+    \ in batch.children if isinstance(getattr(c, \"_resumed_from_subagent_id\", None),\
+    \ str)]\n    if resumed:\n        payload[\"resumed_from\"] = resumed[0] if len(resumed)\
+    \ == 1 else resumed\n    if batch.refused:\n        payload[\"refused\"] = batch.refused\n"
+i18n:
+  en:
+    name: Core Tools Enhancements
+    description: 'Comprehensive core tools enhancements: literal flag -F in search_files,
+      atomic write_file, safe error handling in browser_vision and vision_analyze'
+  ru:
+    name: Core Tools Enhancements
+    description: 'Комплексные улучшения инструментов ядра: точный поиск (literal flag
+      -F в search_files), атомарное сохранение write_file, обработка ошибок в browser_vision
+      и vision_analyze'
+  es:
+    name: Core Tools Enhancements
+    description: 'Mejoras integrales en herramientas principales: indicador literal
+      -F en search_files, guardado atómico en write_file y gestión segura de errores
+      en browser_vision y vision_analyze'
+  fr:
+    name: Core Tools Enhancements
+    description: 'Améliorations complètes des outils principaux : indicateur littéral
+      -F dans search_files, écriture atomique dans write_file et gestion sécurisée
+      des erreurs dans browser_vision et vision_analyze'
+  zh:
+    name: Core Tools Enhancements
+    description: 核心工具综合增强：search_files支持字面量匹配参数 -F、write_file原子写入以及browser_vision和vision_analyze的安全错误处理
+  ar:
+    name: Core Tools Enhancements
+    description: 'تحسينات شاملة لأدوات النواة: علامة الحرفية -F في search_files، وحفظ
+      ذري في write_file، ومعالجة آمنة للأخطاء في browser_vision وvision_analyze'
+  de:
+    name: Core Tools Enhancements
+    description: 'Umfassende Verbesserungen der Core-Tools: Literales Flag -F in search_files,
+      atomare Speicherung in write_file und sichere Fehlerbehandlung in browser_vision
+      und vision_analyze'
+  pt:
+    name: Core Tools Enhancements
+    description: 'Aprimoramentos abrangentes das ferramentas principais: flag literal
+      -F em search_files, gravação atômica em write_file e tratamento seguro de erros
+      em browser_vision e vision_analyze'

@@ -1,0 +1,7 @@
+name: Command Unlimited
+description: 'Befehl /unlimited [on|off|status]: Aufhebung von Runden- und Subagenten-Iterationslimits
+  mit globaler Sitzungsbaum-Zählung und config.yaml-Anpassung'
+slash:
+  unlimited:
+    description: Unbegrenzten Modus für die aktuelle Sitzung ein- oder ausschalten
+      (Agent- und Subagenten-Iterationen)

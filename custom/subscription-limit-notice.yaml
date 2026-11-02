@@ -1,0 +1,500 @@
+id: subscription-limit-notice
+name: Subscription Limit Concise Notice & No-Retry Guard
+description: Concise subscription limit reached notice with reset timer and no-retry
+  guard for 429/503 cooldowns
+version: 1.3.0
+author: Hermes Admin
+enabled: true
+i18n:
+  en:
+    name: Subscription Limit Concise Notice & No-Retry Guard
+    description: Concise subscription limit reached notice with reset timer and no-retry
+      guard for 429/503 cooldowns
+    subscription_limit:
+      notice: 'Subscription limit reached, resets in {time}. Switch model: /model
+        or wait.'
+      unknown_time: some time
+  ru:
+    name: Subscription Limit Concise Notice & No-Retry Guard
+    description: Лаконичное сообщение об исчерпании лимита подписки с таймером сброса
+      (429/503 / cooling down / reset after) без слепых повторных попыток
+    subscription_limit:
+      notice: 'Лимит подписки исчерпан, сброс через {time}. Поменять модель: /model
+        или дождитесь.'
+      unknown_time: некоторое время
+  es:
+    name: Subscription Limit Concise Notice & No-Retry Guard
+    description: Aviso conciso de límite de suscripción alcanzado con temporizador
+      de reinicio y protección sin reintentos para enfriamientos 429/503
+    subscription_limit:
+      notice: 'Límite de suscripción alcanzado, se reinicia en {time}. Cambie de modelo:
+        /model o espere.'
+      unknown_time: un momento
+  fr:
+    name: Subscription Limit Concise Notice & No-Retry Guard
+    description: Notification concise de limite d'abonnement atteinte avec minuteur
+      de réinitialisation et protection sans nouvelle tentative pour les refroidissements
+      429/503
+    subscription_limit:
+      notice: 'Limite d''abonnement atteinte, réinitialisation dans {time}. Changez
+        de modèle : /model ou patientez.'
+      unknown_time: un certain temps
+  zh:
+    name: Subscription Limit Concise Notice & No-Retry Guard
+    description: 简洁的订阅额度耗尽通知，带有重置计时器和针对429/503冷却的免重试保护
+    subscription_limit:
+      notice: 已达到订阅额度限制，将在 {time} 后重置。更换模型：/model 或稍后重试。
+      unknown_time: 稍后
+  ar:
+    name: Subscription Limit Concise Notice & No-Retry Guard
+    description: إشعار موجز بالوصول إلى حد الاشتراك مع مؤقت لإعادة الضبط وحماية ضد
+      إعادة المحاولة لفترات التهدئة 429/503
+    subscription_limit:
+      notice: 'تم استنفاد حد الاشتراك، سيُعاد التعيين خلال {time}. غيّر النموذج: /model
+        أو انتظر.'
+      unknown_time: بعض الوقت
+  de:
+    name: Subscription Limit Concise Notice & No-Retry Guard
+    description: Präziser Hinweis bei erreichtem Abonnementlimit mit Reset-Timer und
+      No-Retry-Schutz für 429/503-Abkühlphasen
+    subscription_limit:
+      notice: 'Abonnementlimit erreicht, Reset in {time}. Modell wechseln: /model
+        oder warten.'
+      unknown_time: einiger Zeit
+  pt:
+    name: Subscription Limit Concise Notice & No-Retry Guard
+    description: Aviso conciso de limite de assinatura atingido com temporizador de
+      redefinição e proteção sem repetição para períodos de resfriamento 429/503
+    subscription_limit:
+      notice: 'Limite de assinatura atingido, reinicia em {time}. Troque de modelo:
+        /model ou aguarde.'
+      unknown_time: algum tempo
+tests:
+  test_subscription_limit_enum: 'from agent.error_classifier import FailoverReason
+
+    assert hasattr(FailoverReason, "subscription_limit")
+
+    assert FailoverReason.subscription_limit.value == "subscription_limit"
+
+    '
+  test_classify_unavailable_reset_after: 'from agent.error_classifier import classify_api_error,
+    FailoverReason
+
+    exc = Exception("HTTP 503: [codex/gpt-6-sol] Unavailable (reset after 1h 44m 7s)")
+
+    c = classify_api_error(exc)
+
+    assert c.reason == FailoverReason.subscription_limit
+
+    assert c.retryable is False
+
+    assert c.should_fallback is False
+
+    assert c.error_context.get("reset_window_str") == "1h 44m 7s"
+
+    '
+  test_classify_503_cooldown: 'from agent.error_classifier import classify_api_error,
+    FailoverReason
+
+    exc = Exception("503 Service Unavailable")
+
+    setattr(exc, "status_code", 503)
+
+    c = classify_api_error(exc)
+
+    assert c.reason == FailoverReason.overloaded
+
+    assert c.retryable is True
+
+    exc_with_header = Exception("503 Service Unavailable")
+
+    setattr(exc_with_header, "status_code", 503)
+
+    setattr(exc_with_header, "response", type("Resp", (), {"headers": {"retry-after":
+    "120"}})())
+
+    c2 = classify_api_error(exc_with_header)
+
+    assert c2.reason == FailoverReason.subscription_limit
+
+    assert c2.retryable is False
+
+    assert c2.should_fallback is False
+
+    assert c2.error_context.get("reset_window_str") == "2m"
+
+    '
+  test_classify_429_cooling_down_header: 'from agent.error_classifier import classify_api_error,
+    FailoverReason
+
+    exc = Exception("HTTP 429: All credentials for model gpt-6.1-sol are cooling down")
+
+    setattr(exc, "status_code", 429)
+
+    setattr(exc, "response", type("Resp", (), {"headers": {"retry-after": "84720"}})())
+
+    c = classify_api_error(exc)
+
+    assert c.reason == FailoverReason.subscription_limit
+
+    assert c.retryable is False
+
+    assert c.should_fallback is False
+
+    assert c.error_context.get("reset_window_str") == "23h 32m"
+
+    '
+  test_classify_429_model_cooldown_error_payload: 'from agent.error_classifier import
+    classify_api_error, FailoverReason
+
+    exc = Exception("Error code: 429 - {''error'': {''message'': ''All credentials
+    for model gemini-3.8-flash-high are cooling down'', ''type'': ''rate_limit_error'',
+    ''code'': ''model_cooldown'', ''model'': ''gemini-3.8-flash-high'', ''reset_seconds'':
+    43, ''retry_after'': ''2026-09-06T15:57:21.983Z'', ''credentials_cooling'': 1}}")
+
+    c = classify_api_error(exc)
+
+    assert c.reason == FailoverReason.subscription_limit
+
+    assert c.retryable is False
+
+    assert c.should_fallback is False
+
+    assert c.error_context.get("reset_window_str") == "43s"
+
+    '
+  test_classify_429_short_burst_stays_rate_limit: 'from agent.error_classifier import
+    classify_api_error, FailoverReason
+
+    exc = Exception("429 Too Many Requests")
+
+    setattr(exc, "status_code", 429)
+
+    setattr(exc, "response", type("Resp", (), {"headers": {"retry-after": "2"}})())
+
+    c = classify_api_error(exc)
+
+    assert c.reason == FailoverReason.rate_limit
+
+    assert c.retryable is True
+
+    '
+  test_turn_failure_copy_russian: "import os\nfrom types import SimpleNamespace\n\
+    from agent.error_classifier import FailoverReason\nfrom agent.turn_failure_copy\
+    \ import nonretryable_copy, exhausted_copy\nfrom agent.i18n import reset_language_cache,\
+    \ t\nos.environ[\"HERMES_LANGUAGE\"] = \"ru\"\nreset_language_cache()\n\nc = SimpleNamespace(\n\
+    \    reason=FailoverReason.subscription_limit,\n    error_context={\"reset_window_str\"\
+    : \"1h 44m 7s\"}\n)\ncopy1 = nonretryable_copy(c, provider=\"gpt\", model=\"gpt-6.1-sol\"\
+    , summary=\"Unavailable (reset after 1h 44m 7s)\")\nassert copy1 == \"Лимит подписки\
+    \ исчерпан, сброс через 1h 44m 7s. Поменять модель: /model или дождитесь.\"\n\n\
+    c2 = SimpleNamespace(\n    reason=FailoverReason.subscription_limit,\n    error_context={\"\
+    reset_window_str\": \"23h 32m\"}\n)\ncopy2 = nonretryable_copy(c2, provider=\"\
+    gpt\", model=\"gpt-6.1-sol\", summary=\"HTTP 429: All credentials for model gpt-6.1-sol\
+    \ are cooling down\")\nassert copy2 == \"Лимит подписки исчерпан, сброс через\
+    \ 23h 32m. Поменять модель: /model или дождитесь.\"\n\ncopy3 = exhausted_copy(\n\
+    \    FailoverReason.subscription_limit.value,\n    label=\"GPT\",\n    attempts=3,\n\
+    \    summary=\"HTTP 429: All credentials for model gpt-6.1-sol are cooling down\"\
+    ,\n    reset_seconds=84720\n)\nassert copy3 == \"Лимит подписки исчерпан, сброс\
+    \ через 23h 32m. Поменять модель: /model или дождитесь.\"\n\nassert t(\"subscription_limit.notice\"\
+    , lang=\"ru\", time=\"1h 44m 7s\") == \"Лимит подписки исчерпан, сброс через 1h\
+    \ 44m 7s. Поменять модель: /model или дождитесь.\"\n"
+  test_turn_failure_copy_english: "import os\nfrom types import SimpleNamespace\n\
+    from agent.error_classifier import FailoverReason\nfrom agent.turn_failure_copy\
+    \ import nonretryable_copy, exhausted_copy\nfrom agent.i18n import reset_language_cache,\
+    \ t\nos.environ[\"HERMES_LANGUAGE\"] = \"en\"\nreset_language_cache()\n\nc = SimpleNamespace(\n\
+    \    reason=FailoverReason.subscription_limit,\n    error_context={\"reset_window_str\"\
+    : \"1h 44m 7s\"}\n)\ncopy1 = nonretryable_copy(c, provider=\"gpt\", model=\"gpt-6.1-sol\"\
+    , summary=\"Unavailable (reset after 1h 44m 7s)\")\nassert copy1 == \"Subscription\
+    \ limit reached, resets in 1h 44m 7s. Switch model: /model or wait.\"\n\nc2 =\
+    \ SimpleNamespace(\n    reason=FailoverReason.subscription_limit,\n    error_context={\"\
+    reset_window_str\": \"23h 32m\"}\n)\ncopy2 = nonretryable_copy(c2, provider=\"\
+    gpt\", model=\"gpt-6.1-sol\", summary=\"HTTP 429: All credentials for model gpt-6.1-sol\
+    \ are cooling down\")\nassert copy2 == \"Subscription limit reached, resets in\
+    \ 23h 32m. Switch model: /model or wait.\"\n\ncopy3 = exhausted_copy(\n    FailoverReason.subscription_limit.value,\n\
+    \    label=\"GPT\",\n    attempts=3,\n    summary=\"HTTP 429: All credentials\
+    \ for model gpt-6.1-sol are cooling down\",\n    reset_seconds=84720\n)\nassert\
+    \ copy3 == \"Subscription limit reached, resets in 23h 32m. Switch model: /model\
+    \ or wait.\"\n\nassert t(\"subscription_limit.notice\", lang=\"en\", time=\"1h\
+    \ 44m 7s\") == \"Subscription limit reached, resets in 1h 44m 7s. Switch model:\
+    \ /model or wait.\"\nos.environ.pop(\"HERMES_LANGUAGE\", None)\nreset_language_cache()\n"
+  test_turn_failure_copy_unknown_time: "import os\nfrom types import SimpleNamespace\n\
+    from agent.error_classifier import FailoverReason\nfrom agent.turn_failure_copy\
+    \ import nonretryable_copy\nfrom agent.i18n import reset_language_cache\nos.environ[\"\
+    HERMES_LANGUAGE\"] = \"ru\"\nreset_language_cache()\nc = SimpleNamespace(\n  \
+    \  reason=FailoverReason.subscription_limit,\n    error_context={}\n)\ncopy_ru\
+    \ = nonretryable_copy(c, provider=\"gpt\", model=\"gpt-6.1-sol\", summary=\"cooling\
+    \ down\")\nassert copy_ru == \"Лимит подписки исчерпан, сброс через некоторое\
+    \ время. Поменять модель: /model или дождитесь.\"\n\nos.environ[\"HERMES_LANGUAGE\"\
+    ] = \"en\"\nreset_language_cache()\ncopy_en = nonretryable_copy(c, provider=\"\
+    gpt\", model=\"gpt-6.1-sol\", summary=\"cooling down\")\nassert copy_en == \"\
+    Subscription limit reached, resets in some time. Switch model: /model or wait.\"\
+    \n\nos.environ.pop(\"HERMES_LANGUAGE\", None)\nreset_language_cache()\n"
+targets:
+- file: agent/error_classifier.py
+  description: Add subscription_limit to FailoverReason enum
+  old_block: "    multimodal_tool_content_unsupported = \"multimodal_tool_content_unsupported\"\
+    \  # Provider rejected list-type content in tool messages (e.g. Xiaomi MiMo) —\
+    \ downgrade to text and retry\n    reasoning_mandatory = \"reasoning_mandatory\"\
+    \  # Route rejects reasoning: {enabled: false} — send the disable no more this\
+    \ session and retry\n\n    # Provider-specific"
+  new_block: "    multimodal_tool_content_unsupported = \"multimodal_tool_content_unsupported\"\
+    \  # Provider rejected list-type content in tool messages (e.g. Xiaomi MiMo) —\
+    \ downgrade to text and retry\n    reasoning_mandatory = \"reasoning_mandatory\"\
+    \  # Route rejects reasoning: {enabled: false} — send the disable no more this\
+    \ session and retry\n    subscription_limit = \"subscription_limit\"  # 429/503\
+    \ or quota reset after — subscription usage limit reached, wait or change model\n\
+    \n    # Provider-specific"
+- file: agent/error_classifier.py
+  description: Subscription limit verdict helper and _STAGES registration
+  old_block: "def _by_status(c: _Ctx) -> Optional[Verdict]:\n    \"\"\"HTTP status\
+    \ code with message-aware refinement (unlisted 4xx/5xx → generic).\"\"\"\n   \
+    \ status = c.status_code\n    if status is None:\n        return None\n    default\
+    \ = _V_FORMAT_ERROR if 400 <= status < 500 else _V_SERVER_ERROR if 500 <= status\
+    \ < 600 else None\n    return _STATUS_HANDLERS[status](c) if status in _STATUS_HANDLERS\
+    \ else default\n\n\n# Stage order: plugin hooks → the provider's own profile hook\
+    \ → provider-specific special cases →\n# HTTP status → MoA shapes → structured\
+    \ error code → message patterns → SSL → disconnect +\n# large session → transport\
+    \ types → unknown (retryable with backoff).\n_STAGES: Sequence[Callable[[_Ctx],\
+    \ Optional[Verdict]]] = (\n    _plugin_verdict, _profile_verdict, _provider_special_cases,\
+    \ _by_status, _moa_special_cases,\n    _by_error_code, _by_message, _by_transport,\n\
+    )\n"
+  new_block: "_RESET_HINT_PATTERNS = (\n    re.compile(r\"reset(?:s)?\\s+after\\s+([^\\\
+    ),\\n\\\"]+)\", re.IGNORECASE),\n    re.compile(r\"resets?\\s+in\\s+~?([^\\),\\\
+    .\\n\\\"]+)\", re.IGNORECASE),\n    re.compile(r\"will\\s+reset\\s+after\\s+([^\\\
+    ),\\n\\\"]+)\", re.IGNORECASE),\n    re.compile(r\"cooling\\s+down\\s*\\(([^)]+)\\\
+    )\", re.IGNORECASE),\n)\n\n\ndef _format_cooldown_human(total_sec: float) -> str:\n\
+    \    import math\n    total = max(0, int(math.ceil(total_sec)))\n    h = total\
+    \ // 3600\n    m = (total % 3600) // 60\n    s = total % 60\n    parts = []\n\
+    \    if h > 0:\n        parts.append(f\"{h}h\")\n        if m > 0:\n         \
+    \   parts.append(f\"{m}m\")\n    elif m > 0:\n        parts.append(f\"{m}m\")\n\
+    \        if s > 0:\n            parts.append(f\"{s}s\")\n    else:\n        parts.append(f\"\
+    {s}s\")\n    return \" \".join(parts)\n\n\ndef _parse_duration_to_seconds(text:\
+    \ str) -> Optional[float]:\n    total = 0.0\n    matched = False\n    clean_text\
+    \ = text.lstrip(\"~\").strip()\n    m_h = re.search(r\"(\\d+(?:\\.\\d+)?)\\s*(?:h|hr|hrs|hour|hours)\"\
+    , clean_text, re.IGNORECASE)\n    if m_h:\n        total += float(m_h.group(1))\
+    \ * 3600\n        matched = True\n    m_m = re.search(r\"(\\d+(?:\\.\\d+)?)\\\
+    s*(?:m|min|mins|minute|minutes)\", clean_text, re.IGNORECASE)\n    if m_m:\n \
+    \       total += float(m_m.group(1)) * 60\n        matched = True\n    m_s = re.search(r\"\
+    (\\d+(?:\\.\\d+)?)\\s*(?:s|sec|secs|second|seconds)\", clean_text, re.IGNORECASE)\n\
+    \    if m_s:\n        total += float(m_s.group(1))\n        matched = True\n \
+    \   if not matched:\n        m_num = re.search(r\"^(\\d+(?:\\.\\d+)?)$\", clean_text)\n\
+    \        if m_num:\n            return float(m_num.group(1))\n        return None\n\
+    \    return total\n\n\ndef _subscription_limit_verdict(c: _Ctx) -> Optional[Verdict]:\n\
+    \    \"\"\"Detect subscription quota exhaustion: 'Unavailable (reset after <X>)',\
+    \ 429/503 with cooldown, or 'cooling down'.\"\"\"\n    raw_text = f\"{str(c.error)}\
+    \ {c.msg}\"\n    raw_lower = raw_text.lower()\n    status = c.status_code if c.status_code\
+    \ is not None else getattr(c, \"status_code\", None)\n    if status is None:\n\
+    \        m_stat = re.search(r\"\\b(429|503)\\b\", raw_text)\n        if m_stat:\n\
+    \            status = int(m_stat.group(1))\n\n    x_val = None\n    reset_sec\
+    \ = None\n\n    for pat in _RESET_HINT_PATTERNS:\n        m = pat.search(raw_text)\n\
+    \        if m:\n            matched_str = m.group(1).strip().lstrip(\"~\").strip()\n\
+    \            parsed = _parse_duration_to_seconds(matched_str)\n            if\
+    \ parsed is not None and parsed > 0:\n                reset_sec = parsed\n   \
+    \             x_val = matched_str\n                break\n\n    if reset_sec is\
+    \ None:\n        for payload in (p for p in (c.body, _error_obj(c.body) if \"\
+    _error_obj\" in globals() else None) if isinstance(p, dict)):\n            for\
+    \ k in (\"reset_seconds\", \"resets_in_seconds\", \"retry_after\", \"reset_after\"\
+    ):\n                val = payload.get(k)\n                if val not in (None,\
+    \ \"\"):\n                    if isinstance(val, (int, float)):\n            \
+    \            reset_sec = float(val)\n                        break\n         \
+    \           elif isinstance(val, str):\n                        try:\n       \
+    \                     reset_sec = float(val)\n                            break\n\
+    \                        except ValueError:\n                            parsed\
+    \ = _parse_duration_to_seconds(val)\n                            if parsed is\
+    \ not None and parsed > 0:\n                                reset_sec = parsed\n\
+    \                                break\n            if reset_sec is not None:\n\
+    \                break\n\n    if reset_sec is None:\n        m_sec = re.search(r\"\
+    (?:reset_seconds|resets_in_seconds)[\\\"':\\s=]+(\\d+(?:\\.\\d+)?)\", raw_text,\
+    \ re.IGNORECASE)\n        if m_sec:\n            try:\n                reset_sec\
+    \ = float(m_sec.group(1))\n            except (ValueError, TypeError):\n     \
+    \           pass\n\n    if reset_sec is None:\n        reset_sec = _rate_limit_reset_seconds(c.msg,\
+    \ c.body, c.headers)\n\n    has_cooldown_keyword = any(kw in raw_lower for kw\
+    \ in (\n        \"cooling down\", \"cooldown\", \"model_cooldown\", \"all credentials\
+    \ for model\",\n        \"reset after\", \"resets in\", \"quota\", \"exhausted\"\
+    , \"subscription\"\n    )) or getattr(c, \"code\", \"\") == \"model_cooldown\"\
+    \n\n    is_sub_limit = False\n    if x_val is not None:\n        is_sub_limit\
+    \ = True\n    elif \"model_cooldown\" in raw_lower or \"cooling down\" in raw_lower\
+    \ or \"all credentials for model\" in raw_lower or getattr(c, \"code\", \"\")\
+    \ == \"model_cooldown\":\n        is_sub_limit = True\n    elif status in (429,\
+    \ 503):\n        if has_cooldown_keyword:\n            is_sub_limit = True\n \
+    \       elif reset_sec is not None and reset_sec >= 60:\n            is_sub_limit\
+    \ = True\n\n    if is_sub_limit:\n        if reset_sec and reset_sec > 0:\n  \
+    \          if not x_val:\n                x_val = _format_cooldown_human(reset_sec)\n\
+    \        else:\n            x_val = x_val or None\n\n        return {\n      \
+    \      \"reason\": FailoverReason.subscription_limit,\n            \"retryable\"\
+    : False,\n            \"should_fallback\": False,\n            \"should_compress\"\
+    : False,\n            \"should_rotate_credential\": False,\n            \"error_context\"\
+    : {\n                \"reset_window_str\": x_val,\n                \"reset_at\"\
+    : time.time() + reset_sec if reset_sec else None,\n            },\n        }\n\
+    \    return None\n\n\ndef _by_status(c: _Ctx) -> Optional[Verdict]:\n    \"\"\"\
+    HTTP status code with message-aware refinement (unlisted 4xx/5xx → generic).\"\
+    \"\"\n    status = c.status_code\n    if status is None:\n        return None\n\
+    \    default = _V_FORMAT_ERROR if 400 <= status < 500 else _V_SERVER_ERROR if\
+    \ 500 <= status < 600 else None\n    return _STATUS_HANDLERS[status](c) if status\
+    \ in _STATUS_HANDLERS else default\n\n\n# Stage order: plugin hooks → the provider's\
+    \ own profile hook → provider-specific special cases →\n# HTTP status → MoA shapes\
+    \ → structured error code → message patterns → SSL → disconnect +\n# large session\
+    \ → transport types → unknown (retryable with backoff).\n_STAGES: Sequence[Callable[[_Ctx],\
+    \ Optional[Verdict]]] = (\n    _subscription_limit_verdict,\n    _plugin_verdict,\
+    \ _profile_verdict, _provider_special_cases, _by_status, _moa_special_cases,\n\
+    \    _by_error_code, _by_message, _by_transport,\n)\n"
+- file: agent/error_classifier.py
+  description: 429 and 503 status handlers subscription limit check
+  old_block: "    429: _status_429, 500: _status_5xx, 502: _status_5xx,\n    503:\
+    \ lambda c: _first_match(c.msg, _OVERFLOW_AS_5XX_RULES) or _V_OVERLOADED,\n  \
+    \  529: lambda c: _first_match(c.msg, _OVERFLOW_AS_5XX_RULES) or _V_OVERLOADED,"
+  new_block: "    429: lambda c: _subscription_limit_verdict(c) or _status_429(c),\n\
+    \    500: _status_5xx, 502: _status_5xx,\n    503: lambda c: _subscription_limit_verdict(c)\
+    \ or _first_match(c.msg, _OVERFLOW_AS_5XX_RULES) or _V_OVERLOADED,\n    529: lambda\
+    \ c: _first_match(c.msg, _OVERFLOW_AS_5XX_RULES) or _V_OVERLOADED,"
+- file: agent/turn_failure_copy.py
+  description: Add subscription_limit to FAILURE_CAUSE_GLOSS
+  old_block: "FAILURE_CAUSE_GLOSS: dict[str, str] = {\n    FailoverReason.timeout.value:\
+    \ \"the AI model service did not respond in time\",\n    FailoverReason.rate_limit.value:\
+    \ \"the AI model service was rate-limited (too many requests)\",\n    FailoverReason.upstream_rate_limit.value:\
+    \ \"the AI model service was rate-limited (too many requests)\",\n    FailoverReason.overloaded.value:\
+    \ \"the AI model service is overloaded right now\",\n    FailoverReason.server_error.value:\
+    \ \"the AI model service returned an internal error\",\n    FailoverReason.billing.value:\
+    \ \"the AI model service says the account's usage or credit limit is reached\"\
+    ,\n"
+  new_block: "FAILURE_CAUSE_GLOSS: dict[str, str] = {\n    FailoverReason.subscription_limit.value:\
+    \ \"the subscription limit was reached\",\n    FailoverReason.timeout.value: \"\
+    the AI model service did not respond in time\",\n    FailoverReason.rate_limit.value:\
+    \ \"the AI model service was rate-limited (too many requests)\",\n    FailoverReason.upstream_rate_limit.value:\
+    \ \"the AI model service was rate-limited (too many requests)\",\n    FailoverReason.overloaded.value:\
+    \ \"the AI model service is overloaded right now\",\n    FailoverReason.server_error.value:\
+    \ \"the AI model service returned an internal error\",\n    FailoverReason.billing.value:\
+    \ \"the AI model service says the account's usage or credit limit is reached\"\
+    ,\n"
+- file: agent/turn_failure_copy.py
+  description: Immediate localized subscription limit notice in exhausted_copy
+  old_block: "def site_copy(code: str, **fields: Any) -> str:\n    \"\"\"Chat copy\
+    \ for a failure code or one-off loop outcome; unknown fields default to empty\
+    \ strings.\"\"\"\n    fields.setdefault(\"home\", display_hermes_home())\n   \
+    \ return _SITE_COPY[code].format_map(_Defaults(fields))\n\n\ndef exhausted_copy(reason:\
+    \ str, *, label: str, attempts: int, summary: str, reset_seconds: Optional[float]\
+    \ = None) -> str:\n    \"\"\"Chat copy once retries + fallback are exhausted (``max_retries_exhausted_result``).\
+    \ A rate\n    limit whose reset window is known names it: an 8.6h plan quota is\
+    \ not \"wait a minute\" (#89401).\"\"\"\n    first_attempt = attempts == 1 and\
+    \ reason in _EXHAUSTED_FIRST_ATTEMPT_LEADS\n    lead = (_EXHAUSTED_FIRST_ATTEMPT_LEADS\
+    \ if first_attempt else _EXHAUSTED_LEADS).get(\n        reason, _EXHAUSTED_DEFAULT_LEAD).format(label=label,\
+    \ attempts=attempts)\n"
+  new_block: "def site_copy(code: str, **fields: Any) -> str:\n    \"\"\"Chat copy\
+    \ for a failure code or one-off loop outcome; unknown fields default to empty\
+    \ strings.\"\"\"\n    fields.setdefault(\"home\", display_hermes_home())\n   \
+    \ return _SITE_COPY[code].format_map(_Defaults(fields))\n\n\ntry:\n    from agent.i18n_layers\
+    \ import register_pack\n    register_pack(\"ru\", \"core\", {\n        \"subscription_limit.notice\"\
+    : \"Лимит подписки исчерпан, сброс через {time}. Поменять модель: /model или дождитесь.\"\
+    ,\n        \"subscription_limit.unknown_time\": \"некоторое время\",\n    }, source=\"\
+    mod:subscription-limit-notice\")\n    register_pack(\"en\", \"core\", {\n    \
+    \    \"subscription_limit.notice\": \"Subscription limit reached, resets in {time}.\
+    \ Switch model: /model or wait.\",\n        \"subscription_limit.unknown_time\"\
+    : \"some time\",\n    }, source=\"mod:subscription-limit-notice\")\nexcept Exception:\n\
+    \    pass\n\n\ndef _format_subscription_notice(time_val: Optional[str] = None)\
+    \ -> str:\n    try:\n        from agent.i18n import t, get_language\n        lang\
+    \ = (get_language() or \"ru\").lower()\n        is_en = lang.startswith(\"en\"\
+    )\n        if not time_val:\n            time_res = t(\"subscription_limit.unknown_time\"\
+    )\n            if time_res and time_res != \"subscription_limit.unknown_time\"\
+    :\n                time_val = time_res\n            else:\n                time_val\
+    \ = \"some time\" if is_en else \"некоторое время\"\n        res = t(\"subscription_limit.notice\"\
+    , time=time_val, x_val=time_val)\n        if res and res != \"subscription_limit.notice\"\
+    :\n            return res\n        if is_en:\n            return f\"Subscription\
+    \ limit reached, resets in {time_val}. Switch model: /model or wait.\"\n     \
+    \   return f\"Лимит подписки исчерпан, сброс через {time_val}. Поменять модель:\
+    \ /model или дождитесь.\"\n    except Exception:\n        return f\"Лимит подписки\
+    \ исчерпан, сброс через {time_val or 'некоторое время'}. Поменять модель: /model\
+    \ или дождитесь.\"\n\n\ndef exhausted_copy(reason: str, *, label: str, attempts:\
+    \ int, summary: str, reset_seconds: Optional[float] = None) -> str:\n    \"\"\"\
+    Chat copy once retries + fallback are exhausted (``max_retries_exhausted_result``).\
+    \ A rate\n    limit whose reset window is known names it: an 8.6h plan quota is\
+    \ not \"wait a minute\" (#89401).\"\"\"\n    summary_lower = summary.lower()\n\
+    \    is_sub = (\n        reason in (getattr(FailoverReason, \"subscription_limit\"\
+    , None) and FailoverReason.subscription_limit.value, \"subscription_limit\")\n\
+    \        or \"unavailable (reset after\" in summary_lower\n        or (\"reset\
+    \ after\" in summary_lower and any(code in summary for code in (\"429\", \"503\"\
+    )))\n        or \"cooling down\" in summary_lower\n        or \"model_cooldown\"\
+    \ in summary_lower\n        or (reset_seconds is not None and reset_seconds >=\
+    \ 60 and (\"rate\" in reason or \"quota\" in summary_lower or \"429\" in summary))\n\
+    \    )\n    if is_sub:\n        import re\n        from agent.error_classifier\
+    \ import _format_cooldown_human\n        m = re.search(r\"reset(?:s)?\\s+(?:after|in)\\\
+    s+~?([^\\),\\.\\\"\\n]+)\", summary, re.IGNORECASE)\n        if m:\n         \
+    \   x_val = m.group(1).strip()\n        elif reset_seconds is not None and reset_seconds\
+    \ > 0:\n            x_val = _format_cooldown_human(reset_seconds)\n        else:\n\
+    \            m_sec = re.search(r\"(?:reset_seconds|resets_in_seconds)[\\\"':\\\
+    s=]+(\\d+(?:\\.\\d+)?)\", summary, re.IGNORECASE)\n            if m_sec:\n   \
+    \             try:\n                    x_val = _format_cooldown_human(float(m_sec.group(1)))\n\
+    \                except (ValueError, TypeError):\n                    x_val =\
+    \ None\n            else:\n                m2 = re.search(r\"cooling down\\s*\\\
+    (([^)]+)\\)\", summary, re.IGNORECASE)\n                x_val = m2.group(1).strip()\
+    \ if m2 else None\n        return _format_subscription_notice(x_val)\n    first_attempt\
+    \ = attempts == 1 and reason in _EXHAUSTED_FIRST_ATTEMPT_LEADS\n    lead = (_EXHAUSTED_FIRST_ATTEMPT_LEADS\
+    \ if first_attempt else _EXHAUSTED_LEADS).get(\n        reason, _EXHAUSTED_DEFAULT_LEAD).format(label=label,\
+    \ attempts=attempts)\n"
+- file: agent/turn_failure_copy.py
+  description: Immediate localized subscription limit notice in nonretryable_copy
+  old_block: "def nonretryable_copy(\n    classified: Any, *, provider: Any, model:\
+    \ Any, summary: str, prefix_suggestion: Optional[str] = None,\n) -> str:\n   \
+    \ \"\"\"Chat copy for a terminal non-retryable rejection (auth, model missing,\
+    \ TLS, generic 4xx).\"\"\"\n    label = provider_label_for(provider)\n    if getattr(classified,\
+    \ \"is_auth\", False):\n        from agent.error_surface import auth_kind\n"
+  new_block: "def nonretryable_copy(\n    classified: Any, *, provider: Any, model:\
+    \ Any, summary: str, prefix_suggestion: Optional[str] = None,\n) -> str:\n   \
+    \ \"\"\"Chat copy for a terminal non-retryable rejection (auth, model missing,\
+    \ TLS, generic 4xx).\"\"\"\n    reason_val = getattr(getattr(classified, \"reason\"\
+    , None), \"value\", None) or getattr(classified, \"reason\", None)\n    summary_lower\
+    \ = summary.lower()\n    code_val = getattr(classified, \"code\", \"\") or \"\"\
+    \n    is_sub = (\n        reason_val in (getattr(FailoverReason, \"subscription_limit\"\
+    , None) and FailoverReason.subscription_limit.value, \"subscription_limit\")\n\
+    \        or \"unavailable (reset after\" in summary_lower\n        or (\"reset\
+    \ after\" in summary_lower and any(code in summary for code in (\"429\", \"503\"\
+    )))\n        or \"cooling down\" in summary_lower\n        or \"model_cooldown\"\
+    \ in summary_lower\n        or code_val == \"model_cooldown\"\n    )\n    if is_sub:\n\
+    \        ctx = getattr(classified, \"error_context\", None) or {}\n        x_val\
+    \ = ctx.get(\"reset_window_str\")\n        if not x_val and ctx.get(\"reset_at\"\
+    ):\n            import time\n            from agent.error_classifier import _format_cooldown_human\n\
+    \            rem = float(ctx[\"reset_at\"]) - time.time()\n            if rem\
+    \ > 0:\n                x_val = _format_cooldown_human(rem)\n        if not x_val:\n\
+    \            import re\n            from agent.error_classifier import _format_cooldown_human\n\
+    \            m = re.search(r\"reset(?:s)?\\s+(?:after|in)\\s+~?([^\\),\\.\\\"\\\
+    n]+)\", summary, re.IGNORECASE)\n            if m:\n                x_val = m.group(1).strip()\n\
+    \            else:\n                m_sec = re.search(r\"(?:reset_seconds|resets_in_seconds)[\\\
+    \"':\\s=]+(\\d+(?:\\.\\d+)?)\", summary, re.IGNORECASE)\n                if m_sec:\n\
+    \                    try:\n                        x_val = _format_cooldown_human(float(m_sec.group(1)))\n\
+    \                    except (ValueError, TypeError):\n                       \
+    \ x_val = None\n                else:\n                    m2 = re.search(r\"\
+    cooling down\\s*\\(([^)]+)\\)\", summary, re.IGNORECASE)\n                   \
+    \ x_val = m2.group(1).strip() if m2 else None\n        return _format_subscription_notice(x_val)\n\
+    \    label = provider_label_for(provider)\n    if getattr(classified, \"is_auth\"\
+    , False):\n        from agent.error_surface import auth_kind\n"
+- file: agent/turn_recovery.py
+  description: Immediate turn termination on long cooldown or cooling down in free_tier_cooldown_ends_turn
+  old_block: "def free_tier_cooldown_ends_turn(agent: Any, api_error: Exception, base_url:\
+    \ Any) -> bool:\n    \"\"\"True when an attended session on the free model meets\
+    \ a cooldown longer than a person\n    sits through. The free tier's pause is\
+    \ service-wide: a 600 s retry met a second 429 while its\n    1069 s window ran,\
+    \ so the caller ends the attempt cycle now (fallback, or the reset time and\n\
+    \    the sign-in / model doors). Every other provider, and every unattended run\
+    \ (cron, messaging,\n    ``hermes chat -q``), waits out its ``Retry-After``: a\
+    \ paid bucket reopens on time, and\n    ``fallback.min_switch_reset_seconds``\
+    \ relies on that wait.\"\"\"\n    from agent.retry_utils import LIVE_RETRY_WAIT_CAP_S,\
+    \ provider_retry_after_seconds\n    from agent.session_source import is_attended\n\
+    \    from hermes_cli.anon_auth import on_free_model\n    if not (on_free_model(agent,\
+    \ base_url) and is_attended(agent)):\n        return False\n    cooldown = provider_retry_after_seconds(api_error)\n\
+    \    return cooldown is not None and cooldown > LIVE_RETRY_WAIT_CAP_S\n"
+  new_block: "def free_tier_cooldown_ends_turn(agent: Any, api_error: Exception, base_url:\
+    \ Any) -> bool:\n    \"\"\"True when an attended session on the free model meets\
+    \ a cooldown longer than a person\n    sits through. The free tier's pause is\
+    \ service-wide: a 600 s retry met a second 429 while its\n    1069 s window ran,\
+    \ so the caller ends the attempt cycle now (fallback, or the reset time and\n\
+    \    the sign-in / model doors). Every other provider, and every unattended run\
+    \ (cron, messaging,\n    ``hermes chat -q``), waits out its ``Retry-After``: a\
+    \ paid bucket reopens on time, and\n    ``fallback.min_switch_reset_seconds``\
+    \ relies on that wait.\"\"\"\n    from agent.retry_utils import LIVE_RETRY_WAIT_CAP_S,\
+    \ provider_retry_after_seconds\n    from agent.session_source import is_attended\n\
+    \    from hermes_cli.anon_auth import on_free_model\n    err_str = str(api_error).lower()\n\
+    \    if \"cooling down\" in err_str or \"reset after\" in err_str or \"subscription\"\
+    \ in err_str or \"model_cooldown\" in err_str:\n        return True\n    cooldown\
+    \ = provider_retry_after_seconds(api_error)\n    if cooldown is not None and cooldown\
+    \ >= 60:\n        return True\n    if not (on_free_model(agent, base_url) and\
+    \ is_attended(agent)):\n        return False\n    return cooldown is not None\
+    \ and cooldown > LIVE_RETRY_WAIT_CAP_S\n"

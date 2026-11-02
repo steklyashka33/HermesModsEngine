@@ -1,0 +1,10 @@
+targets:
+- file: gateway/slash_commands_session.py
+  old_block: "        target_text = result[\"target_text\"]\n        preview = target_text[:200]\
+    \ + \"...\" if len(target_text) > 200 else target_text\n        return t(\"gateway.undo.removed\"\
+    , turns=result[\"turns_undone\"],\n                 count=result[\"rewound_count\"\
+    ], preview=preview)"
+  new_block: "        target_text = result[\"target_text\"]\n        preview = target_text[:100]\
+    \ + \"...\" if len(target_text) > 100 else target_text\n        return f\"↩️ Отменено:\
+    \ {result['turns_undone']} ход(а)\\n«{preview}»\""
+  description: compact-undo-response

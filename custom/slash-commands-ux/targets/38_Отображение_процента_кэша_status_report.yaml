@@ -1,0 +1,43 @@
+targets:
+- description: Подсчет процента кэша в build_status_fields
+  file: hermes_cli/status_report.py
+  new_block: "    if tokens is None:\n        tokens = getattr(agent, \"session_total_tokens\"\
+    , 0) or 0\n    cr = getattr(agent, \"session_cache_read_tokens\", 0) or 0\n  \
+    \  cw = getattr(agent, \"session_cache_write_tokens\", 0) or 0\n    if meta:\n\
+    \        cr = max(cr, int(meta.get(\"cache_read_tokens\") or 0))\n        cw =\
+    \ max(cw, int(meta.get(\"cache_write_tokens\") or 0))\n    c_tokens = cr + cw\n\
+    \    inp = getattr(agent, \"session_input_tokens\", 0) or 0\n    out = getattr(agent,\
+    \ \"session_output_tokens\", 0) or 0\n    if meta:\n        inp = max(inp, int(meta.get(\"\
+    input_tokens\") or 0))\n        out = max(out, int(meta.get(\"output_tokens\"\
+    ) or 0))\n    prompt_tokens = inp + c_tokens\n    cache_pct = round(c_tokens /\
+    \ prompt_tokens * 100) if (c_tokens > 0 and prompt_tokens > 0) else 0\n    total_val\
+    \ = (inp + c_tokens + out) if (inp + c_tokens + out) > 0 else int(tokens or 0)\n\
+    \n    row_title = meta.get(\"title\") if title is None else title\n    return\
+    \ {\n        \"session_id\": str(session_id or \"\"),\n        \"path\": display_hermes_home(Path(home)\
+    \ if home else None),\n        \"title\": (row_title or \"\").strip(),\n     \
+    \   \"model\": getattr(agent, \"model\", None) or model or \"\",\n        \"provider\"\
+    : getattr(agent, \"provider\", None) or provider or \"\",\n        \"created\"\
+    : created.strftime(STATUS_STAMP),\n        \"last_activity\": last_activity.strftime(STATUS_STAMP),\n\
+    \        \"tokens\": f\"{int(total_val):,}\",\n        \"cache_pct\": cache_pct,\n\
+    \        \"agent_running\": bool(agent_running),\n    }"
+  old_block: "    if tokens is None:\n        tokens = getattr(agent, \"session_total_tokens\"\
+    , 0) or 0\n    row_title = meta.get(\"title\") if title is None else title\n \
+    \   return {\n        \"session_id\": str(session_id or \"\"),\n        \"path\"\
+    : display_hermes_home(Path(home) if home else None),\n        \"title\": (row_title\
+    \ or \"\").strip(),\n        \"model\": getattr(agent, \"model\", None) or model\
+    \ or \"\",\n        \"provider\": getattr(agent, \"provider\", None) or provider\
+    \ or \"\",\n        \"created\": created.strftime(STATUS_STAMP),\n        \"last_activity\"\
+    : last_activity.strftime(STATUS_STAMP),\n        \"tokens\": f\"{int(tokens or\
+    \ 0):,}\",\n        \"agent_running\": bool(agent_running),\n    }"
+- description: Добавление процента кэша к Tokens в status_lines
+  file: hermes_cli/status_report.py
+  new_block: "        if key == \"model\":\n            value = f\"{fields['model']\
+    \ or UNKNOWN_MODEL} ({fields['provider'] or UNKNOWN_PROVIDER})\"\n        elif\
+    \ key == \"agent_running\":\n            value = \"Yes\" if value else \"No\"\n\
+    \        elif key == \"tokens\" and fields.get(\"cache_pct\"):\n            value\
+    \ = f\"{value} ({fields['cache_pct']}% cache)\"\n        lines.append(f\"{STATUS_LABELS[key]}:\
+    \ {value}\")\n    return lines"
+  old_block: "        if key == \"model\":\n            value = f\"{fields['model']\
+    \ or UNKNOWN_MODEL} ({fields['provider'] or UNKNOWN_PROVIDER})\"\n        elif\
+    \ key == \"agent_running\":\n            value = \"Yes\" if value else \"No\"\n\
+    \        lines.append(f\"{STATUS_LABELS[key]}: {value}\")\n    return lines"

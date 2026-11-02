@@ -1,0 +1,337 @@
+targets:
+- file: hermes_cli/commands.py
+  description: CommandDef unlimited для сессии
+  old_block: "    CommandDef(\"refine\", \"Review this conversation now and save lessons\
+    \ to memory/skills\", \"Session\",\n               args_hint=\"[focus instructions]\"\
+    ),"
+  new_block: "    CommandDef(\"refine\", \"Review this conversation now and save lessons\
+    \ to memory/skills\", \"Session\",\n               args_hint=\"[focus instructions]\"\
+    ),\n    CommandDef(\"unlimited\", \"Enable or disable unlimited mode for current\
+    \ session (agent and subagent iterations)\", \"Session\",\n               args_hint=\"\
+    [on|off|status]\"),"
+- file: gateway/run_busy.py
+  description: Регистрация /unlimited в _IDLE_COMMANDS
+  old_block: '        "loop", "refine", "review", "voice",'
+  new_block: '        "loop", "refine", "review", "voice", "unlimited",'
+- file: gateway/slash_commands_session.py
+  description: Хэндлер _handle_unlimited_command для переключения режима безлимита
+  old_block: '    async def _handle_title_command(self, event: MessageEvent) -> str:'
+  new_block: "    # ---------------------------------------------------------------------\
+    \ /unlimited\n\n    async def _handle_unlimited_command(self, event: MessageEvent)\
+    \ -> str:\n        \"\"\"Handle /unlimited [on|off|status] — toggle or inspect\
+    \ unlimited mode for this session.\"\"\"\n        source = event.source\n    \
+    \    session_entry = await self.async_session_store.get_or_create_session(source)\n\
+    \        session_key = self._session_key_for_source(source)\n        raw_arg =\
+    \ (event.get_command_args() or \"\").strip().lower()\n\n        store = getattr(self,\
+    \ \"session_store\", None)\n        current_mode = bool(store.get_session_metadata(session_key,\
+    \ \"unlimited_mode\", False)) if (store and hasattr(store, \"get_session_metadata\"\
+    )) else False\n\n        from tools.delegate_tool_config import _get_max_concurrent_children,\
+    \ _get_max_spawn_depth, _get_unlimited_limits\n        unlimited_children, unlimited_depth\
+    \ = _get_unlimited_limits()\n        normal_children, normal_depth = _get_max_concurrent_children(),\
+    \ _get_max_spawn_depth()\n\n        if raw_arg in (\"status\", \"check\", \"?\"\
+    , \"info\"):\n            state_str = \"\U0001F7E2 **ВКЛЮЧЁН (активен)**\" if\
+    \ current_mode else \"⚪ **ВЫКЛЮЧЕН (стандартные лимиты)**\"\n            return\
+    \ (\n                f\"⚡ **Режим Unlimited:** {state_str}\\n\"\n            \
+    \    f\"• Итерации основного агента: {'не ограничены (unlimited)' if current_mode\
+    \ else 'стандартный лимит'}\\n\"\n                f\"• Итерации субагентов: {'не\
+    \ ограничены (unlimited)' if current_mode else '60'}\\n\"\n                f\"\
+    • Параллельные субагенты: {f'до {unlimited_children} (суммарно по дереву)' if\
+    \ current_mode else f'до {normal_children}'}\\n\"\n                f\"• Глубина\
+    \ вложенности: {f'до {unlimited_depth}' if current_mode else f'до {normal_depth}'}\\\
+    n\\n\"\n                f\"Команды: `/unlimited on`, `/unlimited off`.\"\n   \
+    \         )\n\n        if raw_arg in (\"on\", \"enable\", \"1\", \"true\"):\n\
+    \            new_mode = True\n        elif raw_arg in (\"off\", \"disable\", \"\
+    0\", \"false\"):\n            new_mode = False\n        elif not raw_arg:\n  \
+    \          new_mode = not current_mode\n        else:\n            return \"ℹ️\
+    \ Использование: `/unlimited [on|off|status]`\\nВключает или выключает режим снятия\
+    \ лимитов для текущей сессии.\"\n\n        self.session_store.set_session_metadata(session_key,\
+    \ \"unlimited_mode\", new_mode)\n\n        cached_agent = self._cached_agent_for(session_key)\n\
+    \        if cached_agent and hasattr(cached_agent, \"max_iterations\"):\n    \
+    \        cached_agent._unlimited_mode = new_mode\n            from hermes_cli.config\
+    \ import TURN_LIMIT_UNLIMITED\n            if new_mode:\n                cached_agent.max_iterations\
+    \ = TURN_LIMIT_UNLIMITED\n                if getattr(cached_agent, \"iteration_budget\"\
+    , None):\n                    cached_agent.iteration_budget.max_total = TURN_LIMIT_UNLIMITED\n\
+    \            else:\n                from gateway.run import _current_max_iterations\n\
+    \                default_lim = _current_max_iterations()\n                cached_agent.max_iterations\
+    \ = default_lim\n                if getattr(cached_agent, \"iteration_budget\"\
+    , None):\n                    cached_agent.iteration_budget.max_total = default_lim\n\
+    \n        if new_mode:\n            return (\n                \"\U0001F680 **Режим\
+    \ Unlimited ВКЛЮЧЕН для этой сессии!**\\n\"\n                \"• Итерации агента\
+    \ и субагентов не ограничены (unlimited)\\n\"\n                f\"• Субагенты:\
+    \ глубина до {unlimited_depth}, до {unlimited_children} параллельно (суммарно\
+    \ по дереву)\\n\\n\"\n                \"Для возврата безопасных лимитов используйте\
+    \ `/unlimited off`.\"\n            )\n        else:\n            return \"\U0001F6E1\
+    ️ **Режим Unlimited ВЫКЛЮЧЕН.** Стандартные лимиты восстановлены.\"\n\n    async\
+    \ def _handle_title_command(self, event: MessageEvent) -> str:"
+- file: gateway/run_turn_runner.py
+  description: Интеграция unlimited_mode в рантайм основного агента
+  old_block: "        platform_key = policy.platform if policy else (\"cli\" if ctx.source.platform\
+    \ == Platform.LOCAL else ctx.source.platform.value)\n        combined_ephemeral\
+    \ = self._combined_ephemeral_prompt()\n        if policy and policy.skills_prompt:\n\
+    \            combined_ephemeral = \"\\n\\n\".join(p for p in (combined_ephemeral,\
+    \ policy.skills_prompt) if p)\n        max_iterations = policy.max_turns if policy\
+    \ else _current_max_iterations()"
+  new_block: "        platform_key = policy.platform if policy else (\"cli\" if ctx.source.platform\
+    \ == Platform.LOCAL else ctx.source.platform.value)\n        combined_ephemeral\
+    \ = self._combined_ephemeral_prompt()\n        if policy and policy.skills_prompt:\n\
+    \            combined_ephemeral = \"\\n\\n\".join(p for p in (combined_ephemeral,\
+    \ policy.skills_prompt) if p)\n        is_unlimited = bool(getattr(runner, \"\
+    session_store\", None) and runner.session_store.get_session_metadata(ctx.session_key,\
+    \ \"unlimited_mode\", False))\n        from hermes_cli.config import TURN_LIMIT_UNLIMITED\n\
+    \        max_iterations = TURN_LIMIT_UNLIMITED if is_unlimited else (policy.max_turns\
+    \ if policy else _current_max_iterations())"
+- file: gateway/run_turn_runner.py
+  description: Передача unlimited_mode в созданный или кэшированный экземпляр агента
+  old_block: "        agent, reused_cached_agent = self._resolve_turn_agent(\n   \
+    \         turn_route, platform_key, combined_ephemeral, max_iterations, reasoning_config,\
+    \ pr,\n        )"
+  new_block: "        agent, reused_cached_agent = self._resolve_turn_agent(\n   \
+    \         turn_route, platform_key, combined_ephemeral, max_iterations, reasoning_config,\
+    \ pr,\n        )\n        agent._unlimited_mode = is_unlimited\n        if is_unlimited:\n\
+    \            agent.max_iterations = TURN_LIMIT_UNLIMITED\n            if getattr(agent,\
+    \ \"iteration_budget\", None):\n                agent.iteration_budget.max_total\
+    \ = TURN_LIMIT_UNLIMITED"
+- file: tools/delegate_tool.py
+  description: Определение роли orchestrator для субагента первого уровня при unlimited_mode
+  old_block: "    child_depth = getattr(parent_agent, \"_delegate_depth\", 0) + 1\n\
+    \    max_spawn = _get_max_spawn_depth()\n    effective_role = \"orchestrator\"\
+    \ if _get_orchestrator_enabled() and child_depth < max_spawn else \"leaf\""
+  new_block: "    child_depth = getattr(parent_agent, \"_delegate_depth\", 0) + 1\n\
+    \    is_unlimited = getattr(parent_agent, \"_unlimited_mode\", False) or _is_session_unlimited()\n\
+    \    unlimited_children, unlimited_depth = _get_unlimited_limits() if is_unlimited\
+    \ else (10, 2)\n    max_spawn = unlimited_depth if is_unlimited else _get_max_spawn_depth()\n\
+    \    effective_role = \"orchestrator\" if _get_orchestrator_enabled() and child_depth\
+    \ < max_spawn else \"leaf\""
+- file: tools/delegate_tool.py
+  description: Снятие ограничений итераций и глубины субагентов при unlimited_mode
+  old_block: "    depth = getattr(parent_agent, \"_delegate_depth\", 0)\n    max_spawn\
+    \ = _get_max_spawn_depth()\n    if depth >= max_spawn:\n        return tool_error(\n\
+    \            f\"Delegation depth limit reached (depth={depth}, max_spawn_depth={max_spawn}).\
+    \ Raise \"\n            f\"delegation.max_spawn_depth in config.yaml if deeper\
+    \ nesting is required (no hard ceiling, but each level \"\n            f\"multiplies\
+    \ API cost).\"\n        )\n\n    cfg = _load_config()\n    default_max_iter =\
+    \ cfg.get(\"max_iterations\", DEFAULT_MAX_ITERATIONS)\n    # Caller-supplied max_iterations\
+    \ is ignored: the config value is authoritative\n    # so budgets stay predictable\
+    \ (kwarg kept for internal callers/tests).\n    if max_iterations is not None\
+    \ and max_iterations != default_max_iter:\n        logger.debug(\n           \
+    \ \"delegate_task: ignoring caller-supplied max_iterations=%s; using delegation.max_iterations=%s\
+    \ from config\",\n            max_iterations, default_max_iter,\n        )\n \
+    \   max_children = _get_max_concurrent_children()"
+  new_block: "    is_unlimited = getattr(parent_agent, \"_unlimited_mode\", False)\n\
+    \    unlimited_children, unlimited_depth = _get_unlimited_limits() if is_unlimited\
+    \ else (10, 2)\n    depth = getattr(parent_agent, \"_delegate_depth\", 0)\n  \
+    \  max_spawn = unlimited_depth if is_unlimited else _get_max_spawn_depth()\n \
+    \   if depth >= max_spawn:\n        return tool_error(\n            f\"Delegation\
+    \ depth limit reached (depth={depth}, max_spawn_depth={max_spawn}). Raise \"\n\
+    \            f\"delegation.max_spawn_depth in config.yaml if deeper nesting is\
+    \ required (no hard ceiling, but each level \"\n            f\"multiplies API\
+    \ cost).\"\n        )\n\n    cfg = _load_config()\n    default_max_iter = TURN_LIMIT_UNLIMITED\
+    \ if is_unlimited else cfg.get(\"max_iterations\", DEFAULT_MAX_ITERATIONS)\n \
+    \   # Caller-supplied max_iterations is ignored: the config value is authoritative\n\
+    \    # so budgets stay predictable (kwarg kept for internal callers/tests).\n\
+    \    if max_iterations is not None and max_iterations != default_max_iter and\
+    \ not is_unlimited:\n        logger.debug(\n            \"delegate_task: ignoring\
+    \ caller-supplied max_iterations=%s; using delegation.max_iterations=%s from config\"\
+    ,\n            max_iterations, default_max_iter,\n        )\n    # credentials_cfg\
+    \ (internal callers only, e.g. /review → auxiliary.review) is\n    # a per-call\
+    \ routing owner shaped like the delegation config section. Keep\n    # the route\
+    \ and its fallback policy together through child construction.\n    routing_cfg\
+    \ = credentials_cfg if credentials_cfg is not None else cfg\n    try:\n      \
+    \  creds = _resolve_delegation_credentials(routing_cfg, parent_agent)\n    except\
+    \ ValueError as exc:\n        # Explicit-pin preflight failures (e.g. pinned delegation.command\
+    \ missing from PATH) refuse the\n        # spawn loudly (#80450).\n        return\
+    \ tool_error(str(exc))\n    max_children = unlimited_children if is_unlimited\
+    \ else _get_max_concurrent_children()\n"
+- file: tools/delegate_tool.py
+  description: Наследование unlimited_mode дочерними субагентами
+  old_block: "    child._delegate_depth, child._delegate_role = child_depth, effective_role\
+    \  # post-degrade role\n    child._subagent_id, child._parent_subagent_id = subagent_id,\
+    \ parent_subagent_id\n    _apply_child_compression_cap(child, delegation_cfg)"
+  new_block: "    child._delegate_depth, child._delegate_role = child_depth, effective_role\
+    \  # post-degrade role\n    child._subagent_id, child._parent_subagent_id = subagent_id,\
+    \ parent_subagent_id\n    _apply_child_compression_cap(child, delegation_cfg)\n\
+    \    child._unlimited_mode = getattr(parent_agent, \"_unlimited_mode\", False)\n\
+    \    if child._unlimited_mode:\n        child.max_iterations = TURN_LIMIT_UNLIMITED\n\
+    \        if getattr(child, \"iteration_budget\", None):\n            child.iteration_budget.max_total\
+    \ = TURN_LIMIT_UNLIMITED"
+- file: tools/delegate_tool.py
+  description: Единый системный sentinel TURN_LIMIT_UNLIMITED для делегирования
+  old_block: 'from tools.terminal_tool import set_approval_callback as _set_subagent_approval_cb
+
+    from utils import is_truthy_value
+
+
+    logger = logging.getLogger(__name__)'
+  new_block: 'from tools.terminal_tool import set_approval_callback as _set_subagent_approval_cb
+
+    from utils import is_truthy_value
+
+    from hermes_cli.config import TURN_LIMIT_UNLIMITED
+
+
+    logger = logging.getLogger(__name__)'
+- file: tools/delegate_tool_config.py
+  description: Чтение настраиваемых лимитов unlimited (параллельность и глубина) из
+    config.yaml
+  old_block: "def _get_max_concurrent_children() -> int:\n    \"\"\"delegation.max_concurrent_children\
+    \ > DELEGATION_MAX_CONCURRENT_CHILDREN env > 10.\n\n    Floor of 1 is the only\
+    \ bound enforced; there is no ceiling.\n    \"\"\""
+  new_block: "def _get_unlimited_limits() -> tuple[int, int]:\n    \"\"\"Read per-profile\
+    \ unlimited caps; delegation.unlimited overrides root unlimited.\"\"\"\n    import\
+    \ os\n    if os.environ.get(\"HERMES_IGNORE_USER_CONFIG\") == \"1\":\n       \
+    \ try:\n            from cli import CLI_CONFIG\n            config = CLI_CONFIG\n\
+    \        except Exception:\n            config = {}\n    else:\n        try:\n\
+    \            from hermes_cli.config import load_config_readonly\n            config\
+    \ = load_config_readonly()\n        except Exception:\n            config = {}\n\
+    \    if not isinstance(config, dict):\n        config = {}\n    delegation = config.get(\"\
+    delegation\")\n    nested = delegation.get(\"unlimited\") if isinstance(delegation,\
+    \ dict) else None\n    root = config.get(\"unlimited\")\n    values = nested if\
+    \ isinstance(nested, dict) else root if isinstance(root, dict) else {}\n    def\
+    \ positive_int(name: str, default: int) -> int:\n        try:\n            value\
+    \ = int(values.get(name, default))\n            if value < 1:\n              \
+    \  raise ValueError(name)\n            return value\n        except (TypeError,\
+    \ ValueError):\n            return default\n    return positive_int(\"max_concurrent_children\"\
+    , 10), positive_int(\"max_spawn_depth\", 2)\n\n\ndef _is_session_unlimited() ->\
+    \ bool:\n    try:\n        from tools.approval_context import get_current_session_key\n\
+    \        key = get_current_session_key(default=\"\")\n        if key:\n      \
+    \      from hermes_constants import get_hermes_home\n            import sqlite3,\
+    \ json\n            db_path = get_hermes_home() / \"state.db\"\n            if\
+    \ db_path.exists():\n                with sqlite3.connect(db_path, timeout=1.0)\
+    \ as conn:\n                    cur = conn.cursor()\n                    cur.execute(\"\
+    SELECT entry_json FROM gateway_routing WHERE session_key = ? LIMIT 1;\", (key,))\n\
+    \                    row = cur.fetchone()\n                    if row and row[0]:\n\
+    \                        entry = json.loads(row[0])\n                        if\
+    \ bool(entry.get(\"metadata\", {}).get(\"unlimited_mode\", False)):\n        \
+    \                    return True\n                    try:\n                 \
+    \       cur.execute(\"SELECT origin_json FROM sessions WHERE id = ? OR session_key\
+    \ = ? LIMIT 1;\", (key, key))\n                        srow = cur.fetchone()\n\
+    \                        if srow and srow[0]:\n                            sdata\
+    \ = json.loads(srow[0]) if isinstance(srow[0], str) else srow[0]\n           \
+    \                 if isinstance(sdata, dict) and bool(sdata.get(\"unlimited_mode\"\
+    , False)):\n                                return True\n                    except\
+    \ Exception:\n                        pass\n    except Exception:\n        pass\n\
+    \    return False\n\n\ndef _get_max_concurrent_children() -> int:\n    \"\"\"\
+    delegation.max_concurrent_children > DELEGATION_MAX_CONCURRENT_CHILDREN env >\
+    \ 10.\n\n    Floor of 1 is the only bound enforced; there is no ceiling.\n   \
+    \ \"\"\"\n    if _is_session_unlimited():\n        unlimited_children, _ = _get_unlimited_limits()\n\
+    \        return unlimited_children"
+- file: tools/delegate_tool.py
+  description: Импорт _get_unlimited_limits и проверка дерева в delegate_tool
+  old_block: "from tools.delegate_tool_config import (\n    _DEFAULT_MAX_CONCURRENT_CHILDREN,\
+    \ _get_child_timeout, _get_max_async_children, _get_max_concurrent_children,\n\
+    \    _get_max_spawn_depth, _get_oneshot_max_children, _get_orchestrator_enabled,\
+    \ _get_subagent_approval_callback, _get_worktree_isolation,"
+  new_block: "from tools.delegate_tool_config import (\n    _DEFAULT_MAX_CONCURRENT_CHILDREN,\
+    \ _get_child_timeout, _get_max_async_children, _get_max_concurrent_children,\n\
+    \    _get_max_spawn_depth, _get_unlimited_limits, _is_session_unlimited, _get_oneshot_max_children,\
+    \ _get_orchestrator_enabled, _get_subagent_approval_callback, _get_worktree_isolation,"
+- file: tools/delegate_tool.py
+  description: Суммарный лимит активных детей по всему дереву текущей сессии
+  old_block: "    creds = runnable[0].creds if all(r.creds == runnable[0].creds for\
+    \ r in runnable) else dict.fromkeys(runnable[0].creds)\n    err = _oneshot_spawn_budget(parent_agent,\
+    \ len(runnable))"
+  new_block: "    creds = runnable[0].creds if all(r.creds == runnable[0].creds for\
+    \ r in runnable) else dict.fromkeys(runnable[0].creds)\n\n    # One limit for\
+    \ the whole conversation tree, not for each nested delegate call.\n    with _active_subagents_lock:\n\
+    \        active_records = tuple(_active_subagents.values())\n    root_agent =\
+    \ parent_agent\n    for _ in range(16):\n        ref = getattr(root_agent, \"\
+    _delegate_parent_ref\", None)\n        parent_candidate = ref() if callable(ref)\
+    \ else None\n        if parent_candidate is None:\n            break\n       \
+    \ root_agent = parent_candidate\n    active_count = sum(_owns_subagent_record(record,\
+    \ root_agent) for record in active_records)\n    if active_count + len(runnable)\
+    \ > max_children:\n        return tool_error(\n            f\"Session subagent\
+    \ concurrency limit reached: {active_count} active + \"\n            f\"{len(runnable)}\
+    \ requested exceeds {max_children} parallel subagents \"\n            f\"across\
+    \ the entire session tree. Wait for running subagents to finish \"\n         \
+    \   f\"or adjust {'delegation.unlimited.max_concurrent_children' if is_unlimited\
+    \ else 'delegation.max_concurrent_children'} in config.yaml.\"\n        )\n\n\
+    \    err = _oneshot_spawn_budget(parent_agent, len(runnable))"
+- file: tools/delegate_tool.py
+  description: Динамический лимит задач в описании схемы delegate_task при unlimited_mode
+  old_block: "    return (\n        f\"The task(s), up to {max_children} in parallel\
+    \ for this user (set \"\n        \"via delegation.max_concurrent_children). Each\
+    \ entry spawns one \"\n        \"subagent with isolated context and terminal session;\
+    \ a single task \"\n        \"is a one-entry array. Required when spawning.\"\n\
+    \    )"
+  new_block: "    setting = \"delegation.unlimited.max_concurrent_children\" if _is_session_unlimited()\
+    \ else \"delegation.max_concurrent_children\"\n    return (\n        f\"The task(s),\
+    \ up to {max_children} in parallel for this user (set \"\n        f\"via {setting}).\
+    \ Each entry spawns one \"\n        \"subagent with isolated context and terminal\
+    \ session; a single task \"\n        \"is a one-entry array. Required when spawning.\"\
+    \n    )"
+- file: hermes_cli/cli_loops_mixin.py
+  description: Хэндлер _cmd_unlimited и _handle_unlimited_command в CLI для переключения
+    безлимита
+  old_block: "                self._pending_title = new_title\n                _cprint(f\"\
+    \  {t('cli.title.queued', title=new_title)}\")"
+  new_block: "                self._pending_title = new_title\n                _cprint(f\"\
+    \  {t('cli.title.queued', title=new_title)}\")\n\n    def _cmd_unlimited(self,\
+    \ cmd_original: str):\n        from cli import _cprint, _slash_args\n        raw_arg\
+    \ = _slash_args(cmd_original).strip().lower()\n        current_mode = bool(getattr(self.agent,\
+    \ \"_unlimited_mode\", False))\n\n        from tools.delegate_tool_config import\
+    \ _get_max_concurrent_children, _get_max_spawn_depth, _get_unlimited_limits\n\
+    \        unlimited_children, unlimited_depth = _get_unlimited_limits()\n     \
+    \   normal_children, normal_depth = _get_max_concurrent_children(), _get_max_spawn_depth()\n\
+    \n        if raw_arg in (\"status\", \"check\", \"?\", \"info\"):\n          \
+    \  state_str = \"[bold green]ВКЛЮЧЁН (активен)[/]\" if current_mode else \"[dim]ВЫКЛЮЧЕН\
+    \ (стандартные лимиты)[/]\"\n            _cprint(\n                f\"  ⚡ [bold]Режим\
+    \ Unlimited:[/bold] {state_str}\\n\"\n                f\"  • Итерации основного\
+    \ агента: {'не ограничены (unlimited)' if current_mode else 'стандартный лимит'}\\\
+    n\"\n                f\"  • Итерации субагентов: {'не ограничены (unlimited)'\
+    \ if current_mode else '60'}\\n\"\n                f\"  • Параллельные субагенты:\
+    \ {f'до {unlimited_children} (суммарно по дереву)' if current_mode else f'до {normal_children}'}\\\
+    n\"\n                f\"  • Глубина вложенности: {f'до {unlimited_depth}' if current_mode\
+    \ else f'до {normal_depth}'}\\n\\n\"\n                f\"  Команды: /unlimited\
+    \ on, /unlimited off.\"\n            )\n            return\n\n        if raw_arg\
+    \ in (\"on\", \"enable\", \"1\", \"true\"):\n            new_mode = True\n   \
+    \     elif raw_arg in (\"off\", \"disable\", \"0\", \"false\"):\n            new_mode\
+    \ = False\n        elif not raw_arg:\n            new_mode = not current_mode\n\
+    \        else:\n            _cprint(\"  ℹ️ Использование: `/unlimited [on|off|status]`\\\
+    n  Включает или выключает режим снятия лимитов для текущей сессии.\")\n      \
+    \      return\n\n        if self.agent is not None:\n            self.agent._unlimited_mode\
+    \ = new_mode\n            from hermes_cli.config import TURN_LIMIT_UNLIMITED\n\
+    \            if new_mode:\n                self.agent.max_iterations = TURN_LIMIT_UNLIMITED\n\
+    \                if getattr(self.agent, \"iteration_budget\", None):\n       \
+    \             self.agent.iteration_budget.max_total = TURN_LIMIT_UNLIMITED\n \
+    \           else:\n                self.agent.max_iterations = 60\n          \
+    \      if getattr(self.agent, \"iteration_budget\", None):\n                 \
+    \   self.agent.iteration_budget.max_total = 60\n\n        if new_mode:\n     \
+    \       _cprint(\n                \"  [bold green]\U0001F680 Режим Unlimited ВКЛЮЧЕН\
+    \ для этой сессии![/]\\n\"\n                \"  • Итерации агента и субагентов\
+    \ не ограничены (unlimited)\\n\"\n                f\"  • Субагенты: глубина до\
+    \ {unlimited_depth}, до {unlimited_children} параллельно (суммарно по дереву)\\\
+    n\\n\"\n                \"  Для возврата безопасных лимитов используйте `/unlimited\
+    \ off`.\"\n            )\n        else:\n            _cprint(\"  [bold yellow]\U0001F6E1\
+    ️ Режим Unlimited ВЫКЛЮЧЕН.[/] Стандартные лимиты восстановлены.\")\n\n    _handle_unlimited_command\
+    \ = _cmd_unlimited"
+- file: tui_gateway/methods_slash.py
+  description: Функция _format_live_unlimited_output для Hermes Desktop и TUI Gateway
+  old_block: 'def _usage_account_blocks(session: dict) -> list[str]:'
+  new_block: "def _format_live_unlimited_output(sid: str, session: Optional[dict],\
+    \ arg: str) -> str:\n    from tools.delegate_tool_config import _get_unlimited_limits\n\
+    \    unlimited_children, unlimited_depth = _get_unlimited_limits()\n    if session\
+    \ is None:\n        return (\n            \"\U0001F680 **Режим Unlimited ВКЛЮЧЕН\
+    \ для этой сессии!**\\n\"\n            \"• Итерации агента и субагентов не ограничены\
+    \ (unlimited)\\n\"\n            f\"• Субагенты: глубина до {unlimited_depth},\
+    \ до {unlimited_children} параллельно (суммарно по дереву)\\n\\n\"\n         \
+    \   \"Для возврата безопасных лимитов используйте `/unlimited off`.\"\n      \
+    \  )\n    arg_clean = (arg or \"\").strip().lower()\n    if arg_clean in (\"off\"\
+    , \"disable\", \"false\", \"0\"):\n        new_mode = False\n    elif arg_clean\
+    \ in (\"on\", \"enable\", \"true\", \"1\"):\n        new_mode = True\n    else:\n\
+    \        current = getattr(session.get(\"agent\"), \"_unlimited_mode\", False)\n\
+    \        new_mode = not current\n\n    session[\"unlimited_mode\"] = new_mode\n\
+    \    agent = session.get(\"agent\")\n    if agent:\n        agent._unlimited_mode\
+    \ = new_mode\n        if hasattr(agent, \"max_iterations\"):\n            agent.max_iterations\
+    \ = 999999999 if new_mode else 80\n\n    if new_mode:\n        return (\n    \
+    \        \"\U0001F680 **Режим Unlimited ВКЛЮЧЕН для этой сессии!**\\n\"\n    \
+    \        \"• Итерации агента и субагентов не ограничены (unlimited)\\n\"\n   \
+    \         f\"• Субагенты: глубина до {unlimited_depth}, до {unlimited_children}\
+    \ параллельно (суммарно по дереву)\\n\\n\"\n            \"Для возврата безопасных\
+    \ лимитов используйте `/unlimited off`.\"\n        )\n    return \"\U0001F6E1\
+    ️ **Режим Unlimited ВЫКЛЮЧЕН.** Стандартные лимиты восстановлены.\"\n\n\ndef _usage_account_blocks(session:\
+    \ dict) -> list[str]:"
+- file: tui_gateway/methods_slash.py
+  description: Регистрация unlimited в _LIVE_SLASH_OUTPUT
+  old_block: '    "rename": (None, "Use /title <name> to rename this session."),'
+  new_block: "    \"rename\": (None, \"Use /title <name> to rename this session.\"\
+    ),\n    \"unlimited\": (None, _format_live_unlimited_output),"

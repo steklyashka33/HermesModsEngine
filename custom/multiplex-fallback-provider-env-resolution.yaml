@@ -1,0 +1,56 @@
+id: multiplex-fallback-provider-env-resolution
+name: Multiplex Fallback Provider Env Resolution
+description: 'Resolve fallback provider key_env in profile secret scope under multiplex_profiles
+  (Issue #142031)'
+version: 1.0.1
+author: Hermes Admin
+enabled: true
+targets:
+- file: agent/chat_completion_helpers.py
+  description: Wrap bind_route_entry in launch_profile_scope_if_multiplexed when no
+    scope is active
+  old_block: "            from agent.route_binding import bind_route_entry\n     \
+    \       bound = bind_route_entry(agent, fb, fb_provider, fb_model)"
+  new_block: "            from contextlib import nullcontext\n            from agent.route_binding\
+    \ import bind_route_entry\n            from agent.secret_scope import current_secret_scope,\
+    \ launch_profile_scope_if_multiplexed\n            _scope_ctx = launch_profile_scope_if_multiplexed()\
+    \ if current_secret_scope() is None else nullcontext()\n            with _scope_ctx:\n\
+    \                bound = bind_route_entry(agent, fb, fb_provider, fb_model)"
+i18n:
+  en:
+    name: Multiplex Fallback Provider Env Resolution
+    description: 'Resolve fallback provider key_env in profile secret scope under
+      multiplex_profiles (Issue #142031)'
+  ru:
+    name: Multiplex Fallback Provider Env Resolution
+    description: Разрешение key_env фолбэк-провайдера в secret scope профиля при мультиплексировании
+  es:
+    name: Multiplex Fallback Provider Env Resolution
+    description: 'Resolución de key_env del proveedor de respaldo en el ámbito secreto
+      del perfil en multiplex_profiles (Issue #142031)'
+  fr:
+    name: Multiplex Fallback Provider Env Resolution
+    description: 'Résolution de key_env du fournisseur de secours dans l''espace secret
+      du profil sous multiplex_profiles (Issue #142031)'
+  zh:
+    name: Multiplex Fallback Provider Env Resolution
+    description: '在multiplex_profiles下的配置文件密钥范围内解析备用提供商的key_env（Issue #142031）'
+  ar:
+    name: Multiplex Fallback Provider Env Resolution
+    description: 'حل key_env لموفر الاحتياط في نطاق أسرار ملف التعريف تحت multiplex_profiles
+      (المسألة #142031)'
+  de:
+    name: Multiplex Fallback Provider Env Resolution
+    description: 'Auflösung von key_env des Fallback-Anbieters im Profil-Secret-Scope
+      unter multiplex_profiles (Issue #142031)'
+  pt:
+    name: Multiplex Fallback Provider Env Resolution
+    description: 'Resolução de key_env do provedor de fallback no escopo de segredos
+      do perfil em multiplex_profiles (Issue #142031)'
+tests:
+  test_try_activate_fallback_registered: 'from agent.chat_completion_helpers import
+    try_activate_fallback
+
+    assert callable(try_activate_fallback)
+
+    '

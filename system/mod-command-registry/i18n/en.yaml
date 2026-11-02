@@ -1,0 +1,17 @@
+name: Mod Command Registry
+description: Native registration, caching, and dispatch of declarative slash commands from active Hermes mods
+mods:
+  command_registry:
+    usage: "ℹ️ Usage: /{canonical_name} {hint}"
+    circuit_breaker_disabled: "⚠️ Mod '{mod_id}' is temporarily disabled by Circuit Breaker due to repeated failures."
+    handler_not_found: "⚠️ Command handler not found: {handler_path}"
+    no_handler_configured: "⚠️ Command /{canonical_name} has no configured handler (handler_script, python, shell)."
+    timeout_isolated: "⏱️ Command /{canonical_name} timed out. Mod '{mod_id}' isolated by Circuit Breaker."
+    timeout: "⏱️ Command /{canonical_name} timed out (30s)."
+    error_isolated: "⚠️ Execution error on /{canonical_name}: {exc}. Mod '{mod_id}' isolated by Circuit Breaker."
+    error: "⚠️ Execution error on /{canonical_name}: {exc}"
+    module_spec_error: "⚠️ Failed to load module spec: {script_path}"
+    entrypoint_not_found: "⚠️ Callable '{entrypoint}' not found in script {script_name}."
+    script_error: "⚠️ Script error (exit code {code}): {error}"
+    shell_error: "⚠️ Shell command error (exit code {code}): {error}"
+    alias: "alias"

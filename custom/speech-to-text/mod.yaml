@@ -1,0 +1,5 @@
+id: speech-to-text
+name: Speech to Text
+version: 1.3.1
+description: Speech-to-Text module via multimodal API with speculative parallel fallback
+  to local faster-whisper

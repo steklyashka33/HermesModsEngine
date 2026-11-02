@@ -1,0 +1,39 @@
+name: Slash Commands UX Polish
+description: 'Expérience utilisateur complète des commandes slash : formatage de /undo,
+  /goal, /model, /agents, /help et /commands, /compress [N], /handoff, /context, /usage,
+  /status, /insights (jetons réels et pourcentage de cache sur toutes les commandes)'
+slash:
+  handoff:
+    description: Transférer le contexte de session vers une session propre (en conservant
+      le brief des tâches)
+  compress:
+    description: Compresser le contexte de conversation (spécifiez [N] pour conserver
+      les N derniers messages ; --preview ou --dry-run pour prévisualiser)
+gateway:
+  context:
+    threshold: 'Autocompactage à : {threshold} ({threshold_pct}%) — restant {to_go}
+      ({to_go_pct})'
+    over_threshold: ⚠️ **Seuil d'autocompactage dépassé ({threshold}, {threshold_pct}%)**
+    category_row: '{glyph} {label}  ~  {tokens} jetons  ~  {pct}%'
+    compressions: 'Compressions dans cette session : {count}'
+    compressions_total: 'Compactages totaux : {count}'
+    last_savings: 'Dernier compactage a libéré : {savings}% de contexte'
+    totals_header: 'Totaux cumulés (sur {calls} appels API) :'
+    totals_line: 'Entrée : {input} · Sortie : {output} · Raisonnement : {reasoning}'
+    total_billed: 'Total : {total}'
+    total_billed_with_cache: 'Total : {total} ({cache_pct}% cache)'
+    detail_after_first: _(Des informations plus détaillées seront disponibles après
+      la première réponse de l'agent)_
+  usage:
+    label_output_tokens: 'Jetons de sortie : {count}'
+    label_total: 'Total : {total}'
+    label_total_with_cache: 'Total : {total} ({cache_pct}% cache)'
+    label_api_calls: 'Appels API : {count}'
+    header_tokens: 'Utilisation des tokens :'
+    tokens_line: 'Entrée : {input} · Sortie : {output} · Raisonnement : {reasoning}'
+  status:
+    tokens_with_cache: '**Nombre total de tokens de tous les temps :** {tokens} ({cache_pct}%
+      cache) _(ce n''est pas la taille du contexte actuel ; utilisez `/context`)_'
+cli:
+  usage:
+    cache_label: cache

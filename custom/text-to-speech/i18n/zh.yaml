@@ -1,0 +1,24 @@
+name: Text to Speech
+description: 通过API的语音合成（TTS）模块，具有文本转自然口语风格的神经网络适应能力
+config:
+  voice:
+    title: 语音合成音色
+    description: Gemini TTS语音合成音色
+  adaptation:
+    title: 文本神经适应
+    description: 在合成前将书面Markdown文本进行口语化神经网络转换适应
+  api_key:
+    title: TTS API密钥
+    description: 访问OmniRoute TTS的API密钥（存储在secrets.yaml中）
+  base_url:
+    title: TTS基础URL
+    description: OmniRoute TTS网关的基础URL
+  fallback_edge:
+    title: Edge TTS备用转移
+    description: 当OmniRoute不可用或缺少令牌时自动回退到Edge TTS
+  timeout:
+    title: 请求超时
+    description: 远程TTS API请求超时时间（秒）
+  speculative_fallback_delay:
+    title: 推测性备用延迟
+    description: 在推测性并行启动本地EdgeTTS之前的延迟秒数

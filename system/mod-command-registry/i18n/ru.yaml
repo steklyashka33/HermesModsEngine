@@ -1,0 +1,17 @@
+name: Реестр команд модов
+description: Нативная регистрация, кэширование и исполнение декларативных слэш-команд от активных модов Hermes
+mods:
+  command_registry:
+    usage: "ℹ️ Использование: /{canonical_name} {hint}"
+    circuit_breaker_disabled: "⚠️ Мод '{mod_id}' временно отключен предохранителем (Circuit Breaker) из-за повторяющихся сбоев."
+    handler_not_found: "⚠️ Обработчик команды не найден: {handler_path}"
+    no_handler_configured: "⚠️ Команда /{canonical_name} не имеет настроенного обработчика (handler_script, python, shell)."
+    timeout_isolated: "⏱️ Команда /{canonical_name} превысила таймаут. Мод '{mod_id}' изолирован Circuit Breaker."
+    timeout: "⏱️ Команда /{canonical_name} превысила таймаут выполнения (30 сек)."
+    error_isolated: "⚠️ Ошибка выполнения /{canonical_name}: {exc}. Мод '{mod_id}' изолирован Circuit Breaker."
+    error: "⚠️ Ошибка выполнения /{canonical_name}: {exc}"
+    module_spec_error: "⚠️ Не удалось загрузить спецификацию модуля: {script_path}"
+    entrypoint_not_found: "⚠️ В скрипте {script_name} не найдена вызываемая функция '{entrypoint}'."
+    script_error: "⚠️ Ошибка скрипта (exit code {code}): {error}"
+    shell_error: "⚠️ Ошибка shell-команды (exit code {code}): {error}"
+    alias: "псевдоним"

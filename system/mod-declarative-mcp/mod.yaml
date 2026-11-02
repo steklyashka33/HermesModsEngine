@@ -1,0 +1,7 @@
+id: mod-declarative-mcp
+name: Declarative MCP Servers in Hermes Mods
+description: Declarative integration of MCP servers in mod manifests with variable
+  interpolation and transparent runtime bridge
+version: 1.2.0
+author: Engine
+enabled: true

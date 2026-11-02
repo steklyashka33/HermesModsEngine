@@ -1,0 +1,33 @@
+name: Slash Commands UX Polish
+description: 斜杠命令综合用户体验优化：/undo、/goal、/model、/agents、/help 与 /commands 格式化，/compress
+  [N]、/handoff、/context、/usage、/status、/insights（所有命令显示真实Token及缓存百分比）
+slash:
+  handoff:
+    description: 将会话上下文移交给新的干净会话（保留任务简报）
+  compress:
+    description: 压缩对话上下文（指定 [N] 保留最后 N 条消息；--preview 或 --dry-run 进行预览）
+gateway:
+  context:
+    threshold: 自动压缩阈值：{threshold} ({threshold_pct}%) — 剩余 {to_go} ({to_go_pct})
+    over_threshold: ⚠️ **已超过自动压缩阈值 ({threshold}, {threshold_pct}%)**
+    category_row: '{glyph} {label}  ~  {tokens} Token  ~  {pct}%'
+    compressions: 本次会话压缩次数：{count}
+    compressions_total: 累计压缩次数：{count}
+    last_savings: 上次压缩释放了：{savings}% 上下文
+    totals_header: 历史总计（共 {calls} 次 API 调用）：
+    totals_line: 输入：{input} · 输出：{output} · 推理：{reasoning}
+    total_billed: 总计：{total}
+    total_billed_with_cache: 总计：{total}（缓存占比 {cache_pct}%）
+    detail_after_first: _（代理首次回复后将提供更详细的信息）_
+  usage:
+    label_output_tokens: 输出 Token：{count}
+    label_total: 总计：{total}
+    label_total_with_cache: 总计：{total}（缓存占比 {cache_pct}%）
+    label_api_calls: API 调用次数：{count}
+    header_tokens: 代币使用情况：
+    tokens_line: 输入：{input} · 输出：{output} · 推理：{reasoning}
+  status:
+    tokens_with_cache: '**累计总代币：**{tokens}（缓存占比 {cache_pct}%）_（这不是当前上下文占用；请使用 ）_'
+cli:
+  usage:
+    cache_label: 缓存

@@ -1,0 +1,3 @@
+name: Découverte et intégration des compétences de mods de dossier
+description: 'Prise en charge des mods de dossier avec compétences colocalisées :
+  enregistrement automatique dans skills_list, skill_view et prompt système'

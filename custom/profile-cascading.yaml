@@ -1,0 +1,149 @@
+id: profile-cascading
+name: Profile Cascading & Deep Merge
+description: Hierarchical inheritance of secret scope (.env), cache, and deep-merge
+  config.yaml between default and secondary profiles
+version: 1.1.0
+author: Hermes Admin
+enabled: true
+targets:
+- file: agent/secret_scope.py
+  old_block: "def build_profile_secret_scope(hermes_home: Path) -> dict[str, str]:\n\
+    \    \"\"\"Build a profile's secret mapping from ``<home>/.env`` plus its external\n\
+    \    secret sources. Global vars are NOT copied in — ``get_secret`` reads those\n\
+    \    from ``os.environ`` — so the scope holds only profile secrets.\"\"\"\n  \
+    \  secrets = load_env_file(Path(hermes_home) / \".env\")\n    try:\n        from\
+    \ hermes_cli.env_loader import get_secret_source_values\n        external_secrets\
+    \ = get_secret_source_values(Path(hermes_home))\n    except Exception:\n     \
+    \   external_secrets = {}\n    secrets.update((k, v) for k, v in external_secrets.items()\
+    \ if not _is_global_env(k))"
+  new_block: "def build_profile_secret_scope(hermes_home: Path) -> dict[str, str]:\n\
+    \    \"\"\"Build a profile's secret mapping from ``<home>/.env`` plus its external\n\
+    \    secret sources. Global vars are NOT copied in — ``get_secret`` reads those\n\
+    \    from ``os.environ`` — so the scope holds only profile secrets.\"\"\"\n  \
+    \  secrets = {}\n    try:\n        from hermes_constants import get_default_hermes_root\n\
+    \        _root = get_default_hermes_root().resolve()\n        _cur_home = Path(hermes_home).resolve()\n\
+    \        if (_root / \"profiles\") in _cur_home.parents or _cur_home != _root:\n\
+    \            _root_env = _root / \".env\"\n            if _root_env.exists():\n\
+    \                secrets = load_env_file(_root_env)\n    except Exception:\n \
+    \       secrets = {}\n    secrets.update(load_env_file(Path(hermes_home) / \"\
+    .env\"))\n    try:\n        from hermes_cli.env_loader import get_secret_source_values\n\
+    \        external_secrets = get_secret_source_values(Path(hermes_home))\n    except\
+    \ Exception:\n        external_secrets = {}\n    secrets.update((k, v) for k,\
+    \ v in external_secrets.items() if not _is_global_env(k))"
+  description: cascade-profile-secret-scope-inheritance
+- file: hermes_cli/config.py
+  old_block: "    managed_dir = managed_scope.get_managed_dir()\n    try:\n      \
+    \  mst = (managed_dir / \"config.yaml\").stat() if managed_dir else None\n   \
+    \     managed_sig = file_signature(mst) if mst else (0, 0, 0, 0)\n    except OSError:\n\
+    \        managed_sig = (0, 0, 0, 0)\n    if user_sig is None and managed_sig ==\
+    \ (0, 0, 0, 0):\n        return None, None\n    return user_sig, (*(user_sig or\
+    \ (0, 0, 0, 0)), *managed_sig)"
+  new_block: "    managed_dir = managed_scope.get_managed_dir()\n    try:\n      \
+    \  mst = (managed_dir / \"config.yaml\").stat() if managed_dir else None\n   \
+    \     managed_sig = file_signature(mst) if mst else (0, 0, 0, 0)\n    except OSError:\n\
+    \        managed_sig = (0, 0, 0, 0)\n\n    # Fold in root config.yaml file_signature\
+    \ for secondary profiles so edits invalidate profile cache\n    root_sig = (0,\
+    \ 0, 0, 0)\n    try:\n        from hermes_constants import get_default_hermes_root\n\
+    \        _root = get_default_hermes_root().resolve()\n        _res_path = config_path.resolve()\n\
+    \        _default_cfg = _root / \"config.yaml\"\n        if (_root / \"profiles\"\
+    ) in _res_path.parents and _default_cfg.exists():\n            _rst = _default_cfg.stat()\n\
+    \            root_sig = file_signature(_rst)\n    except Exception:\n        root_sig\
+    \ = (0, 0, 0, 0)\n\n    if user_sig is None and managed_sig == (0, 0, 0, 0) and\
+    \ root_sig == (0, 0, 0, 0):\n        return None, None\n    return user_sig, (*(user_sig\
+    \ or (0, 0, 0, 0)), *managed_sig, *root_sig)"
+  description: cascade-profile-config-cache-root-invalidation
+- file: hermes_cli/config.py
+  old_block: "        config = copy.deepcopy(DEFAULT_CONFIG)\n\n        if user_sig\
+    \ is not None:\n            try:\n                with open(config_path, encoding=\"\
+    utf-8-sig\") as f:\n                    user_config = fast_safe_load(f) or {}"
+  new_block: "        config = copy.deepcopy(DEFAULT_CONFIG)\n\n        # Profile\
+    \ inheritance: if loading a secondary profile config, first merge default profile\
+    \ user config\n        try:\n            from hermes_constants import get_default_hermes_root\n\
+    \            _root = get_default_hermes_root().resolve()\n            _res_path\
+    \ = config_path.resolve()\n            _default_cfg = _root / \"config.yaml\"\n\
+    \            if (_root / \"profiles\") in _res_path.parents and _default_cfg.exists()\
+    \ and _default_cfg != _res_path:\n                with open(_default_cfg, encoding=\"\
+    utf-8\") as _df:\n                    _def_user = fast_safe_load(_df) or {}\n\
+    \                if isinstance(_def_user, dict):\n                    _def_copy\
+    \ = copy.deepcopy(_def_user)\n                    if \"gateway\" in _def_copy\
+    \ and isinstance(_def_copy[\"gateway\"], dict):\n                        _def_copy[\"\
+    gateway\"].pop(\"profile_routes\", None)\n                    config = _deep_merge(config,\
+    \ _def_copy)\n        except Exception:\n            pass\n\n        if user_sig\
+    \ is not None:\n            try:\n                with open(config_path, encoding=\"\
+    utf-8-sig\") as f:\n                    user_config = fast_safe_load(f) or {}"
+  description: cascade-profile-config-load-config-deep-merge
+- file: hermes_cli/config_effective.py
+  old_block: "        effective = _effective(raw)\n        # A recovered result is\
+    \ never cached under the corrupt file's signature: a later"
+  new_block: "        # Profile deep merge: inherit from default profile config.yaml\
+    \ if this is a secondary profile\n        effective_raw = raw\n        try:\n\
+    \            from hermes_constants import get_default_hermes_root\n          \
+    \  _root = get_default_hermes_root().resolve()\n            _res_path = config_path.resolve()\n\
+    \            _default_cfg = _root / \"config.yaml\"\n            if (_root / \"\
+    profiles\") in _res_path.parents and _default_cfg.exists() and _default_cfg !=\
+    \ _res_path:\n                _base = load_user_config_effective(_default_cfg)\n\
+    \                if isinstance(_base, dict):\n                    _base_copy =\
+    \ copy.deepcopy(_base)\n                    if \"gateway\" in _base_copy and isinstance(_base_copy[\"\
+    gateway\"], dict):\n                        _base_copy[\"gateway\"].pop(\"profile_routes\"\
+    , None)\n                    effective_raw = _config._deep_merge(_base_copy, raw)\n\
+    \        except Exception:\n            pass\n\n        effective = _effective(effective_raw)\n\
+    \        # A recovered result is never cached under the corrupt file's signature:\
+    \ a later"
+  description: cascade-profile-config-deep-merge
+- file: gateway/pairing.py
+  old_block: "    def is_approved(self, platform: str, user_id: str) -> bool:\n  \
+    \      \"\"\"Check if a user is approved (paired) on a platform.\"\"\"\n     \
+    \   with self._lock:\n            return bool(_matching_ids(platform, self._load_approved(platform),\
+    \ user_id))"
+  new_block: "    def is_approved(self, platform: str, user_id: str) -> bool:\n  \
+    \      \"\"\"Check if a user is approved (paired) on a platform.\n        Falls\
+    \ back to default profile pairing store if not explicitly approved in profile.\n\
+    \        \"\"\"\n        with self._lock:\n            if bool(_matching_ids(platform,\
+    \ self._load_approved(platform), user_id)):\n                return True\n   \
+    \         if self._profile and self._profile != \"default\":\n               \
+    \ try:\n                    from hermes_constants import get_default_hermes_root\n\
+    \                    root = get_default_hermes_root()\n                    default_path\
+    \ = root / \"pairing\" / f\"{platform}-approved.json\"\n                    if\
+    \ default_path.exists():\n                        default_map = self._load_json(default_path)\n\
+    \                        if _matching_ids(platform, default_map, user_id):\n \
+    \                           return True\n                except Exception:\n \
+    \                   pass\n            return False"
+  description: fallback-pairing-to-default-profile
+i18n:
+  en:
+    name: Profile Cascading & Deep Merge
+    description: Hierarchical inheritance of secret scope (.env), cache, and deep-merge
+      config.yaml between default and secondary profiles
+  ru:
+    name: Profile Cascading & Deep Merge
+    description: Иерархическое наследование secret scope (.env), кэша и deep-merge
+      config.yaml между default и вторичными профилями
+  es:
+    name: Profile Cascading & Deep Merge
+    description: Herencia jerárquica de ámbito secreto (.env), caché y combinación
+      profunda (deep-merge) de config.yaml entre perfil predeterminado y secundarios
+  fr:
+    name: Profile Cascading & Deep Merge
+    description: Héritage hiérarchique de l'espace secret (.env), du cache et fusion
+      profonde (deep-merge) de config.yaml entre profils par défaut et secondaires
+  zh:
+    name: Profile Cascading & Deep Merge
+    description: 默认配置文件与次级配置文件之间的机密作用域（.env）、缓存分层继承与config.yaml深度合并
+  ar:
+    name: Profile Cascading & Deep Merge
+    description: الوراثة الهرمية لنطاق الأسرار (.env) والتخزين المؤقت والدمج العميق
+      لـ config.yaml بين الملف الافتراضي والثانوي
+  de:
+    name: Profile Cascading & Deep Merge
+    description: Hierarchische Vererbung von Secret-Scope (.env), Cache und Deep-Merge
+      von config.yaml zwischen Standard- und Sekundärprofilen
+  pt:
+    name: Profile Cascading & Deep Merge
+    description: Herança hierárquica de escopo de segredos (.env), cache e mesclagem
+      profunda (deep-merge) de config.yaml entre perfil padrão e secundários
+tests:
+  test_pairing_store_fallback_and_cascading: "from gateway.pairing import PairingStore\n\
+    rs = PairingStore()\nappr = rs.list_approved(\"telegram\")\nuid = appr[0][\"user_id\"\
+    ] if appr else \"test_uid\"\nif not appr:\n    rs.approve_request(\"test\", \"\
+    telegram\", uid, \"User\")\nps = PairingStore(profile=\"test_fallback\")\nassert\
+    \ ps.is_approved(\"telegram\", uid) is True\n"

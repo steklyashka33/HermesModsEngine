@@ -1,0 +1,166 @@
+targets:
+- file: agent/i18n_layers.py
+  description: Import os in agent.i18n_layers
+  old_block: "from __future__ import annotations\n\nimport logging\nimport re\nimport\
+    \ threading"
+  new_block: "from __future__ import annotations\n\nimport logging\nimport os\nimport\
+    \ re\nimport threading"
+- file: agent/i18n_layers.py
+  description: Add mod cache and mtime tracking dictionaries in agent.i18n_layers
+  old_block: "_overlay_cache: dict[tuple[str, str, str], dict[str, str]] = {}\n_overlay_languages_cache:\
+    \ dict[str, frozenset[str]] = {}\n\n\ndef _reset_facade() -> None:"
+  new_block: "_overlay_cache: dict[tuple[str, str, str], dict[str, str]] = {}\n_overlay_languages_cache:\
+    \ dict[str, frozenset[str]] = {}\n_mod_cache: dict[tuple[str, str, str], dict[str,\
+    \ str]] = {}\n_mod_languages_cache: dict[str, frozenset[str]] = {}\n_mod_cache_mtime:\
+    \ dict[str, float] = {}\n\n\ndef _reset_facade() -> None:"
+- file: agent/i18n_layers.py
+  description: Add mod_locales_cache_path, is_mod_cache_stale, mod_overlay_layer,
+    and mod_languages functions
+  old_block: "    langs = frozenset(lang for lang, _surface, _path in scan_locale_dir(overlay_dir(home)))\n\
+    \    with _lock:\n        _overlay_languages_cache[key] = langs\n    return langs"
+  new_block: "    langs = frozenset(lang for lang, _surface, _path in scan_locale_dir(overlay_dir(home)))\n\
+    \    with _lock:\n        _overlay_languages_cache[key] = langs\n    return langs\n\
+    \n\ndef mod_locales_cache_path(home: Path | str) -> Path:\n    env_mods = os.environ.get(\"\
+    HERMES_MODS_DIR\")\n    if env_mods:\n        return Path(env_mods) / \".locales_cache.json\"\
+    \n    return Path(home) / \"mods\" / \".locales_cache.json\"\n\n\ndef is_mod_cache_stale(home:\
+    \ Path | str) -> bool:\n    cache_path = mod_locales_cache_path(home)\n    key\
+    \ = str(home)\n    with _lock:\n        last_mtime = _mod_cache_mtime.get(key,\
+    \ -1.0)\n    if not cache_path.is_file():\n        return False\n    try:\n  \
+    \      cur_mtime = cache_path.stat().st_mtime\n        return cur_mtime > last_mtime\n\
+    \    except OSError:\n        return False\n\n\ndef mod_overlay_layer(home: Path\
+    \ | str, lang: str, surface: str = CORE_SURFACE) -> dict[str, str]:\n    \"\"\"\
+    Mod localization layer: loads flattened {dotted.key: text} from ~/.hermes/mods/.locales_cache.json\n\
+    \    (or direct fallback scan) for (lang, surface). Highest priority overlay layer\
+    \ (overrides core & plugins).\"\"\"\n    lang_id = normalize_language_id(lang)\n\
+    \    if not lang_id:\n        return {}\n    key = (str(home), lang_id, surface)\n\
+    \    cache_path = mod_locales_cache_path(home)\n\n    with _lock:\n        last_mtime\
+    \ = _mod_cache_mtime.get(str(home), -1.0)\n        file_mtime = -1.0\n       \
+    \ if cache_path.is_file():\n            try:\n                file_mtime = cache_path.stat().st_mtime\n\
+    \            except OSError:\n                pass\n\n        if file_mtime >\
+    \ last_mtime:\n            home_str = str(home)\n            for k in list(_mod_cache.keys()):\n\
+    \                if k[0] == home_str:\n                    _mod_cache.pop(k, None)\n\
+    \            _mod_languages_cache.pop(home_str, None)\n            _mod_cache_mtime[home_str]\
+    \ = file_mtime\n\n        cached = _mod_cache.get(key)\n        if cached is not\
+    \ None:\n            return cached\n\n    flat: dict[str, str] = {}\n    if cache_path.is_file():\n\
+    \        try:\n            import json\n            with cache_path.open(\"r\"\
+    , encoding=\"utf-8\") as f:\n                data = json.load(f)\n           \
+    \ catalogs = data.get(\"catalogs\", {})\n            if isinstance(catalogs, dict):\n\
+    \                lang_data = catalogs.get(lang_id, {})\n                if isinstance(lang_data,\
+    \ dict):\n                    if surface in lang_data and isinstance(lang_data[surface],\
+    \ dict):\n                        flat = {str(k): str(v) for k, v in lang_data[surface].items()}\n\
+    \                    elif surface == CORE_SURFACE and not any(s in lang_data for\
+    \ s in SURFACES):\n                        flat = {str(k): str(v) for k, v in\
+    \ lang_data.items() if isinstance(v, str)}\n        except Exception as exc:\n\
+    \            logger.warning(\"Failed to load mod locales cache %s: %s\", cache_path,\
+    \ exc)\n            flat = {}\n\n    # Direct discovery fallback if cache file\
+    \ does not exist or missing this lang\n    if not flat:\n        try:\n      \
+    \      mods_dir = cache_path.parent\n            if mods_dir.is_dir():\n     \
+    \           for sub in sorted(mods_dir.glob(\"custom/*/i18n/*.yaml\")) + sorted(mods_dir.glob(\"custom/*/locales/*.yaml\")) + sorted(mods_dir.glob(\"system/*/i18n/*.yaml\")) + sorted(mods_dir.glob(\"system/*/locales/*.yaml\")):\n                    if sub.is_file():\n        \
+    \                match = _LOCALE_FILE_RE.match(sub.name)\n                   \
+    \     if match and normalize_language_id(match.group(\"lang\")) == lang_id:\n\
+    \                            sub_surface = match.group(\"surface\") or CORE_SURFACE\n\
+    \                            if sub_surface == surface:\n                    \
+    \            try:\n                                    sub_flat = parse_locale_file(sub)\n\
+    \                                    flat.update(sub_flat)\n                 \
+    \               except Exception:\n                                    pass\n\
+    \        except Exception:\n            pass\n\n    with _lock:\n        _mod_cache[key]\
+    \ = flat\n    return flat\n\n\ndef mod_languages(home: Path | str) -> frozenset[str]:\n\
+    \    \"\"\"Language ids supplied by mod overlays under *home*.\"\"\"\n    key\
+    \ = str(home)\n    with _lock:\n        cached = _mod_languages_cache.get(key)\n\
+    \        if cached is not None:\n            return cached\n\n    cache_path =\
+    \ mod_locales_cache_path(home)\n    langs: set[str] = set()\n    if cache_path.is_file():\n\
+    \        try:\n            import json\n            with cache_path.open(\"r\"\
+    , encoding=\"utf-8\") as f:\n                data = json.load(f)\n           \
+    \ meta_langs = data.get(\"_meta\", {}).get(\"languages\")\n            if isinstance(meta_langs,\
+    \ list):\n                langs.update(normalize_language_id(l) for l in meta_langs\
+    \ if l)\n            catalogs = data.get(\"catalogs\", {})\n            if isinstance(catalogs,\
+    \ dict):\n                langs.update(normalize_language_id(l) for l in catalogs.keys()\
+    \ if is_language_id(l))\n        except Exception:\n            pass\n\n    if\
+    \ not langs:\n        try:\n            mods_dir = cache_path.parent\n       \
+    \     if mods_dir.is_dir():\n                for sub in sorted(mods_dir.glob(\"custom/*/i18n/*.yaml\")) + sorted(mods_dir.glob(\"custom/*/locales/*.yaml\")) + sorted(mods_dir.glob(\"system/*/i18n/*.yaml\")) + sorted(mods_dir.glob(\"system/*/locales/*.yaml\")):\n                    if sub.is_file():\n                        match = _LOCALE_FILE_RE.match(sub.name)\n\
+    \                        if match:\n                            langs.add(normalize_language_id(match.group(\"\
+    lang\")))\n        except Exception:\n            pass\n\n    frozen = frozenset(langs)\n\
+    \    with _lock:\n        _mod_languages_cache[key] = frozen\n    return frozen"
+- file: agent/i18n_layers.py
+  description: Add mod_overlay_layer to surface_catalog in agent.i18n_layers
+  old_block: "def surface_catalog(home: Path | str, lang: str, surface: str = CORE_SURFACE)\
+    \ -> dict[str, str]:\n    \"\"\"Overlay + packs (packs win) for one surface —\
+    \ the layer ``i18n.catalog`` ships to a renderer, which\n    merges it over its\
+    \ own bundled catalog. Bundled Python locales are NOT included.\"\"\"\n    merged\
+    \ = dict(overlay_layer(home, lang, surface))\n    merged.update(pack_layer(lang,\
+    \ surface))\n    return merged"
+  new_block: "def surface_catalog(home: Path | str, lang: str, surface: str = CORE_SURFACE)\
+    \ -> dict[str, str]:\n    \"\"\"Overlay + packs + mod overlay (mod overlay wins)\
+    \ for one surface — the layer ``i18n.catalog`` ships\n    to a renderer, which\
+    \ merges it over its own bundled catalog. Bundled Python locales are NOT included.\"\
+    \"\"\n    merged = dict(overlay_layer(home, lang, surface))\n    merged.update(pack_layer(lang,\
+    \ surface))\n    merged.update(mod_overlay_layer(home, lang, surface))\n    return\
+    \ merged"
+- file: agent/i18n_layers.py
+  description: Include mod_languages in layered_languages
+  old_block: "def layered_languages(home: Path | str) -> frozenset[str]:\n    \"\"\
+    \"Languages supplied by any layer above bundled (overlay of *home* ∪ packs).\"\
+    \"\"\n    return overlay_languages(home) | pack_languages()"
+  new_block: "def layered_languages(home: Path | str) -> frozenset[str]:\n    \"\"\
+    \"Languages supplied by any layer above bundled (overlay of *home* ∪ packs ∪ mod\
+    \ overlay).\"\"\"\n    return overlay_languages(home) | pack_languages() | mod_languages(home)"
+- file: agent/i18n_layers.py
+  description: Clear mod cache in clear_cache
+  old_block: "def clear_cache() -> None:\n    \"\"\"Drop merged views (not the registrations);\
+    \ the facade's ``reset_language_cache`` calls this.\"\"\"\n    with _lock:\n \
+    \       _pack_cache.clear()\n        _overlay_cache.clear()\n        _overlay_languages_cache.clear()"
+  new_block: "def clear_cache() -> None:\n    \"\"\"Drop merged views (not the registrations);\
+    \ the facade's ``reset_language_cache`` calls this.\"\"\"\n    with _lock:\n \
+    \       _pack_cache.clear()\n        _overlay_cache.clear()\n        _overlay_languages_cache.clear()\n\
+    \        _mod_cache.clear()\n        _mod_languages_cache.clear()"
+- file: agent/i18n_layers.py
+  description: Export mod localization symbols in __all__
+  old_block: "__all__ = [\n    \"CORE_SURFACE\",\n    \"SURFACES\",\n    \"PackEntry\"\
+    ,\n    \"clear_cache\",\n    \"flatten\",\n    \"is_language_id\",\n    \"layered_languages\"\
+    ,\n    \"load_locale_source\",\n    \"non_text_leaves\",\n    \"normalize_language_id\"\
+    ,"
+  new_block: "__all__ = [\n    \"CORE_SURFACE\",\n    \"SURFACES\",\n    \"PackEntry\"\
+    ,\n    \"clear_cache\",\n    \"flatten\",\n    \"is_language_id\",\n    \"is_mod_cache_stale\"\
+    ,\n    \"layered_languages\",\n    \"load_locale_source\",\n    \"mod_languages\"\
+    ,\n    \"mod_locales_cache_path\",\n    \"mod_overlay_layer\",\n    \"non_text_leaves\"\
+    ,\n    \"normalize_language_id\","
+- file: agent/i18n.py
+  description: Add mod overlay layer and stale cache invalidation to _load_catalog
+  old_block: "def _load_catalog(lang: str, home: str | None = None) -> dict[str, str]:\n\
+    \    \"\"\"Merged catalog for ``lang`` in ``home`` (packs > overlay > bundled);\
+    \ cached per (home, lang).\"\"\"\n    home = home or _current_home()\n    key\
+    \ = (home, lang)\n    with _catalog_lock:\n        cached = _catalog_cache.get(key)\n\
+    \        if cached is not None:\n            return cached\n    merged = _load_bundled(lang)\n\
+    \    merged.update(i18n_layers.overlay_layer(home, lang))\n    merged.update(i18n_layers.pack_layer(lang))\n\
+    \    with _catalog_lock:\n        _catalog_cache[key] = merged\n    return merged"
+  new_block: "def _load_catalog(lang: str, home: str | None = None) -> dict[str, str]:\n\
+    \    \"\"\"Merged catalog for ``lang`` in ``home`` (mods > packs > overlay > bundled);\
+    \ cached per (home, lang).\"\"\"\n    home = home or _current_home()\n    if i18n_layers.is_mod_cache_stale(home):\n\
+    \        reset_language_cache()\n    key = (home, lang)\n    with _catalog_lock:\n\
+    \        cached = _catalog_cache.get(key)\n        if cached is not None:\n  \
+    \          return cached\n    merged = _load_bundled(lang)\n    merged.update(i18n_layers.overlay_layer(home,\
+    \ lang))\n    merged.update(i18n_layers.pack_layer(lang))\n    merged.update(i18n_layers.mod_overlay_layer(home,\
+    \ lang))\n    with _catalog_lock:\n        _catalog_cache[key] = merged\n    return\
+    \ merged"
+- file: agent/i18n.py
+  description: Export get_active_language alias for get_language
+  old_block: "def get_language() -> str:\n    \"\"\"Resolve the active language using\
+    \ env > config > default order. ``HERMES_LANGUAGE`` is a\n    per-profile ``.env``\
+    \ value, so it is read through the secret scope: under multiplexing a raw\n  \
+    \  environ read would impose the default profile's language on every other profile.\"\
+    \"\"\n    return _resolve_language(_current_home())\n\n\ndef t(key: str, lang:\
+    \ str | None = None, **format_kwargs: Any) -> str:"
+  new_block: "def get_language() -> str:\n    \"\"\"Resolve the active language using\
+    \ env > config > default order. ``HERMES_LANGUAGE`` is a\n    per-profile ``.env``\
+    \ value, so it is read through the secret scope: under multiplexing a raw\n  \
+    \  environ read would impose the default profile's language on every other profile.\"\
+    \"\"\n    return _resolve_language(_current_home())\n\n\nget_active_language =\
+    \ get_language\n\n\ndef t(key: str, lang: str | None = None, **format_kwargs:\
+    \ Any) -> str:"
+- file: agent/i18n.py
+  description: Export get_active_language in __all__
+  old_block: "__all__ = [\n    \"DEFAULT_LANGUAGE\",\n    \"SUPPORTED_LANGUAGES\"\
+    ,\n    \"get_language\",\n    \"language_options\","
+  new_block: "__all__ = [\n    \"DEFAULT_LANGUAGE\",\n    \"SUPPORTED_LANGUAGES\"\
+    ,\n    \"get_active_language\",\n    \"get_language\",\n    \"language_options\"\
+    ,"

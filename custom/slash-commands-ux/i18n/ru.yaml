@@ -1,0 +1,37 @@
+cli:
+  usage:
+    cache_label: кэш
+description: 'Комплексный UX слэш-команд: /undo, /goal, /model, /agents, форматирование
+  /help и /commands, /compress [N], /handoff, /context, /usage, /status, /insights
+  (честные токены, отображение процента кэша во всех командах)'
+gateway:
+  context:
+    category_row: '{glyph} {label}  ~  {tokens} токенов  ~  {pct}%'
+    compressions: 'Сжатий за этот сеанс: {count}'
+    compressions_total: 'Сжатий за всё время: {count}'
+    last_savings: 'Последнее сжатие освободило: {savings}% контекста'
+    over_threshold: ⚠️ **Порог автосжатия превышен ({threshold}, {threshold_pct}%)**
+    threshold: 'Автосжатие при: {threshold} ({threshold_pct}%) — осталось {to_go}
+      ({to_go_pct})'
+    total_billed: 'Всего: {total}'
+    total_billed_with_cache: 'Всего: {total} ({cache_pct}% кэш)'
+    totals_header: 'Итого за всё время (суммарно за {calls} вызовов API):'
+    totals_line: 'Входные: {input} · Выходные: {output} · Рассуждения: {reasoning}'
+    detail_after_first: _(Более подробная информация будет после первого ответа нейросети)_
+  status:
+    tokens_with_cache: '**Всего токенов за всё время:** {tokens} ({cache_pct}% кэш)
+      _(это не размер текущего контекста; используйте `/context`)_'
+  usage:
+    label_api_calls: 'Вызовы API: {count}'
+    label_output_tokens: 'Выходные токены: {count}'
+    label_total: 'Всего: {total}'
+    label_total_with_cache: 'Всего: {total} ({cache_pct}% кэш)'
+    header_tokens: 'Использование токенов:'
+    tokens_line: 'Входные: {input} · Выходные: {output} · Рассуждения: {reasoning}'
+name: Slash Commands UX Polish
+slash:
+  compress:
+    description: Сжать контекст разговора (укажите [N], чтобы сохранить последние
+      N сообщений; --preview или --dry-run для предпросмотра)
+  handoff:
+    description: Передать контекст сессии в новый чистый сеанс (сохранив бриф задач)

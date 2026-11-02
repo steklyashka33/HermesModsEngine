@@ -1,0 +1,31 @@
+name: Speech to Text
+description: Módulo de reconhecimento de fala (STT) via API multimodal com fallback
+  paralelo especulativo para faster-whisper local
+config:
+  fallback_whisper:
+    title: Fallback para Whisper
+    description: Transição automática para faster-whisper quando o gateway remoto
+      de STT estiver inacessível
+  downscale_heavy_audio:
+    title: Comprimir áudio pesado
+    description: Recompactação automática de arquivos de áudio >750KB via ffmpeg em
+      mono-Opus compacto
+  api_key:
+    title: Chave de API do STT
+    description: Chave de API opcional do STT (herdada nativamente de config.yaml
+      do Hermes por padrão)
+  base_url:
+    title: URL base do STT
+    description: URL base do gateway OmniRoute STT (herdada de config.yaml do Hermes
+      por padrão)
+  model:
+    title: Modelo STT
+    description: Substituição opcional do modelo STT (herdada de stt.openai.model
+      no config.yaml do Hermes por padrão)
+  timeout:
+    title: Tempo limite da requisição
+    description: Tempo limite da requisição para a API remota de STT em segundos
+  speculative_fallback_delay:
+    title: Atraso de fallback
+    description: Atraso em segundos antes do lançamento paralelo especulativo do Whisper
+      local

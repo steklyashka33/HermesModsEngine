@@ -1,0 +1,72 @@
+# ==============================================================================
+# Hermes Folder Mod Template (mod.yaml)
+# ==============================================================================
+# Folder mods are ideal for full-featured extensions, multi-file patches,
+# bundled agent skills, scripts, and background daemons.
+#
+# Directory layout:
+#   <mod-id>/
+#   ├── mod.yaml              # Main manifest (metadata, config, commands)
+#   ├── targets/              # Modular patch files (*.yaml)
+#   ├── skills/               # Bundled Agent skills (<skill-name>/SKILL.md)
+#   ├── scripts/              # Command handlers and utility scripts
+#   ├── monitors/             # Background daemons (or in mod.yaml)
+#   └── mcp_servers.yaml      # Declarative MCP servers (optional)
+#
+# Reference documentation: docs/manifest-spec.md
+# ==============================================================================
+
+id: example-folder-mod
+name: Example Folder Mod
+description: Demonstrates a structured multi-component mod layout with targets, skills, and scripts
+version: 1.0.0
+author: Community
+enabled: true
+
+# Minimum engine & agent versions (optional)
+min_engine_version: "1.2.0"
+min_hermes_version: "0.20.0"
+
+# Dependencies (optional)
+dependencies:
+  - mod-command-registry
+  - mod-folder-skills
+
+# Declarative configuration
+config:
+  service_endpoint:
+    type: string
+    description: Remote service base URL
+    default: "https://api.example.com"
+  timeout_seconds:
+    type: int
+    description: Network timeout in seconds
+    default: 30
+    min: 5
+    max: 300
+  auth_token:
+    type: string
+    description: Authentication token (stored in secrets.yaml 0600)
+    sensitive: true
+    required: false
+
+# Declarative slash commands pointing to handler scripts
+commands:
+  - name: folder-demo
+    description: Demo command dispatched to a local script
+    args_hint: "[query] [--preview]"
+    handler_script: scripts/example_command.py
+    category: Custom Mods
+    busy_policy: reject
+    aliases:
+      - fdemo
+
+# Background monitors (optional)
+monitors:
+  - id: folder_watcher
+    name: Folder Mod Watcher
+    command: "python3 ${MOD_DIR}/scripts/watcher.py"
+    description: Background heartbeat monitor
+    when: always
+    delivery: log
+    interval: 30

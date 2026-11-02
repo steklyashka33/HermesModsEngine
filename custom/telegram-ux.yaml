@@ -1,0 +1,563 @@
+name: Telegram UX & Rich Formatting
+version: 2.4.0
+description: 'Telegram rich messaging UX: delivery of rich formatting (tables, LaTeX,
+  spoilers), multiline quotes, and photo burst grouping'
+targets:
+- file: plugins/platforms/telegram/adapter.py
+  description: Add _repair_telegram_chunks helper and _mdv2_to_mdv1 fallback
+  old_block: "def _separate_chunk_indicator_from_fence(text: str) -> str:\n    \"\"\
+    \"Move a ``(N/M)`` chunk marker that ``truncate_message()`` appended to a synthesized\
+    \ closing\n    fence onto its own line — Telegram rejects ````` \\\\(1/2\\\\)``\
+    \ as a fence.\"\"\"\n    return _CHUNK_INDICATOR_ON_FENCE_RE.sub(r'```\\n\\g<indicator>',\
+    \ text)"
+  new_block: "def _separate_chunk_indicator_from_fence(text: str) -> str:\n    r\"\
+    \"\"Move a ``(N/M)`` chunk marker that ``truncate_message()`` appended to a synthesized\
+    \ closing\n    fence onto its own line — Telegram rejects ````` \\(1/2\\)`` as\
+    \ a fence.\"\"\"\n    return _CHUNK_INDICATOR_ON_FENCE_RE.sub(r'```\\n\\g<indicator>',\
+    \ text)\n\n\n_CHUNK_INDICATOR_STRIP_RE = re.compile(r'\\s*(?:\\(\\d+/\\d+\\)|\\\
+    \\\\\\\\(\\d+/\\d+\\\\\\\\\\))\\s*$')\n\n\ndef _repair_telegram_chunks(chunks:\
+    \ list[str]) -> list[str]:\n    \"\"\"Ensure multi-chunk Telegram messages preserve\
+    \ valid MarkdownV2 formatting across splits.\n    1. Removes distracting (N/M)\
+    \ chunk suffixes.\n    2. Closes unclosed expandable blockquotes (||) at chunk\
+    \ tails and reopens (**>) at chunk heads.\n    \"\"\"\n    if not chunks:\n  \
+    \      return []\n    repaired: list[str] = []\n    in_expandable = False\n\n\
+    \    for chunk in chunks:\n        if not chunk:\n            repaired.append(\"\
+    \")\n            continue\n        c = _CHUNK_INDICATOR_STRIP_RE.sub('', chunk)\n\
+    \        lines = c.splitlines()\n\n        if in_expandable:\n            if lines\
+    \ and lines[0].startswith('> '):\n                lines[0] = '**> ' + lines[0][2:]\n\
+    \            elif lines and not lines[0].startswith('**> '):\n               \
+    \ lines[0] = '**> ' + lines[0]\n\n        chunk_text = '\\n'.join(lines)\n   \
+    \     has_open_exp = '**> ' in chunk_text\n        has_close_exp = chunk_text.endswith('||')\n\
+    \n        if in_expandable or has_open_exp:\n            if not has_close_exp:\n\
+    \                if lines:\n                    lines[-1] = lines[-1] + '||'\n\
+    \                in_expandable = True\n            else:\n                in_expandable\
+    \ = False\n\n        repaired.append('\\n'.join(lines))\n\n    return repaired\n\
+    \n\ndef _mdv2_to_mdv1(text: str) -> str:\n    \"\"\"Convert MarkdownV2-formatted\
+    \ text to classic Telegram Markdown (v1) as fallback.\n    Preserves bold (*text*),\
+    \ monospace (`code` / ```pre```), and links [text](url).\n    Unescapes punctuation\
+    \ (. - ~ ( ) ! + = | { } > # [ ]) that is reserved in v2 but\n    must not be\
+    \ escaped in v1.\n    \"\"\"\n    if not text:\n        return text or \"\"\n\
+    \    placeholders: dict[str, str] = {}\n    counter = [0]\n\n    def _ph(val:\
+    \ str) -> str:\n        k = f\"\\x00MDV1_{counter[0]}\\x00\"\n        counter[0]\
+    \ += 1\n        placeholders[k] = val\n        return k\n\n    text = re.sub(r'```[\\\
+    s\\S]*?```', lambda m: _ph(m.group(0)), text)\n    text = re.sub(r'`[^`\\n]+`',\
+    \ lambda m: _ph(m.group(0)), text)\n    text = re.sub(r'\\[[^\\]]+\\]\\([^)]+\\\
+    )', lambda m: _ph(m.group(0)), text)\n    text = re.sub(r'\\\\([.\\-~()!+=|{}>#\\\
+    [\\]])', r'\\1', text)\n\n    for k in reversed(list(placeholders.keys())):\n\
+    \        text = text.replace(k, placeholders[k])\n    return text"
+- file: plugins/platforms/telegram/adapter.py
+  description: Use _repair_telegram_chunks in _send_text_locked
+  old_block: "            chunks = self.truncate_message(self.format_message(content),\
+    \ self.MAX_MESSAGE_LENGTH, len_fn=utf16_len)\n            if len(chunks) > 1:\n\
+    \                # truncate_message appends a raw \" (1/2)\" suffix; escape the\
+    \ MarkdownV2-special parentheses.\n                chunks = [\n              \
+    \      _separate_chunk_indicator_from_fence(re.sub(r\" \\((\\d+)/(\\d+)\\)$\"\
+    , r\" \\\\(\\1/\\2\\\\)\", chunk))\n                    for chunk in chunks\n\
+    \               ]\n            return await self._send_chunks(chat_id, chunks,\
+    \ delivered, reply_to, metadata, error_types)"
+  new_block: "            chunks = self.truncate_message(self.format_message(content),\
+    \ self.MAX_MESSAGE_LENGTH, len_fn=utf16_len)\n            if len(chunks) > 1:\n\
+    \                chunks = _repair_telegram_chunks(chunks)\n            return\
+    \ await self._send_chunks(chat_id, chunks, delivered, reply_to, metadata, error_types)"
+- file: plugins/platforms/telegram/adapter.py
+  description: Support multiline expandable blockquotes in format_message
+  old_block: "        # 9) Blockquotes: protect leading > from escaping; expandable\
+    \ quotes (**> starts, trailing || ends).\n        def _convert_blockquote(m):\n\
+    \            prefix, content = m.group(1), m.group(2)  # prefix: >, >>, >>>, **>,\
+    \ **>> …\n            if prefix.startswith('**') and content.endswith('||'):\n\
+    \                return _ph(f'{prefix} {_escape_mdv2(content[:-2])}||')\n    \
+    \        return _ph(f'{prefix} {_escape_mdv2(content)}')\n\n        text = re.sub(r'^((?:\\\
+    *\\*)?>{1,3}) (.+)$', _convert_blockquote, text, flags=re.MULTILINE)\n"
+  new_block: "        # 9) Blockquotes: protect leading > from escaping; expandable\
+    \ quotes (**> starts, trailing || ends).\n        def _convert_expandable_multiline(m):\n\
+    \            lines = m.group(0).splitlines()\n            res_lines = []\n   \
+    \         for i, line in enumerate(lines):\n                is_last = (i == len(lines)\
+    \ - 1)\n                m_l = re.match(r\"^(\\*{0,2}>{1,3})\\s?(.*)$\", line)\n\
+    \                if m_l:\n                    pref, rest = m_l.group(1), m_l.group(2)\n\
+    \                else:\n                    pref, rest = (\">\", line.strip())\
+    \ if line.strip() else (\">\", \"\")\n\n                if is_last and rest.endswith(\"\
+    ||\"):\n                    inner = rest[:-2].strip()\n                    res_lines.append(f\"\
+    {pref} {_escape_mdv2(inner)}||\" if inner else f\"{pref}||\")\n              \
+    \  elif rest.strip():\n                    res_lines.append(f\"{pref} {_escape_mdv2(rest)}\"\
+    )\n                else:\n                    res_lines.append(pref)\n       \
+    \     joiner = chr(10)\n            return _ph(joiner.join(res_lines))\n\n   \
+    \     exp_pattern = r\"(?m)^(\\*{2}> ?(?:[^\\n]*?\\n(?:> ?[^\\n]*\\n|[ \\t]*\\\
+    n)*> ?[^\\n]*?|[^\\n]*?)\\|\\|)$\"\n        text = re.sub(exp_pattern, _convert_expandable_multiline,\
+    \ text)\n\n        def _convert_blockquote(m):\n            prefix, content =\
+    \ m.group(1), m.group(2) or \"\"\n            if prefix.startswith(\"**\") and\
+    \ content.endswith(\"||\"):\n                return _ph(f\"{prefix} {_escape_mdv2(content[:-2])}||\"\
+    )\n            if content.strip():\n                return _ph(f\"{prefix} {_escape_mdv2(content)}\"\
+    )\n            return _ph(prefix)\n\n        text = re.sub(r\"^((?:\\*\\*)?>{1,3})(?:\
+    \ (.+))?$\", _convert_blockquote, text, flags=re.MULTILINE)\n"
+- file: gateway/response_filters.py
+  description: Allow intentional silence when platform is Telegram or reply_expected
+    is not strictly True
+  old_block: "def silence_allowed(display_kind: Any, reply_expected: Optional[bool]\
+    \ = None) -> bool:\n    \"\"\"Whether a successful bare silence marker may remain\
+    \ silent for this turn.\"\"\"\n    return is_machinery_display_kind(display_kind)\
+    \ or reply_expected is False"
+  new_block: "def silence_allowed(display_kind: Any, reply_expected: Optional[bool]\
+    \ = None) -> bool:\n    \"\"\"Whether a successful bare silence marker may remain\
+    \ silent for this turn.\"\"\"\n    return is_machinery_display_kind(display_kind)\
+    \ or reply_expected is not True"
+- file: plugins/platforms/telegram/adapter.py
+  description: Register VIDEO_NOTE filter in Telegram media handler
+  old_block: filters.PHOTO | filters.VIDEO | filters.AUDIO | filters.VOICE | filters.Document.ALL
+    | filters.Sticker.ALL
+  new_block: filters.PHOTO | filters.VIDEO | getattr(filters, "VIDEO_NOTE", filters.VIDEO)
+    | filters.AUDIO | filters.VOICE | filters.Document.ALL | filters.Sticker.ALL
+- file: plugins/platforms/telegram/adapter.py
+  description: Classify video_note as MessageType.VIDEO in _media_message_type
+  old_block: "(\"sticker\", MessageType.STICKER), (\"photo\", MessageType.PHOTO),\
+    \ (\"video\", MessageType.VIDEO),\n            (\"audio\", MessageType.AUDIO),\
+    \ (\"voice\", MessageType.VOICE)"
+  new_block: "(\"sticker\", MessageType.STICKER), (\"photo\", MessageType.PHOTO),\
+    \ (\"video\", MessageType.VIDEO),\n            (\"video_note\", MessageType.VIDEO),\n\
+    \            (\"audio\", MessageType.AUDIO), (\"voice\", MessageType.VOICE)"
+- file: plugins/platforms/telegram/adapter.py
+  description: Extract replied-to video notes in _observed_media_source
+  old_block: "if msg.video:\n            return msg.video, \"\", \"video/mp4\", \"\
+    video\"\n        if msg.voice:"
+  new_block: "if msg.video:\n            return msg.video, \"\", \"video/mp4\", \"\
+    video\"\n        if msg.video_note:\n            return msg.video_note, \"\",\
+    \ \"video/mp4\", \"video\"\n        if msg.voice:"
+- file: plugins/platforms/telegram/adapter.py
+  description: Handle incoming video_note in _handle_media_message
+  old_block: "elif msg.video:\n            if await self._cache_inbound_av(msg, event,\
+    \ msg.video, \"video file\", \"video\", \".mp4\", \"video/mp4\"):\n          \
+    \      return\n        elif msg.document and await self._cache_inbound_document(msg,\
+    \ event):"
+  new_block: "elif msg.video:\n            if await self._cache_inbound_av(msg, event,\
+    \ msg.video, \"video file\", \"video\", \".mp4\", \"video/mp4\"):\n          \
+    \      return\n        elif msg.video_note:\n            if await self._cache_inbound_av(msg,\
+    \ event, msg.video_note, \"video note\", \"video\", \".mp4\", \"video/mp4\"):\n\
+    \                return\n        elif msg.document and await self._cache_inbound_document(msg,\
+    \ event):"
+- file: plugins/platforms/telegram/adapter.py
+  description: Add video note to _MEDIA_KIND_KEYS
+  old_block: '"video file": "platform.telegram.media.kind_video"}'
+  new_block: '"video file": "platform.telegram.media.kind_video", "video note": "platform.telegram.media.kind_video"}'
+- file: plugins/platforms/telegram/adapter.py
+  description: Fix false-positive Telegram Desktop details math crash check by ignoring
+    code fences and backticks
+  old_block: "    def _has_telegram_desktop_details_math_crash_shape(self, content:\
+    \ str) -> bool:\n        \"\"\"Math inside <details> crashes Telegram Desktop\
+    \ 6.9.1 (tdesktop#30808); the Bot API accepts\n        the payload, so rich delivery\
+    \ must be skipped up front.\"\"\"\n        if not content:\n            return\
+    \ False\n        return any(self._RICH_MATH_IN_DETAILS_RE.search(block) for block\
+    \ in self._RICH_DETAILS_RE.findall(content))"
+  new_block: "    def _has_telegram_desktop_details_math_crash_shape(self, content:\
+    \ str) -> bool:\n        \"\"\"Math inside <details> crashes Telegram Desktop\
+    \ 6.9.1 (tdesktop#30808); the Bot API accepts\n        the payload, so rich delivery\
+    \ must be skipped up front. Strip code fences and inline ticks first\n       \
+    \ so literal discussions of `<details>` in backticks do not trigger false positives.\"\
+    \"\"\n        if not content:\n            return False\n        cleaned = re.sub(r\"\
+    (?s)```.*?```\", \"\", content)\n        cleaned = re.sub(r\"`[^`\\n]+`\", \"\"\
+    , cleaned)\n        return any(self._RICH_MATH_IN_DETAILS_RE.search(block) for\
+    \ block in self._RICH_DETAILS_RE.findall(cleaned))"
+- file: plugins/platforms/telegram/adapter.py
+  description: Support horizontal rules in _needs_rich_rendering
+  old_block: "        if re.search(r\"(?m)^<details\\b|^</details>|^<summary\\b|^</summary>\"\
+    , content):\n            return True\n        return \"$$\" in content"
+  new_block: "        if re.search(r\"(?m)^<details\\b|^</details>|^<summary\\b|^</summary>\"\
+    , content):\n            return True\n        if re.search(r\"(?m)^[ \\t]*(?:-[\
+    \ \\t]*){3,}$\", re.sub(r\"(?s)```.*?```\", \"\", content)):\n            return\
+    \ True\n        return \"$$\" in content"
+- file: plugins/platforms/telegram/adapter.py
+  description: Clean architectural definition of _rich_eligible and _should_attempt_rich
+    with agent_turn_final contract and fallback
+  old_block: "    def _rich_eligible(self, content: str) -> bool:\n        \"\"\"\
+    Rich eligibility ignoring ``expect_edits`` (a streamed preview's FINAL edit still\
+    \ upgrades).\"\"\"\n        return bool(\n            self._rich_delivery_enabled()\n\
+    \            and not getattr(self, \"_rich_send_disabled\", False)\n         \
+    \   and content and content.strip()\n            and self._needs_rich_rendering(content)\n\
+    \            and self._rich_content_ok(content))\n\n    def _should_attempt_rich(self,\
+    \ content: str, metadata: Optional[dict[str, Any]] = None) -> bool:\n        return\
+    \ bool(not (metadata or {}).get(\"expect_edits\") and self._rich_eligible(content))"
+  new_block: "    def _rich_eligible(self, content: str) -> bool:\n        \"\"\"\
+    Rich eligibility ignoring ``expect_edits``: capability, limits, and desktop crash\
+    \ safety.\"\"\"\n        return bool(\n            self._rich_delivery_enabled()\n\
+    \            and not getattr(self, \"_rich_send_disabled\", False)\n         \
+    \   and content and content.strip()\n            and self._rich_content_ok(content))\n\
+    \n    def _should_attempt_rich(self, content: str, metadata: Optional[dict[str,\
+    \ Any]] = None) -> bool:\n        meta = metadata if isinstance(metadata, dict)\
+    \ else {}\n        if meta.get(\"expect_edits\"):\n            return False\n\
+    \        # 1. Structural contract: assistant final turn responses ALWAYS use Rich-first.\n\
+    \        if meta.get(\"agent_turn_final\"):\n            return self._rich_eligible(content)\n\
+    \        # 2. Backward compatibility & direct calls: check if content specifically\
+    \ requires rich constructs.\n        if self._needs_rich_rendering(content):\n\
+    \            return self._rich_eligible(content)\n        return False"
+- file: plugins/platforms/telegram/adapter.py
+  description: Support agent_turn_final in edit_message rich finalization
+  old_block: "        # (overflow split included) on capability/permanent rejection.\n\
+    \        if finalize and self._rich_eligible(content):\n            rich_result\
+    \ = await self._try_edit_rich(chat_id, message_id, content, metadata=metadata)\n\
+    \            if rich_result is not None:\n                return rich_result"
+  new_block: "        # (overflow split included) on capability/permanent rejection.\n\
+    \        if finalize and ((metadata if isinstance(metadata, dict) else {}).get(\"\
+    agent_turn_final\") or self._needs_rich_rendering(content)) and self._rich_eligible(content):\n\
+    \            rich_result = await self._try_edit_rich(chat_id, message_id, content,\
+    \ metadata=metadata)\n            if rich_result is not None:\n              \
+    \  return rich_result"
+- file: plugins/platforms/telegram/adapter.py
+  description: Support agent_turn_final in prefers_fresh_final_streaming
+  old_block: "        if not (metadata.get(\"telegram_dm_topic_reply_fallback\") or\
+    \ self._metadata_direct_messages_topic_id(metadata)):\n            return False\n\
+    \        return self._rich_eligible(content)"
+  new_block: "        meta = metadata if isinstance(metadata, dict) else {}\n    \
+    \    if not (meta.get(\"telegram_dm_topic_reply_fallback\") or self._metadata_direct_messages_topic_id(metadata)):\n\
+    \            return False\n        if meta.get(\"agent_turn_final\") or self._needs_rich_rendering(content):\n\
+    \            return self._rich_eligible(content)\n        return False"
+- file: gateway/platforms/base.py
+  description: Explicitly tag final agent response text with agent_turn_final metadata
+  old_block: "    async def _send_final_text(\n        self, event: MessageEvent,\
+    \ session_key: str, text_content: str, metadata: dict[str, Any],\n        is_ephemeral_response:\
+    \ bool, ephemeral_ttl: int, record_delivery: Callable) -> None:\n        \"\"\"\
+    Normal-lane final: the ledger bracket plus the message-id owner's ephemeral delete.\"\
+    \"\"\n        result, delivery_adapter = await self.send_final_ledgered(\n   \
+    \         event, session_key, text_content, metadata,\n            reply_to=_reply_anchor_for_event(event),\
+    \ is_ephemeral_response=is_ephemeral_response)"
+  new_block: "    async def _send_final_text(\n        self, event: MessageEvent,\
+    \ session_key: str, text_content: str, metadata: dict[str, Any],\n        is_ephemeral_response:\
+    \ bool, ephemeral_ttl: int, record_delivery: Callable) -> None:\n        \"\"\"\
+    \n    Normal-lane final: the ledger bracket plus the message-id owner's ephemeral\
+    \ delete.\"\"\"\n        text_metadata = dict(metadata) if isinstance(metadata,\
+    \ dict) else {}\n        is_command = bool(event.get_command())\n        if is_command:\n\
+    \            text_metadata[\"is_command_reply\"] = True\n            text_metadata[\"\
+    command\"] = event.get_command()\n            text_metadata.pop(\"agent_turn_final\"\
+    , None)\n        else:\n            text_metadata[\"agent_turn_final\"] = True\n\
+    \        result, delivery_adapter = await self.send_final_ledgered(\n        \
+    \    event, session_key, text_content, text_metadata,\n            reply_to=_reply_anchor_for_event(event),\
+    \ is_ephemeral_response=is_ephemeral_response)"
+- file: gateway/stream_consumer_transport.py
+  description: Forward agent_turn_final metadata on streaming edit finalization
+  old_block: "    async def _edit_message(self, *, message_id: str, content: str,\
+    \ finalize: bool = False):\n        \"\"\"Edit via the adapter, passing routing\
+    \ metadata when supported.\"\"\"\n        # Contract: adapters must accept finalize=\
+    \ even when False (test-guarded).\n        kwargs = dict(chat_id=self.chat_id,\
+    \ message_id=message_id, content=content,\n                      finalize=finalize)\n\
+    \        if self.metadata:\n            try:\n                params = inspect.signature(self.adapter.edit_message).parameters\n\
+    \                if \"metadata\" in params or any(\n                    param.kind\
+    \ is inspect.Parameter.VAR_KEYWORD for param in params.values()):\n          \
+    \          kwargs[\"metadata\"] = self.metadata\n            except (TypeError,\
+    \ ValueError):\n                pass\n        return await self.adapter.edit_message(**kwargs)"
+  new_block: "    async def _edit_message(self, *, message_id: str, content: str,\
+    \ finalize: bool = False):\n        \"\"\"Edit via the adapter, passing routing\
+    \ metadata when supported.\"\"\"\n        # Contract: adapters must accept finalize=\
+    \ even when False (test-guarded).\n        kwargs = dict(chat_id=self.chat_id,\
+    \ message_id=message_id, content=content,\n                      finalize=finalize)\n\
+    \        edit_meta = dict(self.metadata) if isinstance(self.metadata, dict) else\
+    \ {}\n        if finalize:\n            edit_meta[\"agent_turn_final\"] = True\n\
+    \        if edit_meta:\n            try:\n                params = inspect.signature(self.adapter.edit_message).parameters\n\
+    \                if \"metadata\" in params or any(\n                    param.kind\
+    \ is inspect.Parameter.VAR_KEYWORD for param in params.values()):\n          \
+    \          kwargs[\"metadata\"] = edit_meta\n            except (TypeError, ValueError):\n\
+    \                pass\n        return await self.adapter.edit_message(**kwargs)"
+- file: gateway/run_notifications.py
+  description: Tag queued-lane final edit in place with agent_turn_final metadata
+  old_block: "                        _edit_res = await adapter.edit_message(\n  \
+    \                          chat_id=source.chat_id, message_id=_sc_msg_id, content=text_content,\
+    \ finalize=True,\n                        )"
+  new_block: "                        _edit_res = await adapter.edit_message(\n  \
+    \                          chat_id=source.chat_id, message_id=_sc_msg_id, content=text_content,\
+    \ finalize=True,\n                            metadata={\"agent_turn_final\":\
+    \ True},\n                        )"
+- file: gateway/run_notifications.py
+  description: Tag queued-lane final send fallback with agent_turn_final metadata
+  old_block: "        if session_key and isinstance(adapter, BasePlatformAdapter):\n\
+    \            result, _ = await adapter.send_final_ledgered(\n                MessageEvent(text=\"\
+    \", source=source, ledger_message_id=inbound_message_id),\n                session_key,\
+    \ text_content, _mark_notify_metadata(metadata), reply_to=event_message_id)"
+  new_block: "        if session_key and isinstance(adapter, BasePlatformAdapter):\n\
+    \            _send_md = _mark_notify_metadata(metadata)\n            _send_md[\"\
+    agent_turn_final\"] = True\n            result, _ = await adapter.send_final_ledgered(\n\
+    \                MessageEvent(text=\"\", source=source, ledger_message_id=inbound_message_id),\n\
+    \                session_key, text_content, _send_md, reply_to=event_message_id)"
+- file: plugins/platforms/telegram/adapter.py
+  description: Support _italic_ with underscores in format_message
+  old_block: "        # 5) Bold **text** → *text*; 6) Italic *text* → _text_ ([^*\\\
+    n]+ keeps matches on one line, or *\n        # bullet lists corrupt); 7) Strikethrough\
+    \ ~~text~~ → ~text~; 8) Spoiler ||text|| kept as-is.\n        text = re.sub(r'\\\
+    *\\*(.+?)\\*\\*', _ph_wrap('*', '*'), text)\n        text = re.sub(r'\\*([^*\\\
+    n]+)\\*', _ph_wrap('_', '_'), text)\n        text = re.sub(r'~~(.+?)~~', _ph_wrap('~',\
+    \ '~'), text)\n        text = re.sub(r'\\|\\|(.+?)\\|\\|', _ph_wrap('||', '||'),\
+    \ text)"
+  new_block: "        # 5) Bold **text** → *text*; 6) Italic *text* → _text_ ([^*\\\
+    n]+ keeps matches on one line, or *\n        # bullet lists corrupt); 7) Strikethrough\
+    \ ~~text~~ → ~text~; 8) Spoiler ||text|| kept as-is.\n        text = re.sub(r'\\\
+    *\\*(.+?)\\*\\*', _ph_wrap('*', '*'), text)\n        text = re.sub(r'\\*([^*\\\
+    n]+)\\*', _ph_wrap('_', '_'), text)\n        text = re.sub(r'(?<!\\w)_([^\\n_]+?)_(?!\\\
+    w)', _ph_wrap('_', '_'), text)\n        text = re.sub(r'~~(.+?)~~', _ph_wrap('~',\
+    \ '~'), text)\n        text = re.sub(r'\\|\\|(.+?)\\|\\|', _ph_wrap('||', '||'),\
+    \ text)"
+- file: plugins/platforms/telegram/adapter.py
+  description: Protect links and escape bare brackets and tildes in format_message
+    safety net
+  old_block: "        # 12) Safety net: escape bare ( ) { } that slipped through,\
+    \ but never inside ``` or ` spans.\n        _safe_parts = []\n        for _idx,\
+    \ _seg in enumerate(re.split(r'(```[\\s\\S]*?```|`[^`]+`)', text)):\n        \
+    \    if _idx % 2 == 1:\n                _safe_parts.append(_seg)  # inside code\
+    \ — untouched\n            else:\n                _safe_parts.append(re.sub(r'[(){}]',\
+    \ lambda m, _seg=_seg: TelegramAdapter._escape_bare_bracket(m, _seg), _seg))\n\
+    \        return ''.join(_safe_parts)"
+  new_block: "        # 12) Safety net: escape bare [ ] ~ ( ) { } that slipped through,\
+    \ but never inside ``` or ` spans or links.\n        _safe_parts = []\n      \
+    \  for _idx, _seg in enumerate(re.split(r'(```[\\s\\S]*?```|`[^`]+`|\\[[^\\]]+\\\
+    ]\\([^)]+\\))', text)):\n            if _idx % 2 == 1:\n                _safe_parts.append(_seg)\
+    \  # inside code or links — untouched\n            else:\n                s =\
+    \ re.sub(r'(?<!\\\\)[\\[\\]]', r'\\\\\\g<0>', _seg)\n                s = re.sub(r'(?<!\\\
+    \\)~', r'\\~', s)\n                s = re.sub(r'[(){}]', lambda m, _s=s: TelegramAdapter._escape_bare_bracket(m,\
+    \ _s), s)\n                _safe_parts.append(s)\n        return ''.join(_safe_parts)"
+- file: plugins/platforms/telegram/adapter.py
+  description: Multi-tier fallback to Markdown v1 and plain text in _send_chunk_markdown_or_plain
+  old_block: "    async def _send_chunk_markdown_or_plain(self, chunk: str, send_kwargs:\
+    \ dict[str, Any]):\n        \"\"\"MarkdownV2 first; on a parse/markdown rejection\
+    \ resend as stripped plain text.\"\"\"\n        try:\n            return await\
+    \ _await_with_thread_deadline(\n                self._bot.send_message(text=chunk,\
+    \ parse_mode=ParseMode.MARKDOWN_V2, **send_kwargs),\n                timeout=_TEXT_SEND_DEADLINE,\
+    \ label=\"telegram-send\", dump_on_blocked_loop=False)\n        except Exception\
+    \ as md_error:\n            if \"parse\" in str(md_error).lower() or \"markdown\"\
+    \ in str(md_error).lower():\n                logger.warning(\"[%s] MarkdownV2\
+    \ parse failed, falling back to plain text: %s\", self.name, md_error)\n     \
+    \           return await _await_with_thread_deadline(\n                    self._bot.send_message(text=_strip_mdv2(chunk),\
+    \ parse_mode=None, **send_kwargs),\n                    timeout=_TEXT_SEND_DEADLINE,\
+    \ label=\"telegram-send\", dump_on_blocked_loop=False)\n            raise"
+  new_block: "    async def _send_chunk_markdown_or_plain(self, chunk: str, send_kwargs:\
+    \ dict[str, Any]):\n        \"\"\"MarkdownV2 first; on a parse/markdown rejection\
+    \ try Markdown v1, then stripped plain text.\"\"\"\n        try:\n           \
+    \ return await _await_with_thread_deadline(\n                self._bot.send_message(text=chunk,\
+    \ parse_mode=ParseMode.MARKDOWN_V2, **send_kwargs),\n                timeout=_TEXT_SEND_DEADLINE,\
+    \ label=\"telegram-send\", dump_on_blocked_loop=False)\n        except Exception\
+    \ as md_error:\n            if \"parse\" in str(md_error).lower() or \"markdown\"\
+    \ in str(md_error).lower():\n                logger.warning(\"[%s] MarkdownV2\
+    \ parse failed: %s, falling back to Markdown v1\", self.name, md_error)\n    \
+    \            try:\n                    v1_text = _mdv2_to_mdv1(chunk)\n      \
+    \              return await _await_with_thread_deadline(\n                   \
+    \     self._bot.send_message(text=v1_text, parse_mode=ParseMode.MARKDOWN, **send_kwargs),\n\
+    \                        timeout=_TEXT_SEND_DEADLINE, label=\"telegram-send\"\
+    , dump_on_blocked_loop=False)\n                except Exception as v1_error:\n\
+    \                    logger.warning(\"[%s] Markdown v1 parse failed: %s, falling\
+    \ back to plain text\", self.name, v1_error)\n                return await _await_with_thread_deadline(\n\
+    \                    self._bot.send_message(text=_strip_mdv2(chunk), parse_mode=None,\
+    \ **send_kwargs),\n                    timeout=_TEXT_SEND_DEADLINE, label=\"telegram-send\"\
+    , dump_on_blocked_loop=False)\n            raise"
+- file: plugins/platforms/telegram/adapter.py
+  description: Safe dictionary access in _metadata_thread_id and routing helpers
+  old_block: "    @classmethod\n    def _metadata_thread_id(cls, metadata: Optional[dict[str,\
+    \ Any]]) -> Optional[str]:\n        thread_id = (metadata or {}).get(\"thread_id\"\
+    ) or (metadata or {}).get(\"message_thread_id\")\n        return str(thread_id)\
+    \ if thread_id is not None else None\n\n    @classmethod\n    def _metadata_direct_messages_topic_id(cls,\
+    \ metadata: Optional[dict[str, Any]]) -> Optional[str]:\n        topic_id = (metadata\
+    \ or {}).get(\"direct_messages_topic_id\") or (metadata or {}).get(\"telegram_direct_messages_topic_id\"\
+    )\n        return str(topic_id) if topic_id is not None else None\n\n    @classmethod\n\
+    \    def _metadata_reply_to_message_id(cls, metadata: Optional[dict[str, Any]])\
+    \ -> Optional[int]:\n        return parse_telegram_message_id((metadata or {}).get(\"\
+    telegram_reply_to_message_id\"))\n\n    @staticmethod\n    def _dm_topic_fallback(metadata:\
+    \ Optional[dict[str, Any]]) -> bool:\n        \"\"\"True for Hermes private-chat\
+    \ topic lanes (``telegram_dm_topic_reply_fallback``).\"\"\"\n        return bool(metadata\
+    \ and metadata.get(\"telegram_dm_topic_reply_fallback\"))\n\n    @classmethod\n\
+    \    def _is_private_dm_topic_send(cls, chat_id: str, thread_id: Optional[str],\
+    \ metadata: Optional[dict[str, Any]]) -> bool:\n        if cls._metadata_direct_messages_topic_id(metadata)\
+    \ is not None:\n            return cls._dm_topic_fallback(metadata) and cls._metadata_reply_to_message_id(metadata)\
+    \ is not None\n        if metadata and metadata.get(\"telegram_dm_topic_created_for_send\"\
+    ):\n            return False\n        return bool(thread_id) and cls._dm_topic_fallback(metadata)"
+  new_block: "    @classmethod\n    def _metadata_thread_id(cls, metadata: Optional[dict[str,\
+    \ Any]]) -> Optional[str]:\n        meta = metadata if isinstance(metadata, dict)\
+    \ else {}\n        thread_id = meta.get(\"thread_id\") or meta.get(\"message_thread_id\"\
+    )\n        return str(thread_id) if thread_id is not None else None\n\n    @classmethod\n\
+    \    def _metadata_direct_messages_topic_id(cls, metadata: Optional[dict[str,\
+    \ Any]]) -> Optional[str]:\n        meta = metadata if isinstance(metadata, dict)\
+    \ else {}\n        topic_id = meta.get(\"direct_messages_topic_id\") or meta.get(\"\
+    telegram_direct_messages_topic_id\")\n        return str(topic_id) if topic_id\
+    \ is not None else None\n\n    @classmethod\n    def _metadata_reply_to_message_id(cls,\
+    \ metadata: Optional[dict[str, Any]]) -> Optional[int]:\n        meta = metadata\
+    \ if isinstance(metadata, dict) else {}\n        return parse_telegram_message_id(meta.get(\"\
+    telegram_reply_to_message_id\"))\n\n    @staticmethod\n    def _dm_topic_fallback(metadata:\
+    \ Optional[dict[str, Any]]) -> bool:\n        \"\"\"True for Hermes private-chat\
+    \ topic lanes (``telegram_dm_topic_reply_fallback``).\"\"\"\n        return bool(isinstance(metadata,\
+    \ dict) and metadata.get(\"telegram_dm_topic_reply_fallback\"))\n\n    @classmethod\n\
+    \    def _is_private_dm_topic_send(cls, chat_id: str, thread_id: Optional[str],\
+    \ metadata: Optional[dict[str, Any]]) -> bool:\n        if cls._metadata_direct_messages_topic_id(metadata)\
+    \ is not None:\n            return cls._dm_topic_fallback(metadata) and cls._metadata_reply_to_message_id(metadata)\
+    \ is not None\n        if isinstance(metadata, dict) and metadata.get(\"telegram_dm_topic_created_for_send\"\
+    ):\n            return False\n        return bool(thread_id) and cls._dm_topic_fallback(metadata)"
+- file: plugins/platforms/telegram/adapter.py
+  description: Resilient dictionary update and message_id validation in _try_send_rich
+  old_block: "    async def _try_send_rich(\n        self, chat_id: str, content:\
+    \ str, reply_to: Optional[str], metadata: Optional[dict[str, Any]]) -> Optional[SendResult]:\n\
+    \        \"\"\"Attempt a single ``sendRichMessage``. Returns a SendResult (success,\
+    \ or a transient failure the\n        caller must NOT legacy-resend), or ``None``\
+    \ = fall back to legacy MarkdownV2.\"\"\"\n        thread_id = self._metadata_thread_id(metadata)\n\
+    \        routing = self._compute_single_send_routing(chat_id, reply_to, metadata,\
+    \ thread_id)\n        if routing is None:\n            return None\n        reply_to_id,\
+    \ thread_kwargs = routing\n        payload = self._rich_payload_base(chat_id,\
+    \ content)\n        # Only non-None routing keys: direct_messages_topic_id is\
+    \ paired with message_thread_id=None.\n        payload.update({k: v for k, v in\
+    \ thread_kwargs.items() if v is not None})\n        payload.update(self._notification_kwargs(metadata))\n\
+    \        if reply_to_id is not None:\n            # sendRichMessage takes reply_parameters,\
+    \ NOT reply_to_message_id (silently ignored → anchor dropped).\n            payload[\"\
+    reply_parameters\"] = {\"message_id\": reply_to_id}\n        try:\n          \
+    \  # Raw Bot API result: return_type=Message would make PTB deserialize a 10.1\
+    \ shape it doesn't\n            # fully model; a post-delivery parse error ≠ send\
+    \ failure.\n            msg = await _await_with_thread_deadline(\n           \
+    \     self._bot.do_api_request(\"sendRichMessage\", api_kwargs=payload),\n   \
+    \             timeout=_TEXT_SEND_DEADLINE, label=\"telegram-send\", dump_on_blocked_loop=False)\n\
+    \        except Exception as exc:\n            if self._rich_rejected(exc, \"\
+    sendRichMessage\", \"MarkdownV2\"):\n                return None\n           \
+    \ # Honor Telegram's flood-control retry_after over the base retry schedule.\n\
+    \            _retry_after = getattr(exc, \"retry_after\", None)\n            if\
+    \ _retry_after is None:\n                _m = re.search(r\"retry\\s+(?:in\\s+)?(\\\
+    d+)\", str(exc).lower(), re.IGNORECASE)\n                if _m:\n            \
+    \        _retry_after = float(_m.group(1))\n            return self._rich_transient_result(exc,\
+    \ \"sendRichMessage\", retry_after=_retry_after)\n        if isinstance(msg, dict):\n\
+    \            message_id = msg.get(\"message_id\")\n            if message_id is\
+    \ None:\n                message_id = (msg.get(\"result\") or {}).get(\"message_id\"\
+    )\n        else:\n            message_id = getattr(msg, \"message_id\", None)\n\
+    \        if message_id is not None:\n            await self._record_rich_sent(chat_id,\
+    \ message_id, content)\n        return SendResult(success=True, message_id=str(message_id)\
+    \ if message_id is not None else None)"
+  new_block: "    async def _try_send_rich(\n        self, chat_id: str, content:\
+    \ str, reply_to: Optional[str], metadata: Optional[dict[str, Any]]) -> Optional[SendResult]:\n\
+    \        \"\"\"Attempt a single ``sendRichMessage``. Returns a SendResult (success,\
+    \ or a transient failure the\n        caller must NOT legacy-resend), or ``None``\
+    \ = fall back to legacy MarkdownV2.\"\"\"\n        thread_id = self._metadata_thread_id(metadata)\n\
+    \        routing = self._compute_single_send_routing(chat_id, reply_to, metadata,\
+    \ thread_id)\n        if routing is None:\n            return None\n        reply_to_id,\
+    \ thread_kwargs = routing\n        payload = self._rich_payload_base(chat_id,\
+    \ content)\n        # Only non-None routing keys: direct_messages_topic_id is\
+    \ paired with message_thread_id=None.\n        if isinstance(thread_kwargs, dict):\n\
+    \            payload.update({k: v for k, v in thread_kwargs.items() if v is not\
+    \ None})\n        notif_kw = self._notification_kwargs(metadata) if hasattr(self,\
+    \ \"_notification_kwargs\") else {}\n        if isinstance(notif_kw, dict):\n\
+    \            payload.update(notif_kw)\n        if reply_to_id is not None:\n \
+    \           # sendRichMessage takes reply_parameters, NOT reply_to_message_id\
+    \ (silently ignored → anchor dropped).\n            payload[\"reply_parameters\"\
+    ] = {\"message_id\": reply_to_id}\n        try:\n            # Raw Bot API result:\
+    \ return_type=Message would make PTB deserialize a 10.1 shape it doesn't\n   \
+    \         # fully model; a post-delivery parse error ≠ send failure.\n       \
+    \     msg = await _await_with_thread_deadline(\n                self._bot.do_api_request(\"\
+    sendRichMessage\", api_kwargs=payload),\n                timeout=_TEXT_SEND_DEADLINE,\
+    \ label=\"telegram-send\", dump_on_blocked_loop=False)\n        except Exception\
+    \ as exc:\n            if self._rich_rejected(exc, \"sendRichMessage\", \"MarkdownV2\"\
+    ):\n                return None\n            # Honor Telegram's flood-control\
+    \ retry_after over the base retry schedule.\n            _retry_after = getattr(exc,\
+    \ \"retry_after\", None)\n            if _retry_after is None:\n             \
+    \   _m = re.search(r\"retry\\s+(?:in\\s+)?(\\d+)\", str(exc).lower(), re.IGNORECASE)\n\
+    \                if _m:\n                    _retry_after = float(_m.group(1))\n\
+    \            return self._rich_transient_result(exc, \"sendRichMessage\", retry_after=_retry_after)\n\
+    \        if isinstance(msg, dict):\n            message_id = msg.get(\"message_id\"\
+    )\n            if message_id is None:\n                message_id = (msg.get(\"\
+    result\") or {}).get(\"message_id\")\n        else:\n            message_id =\
+    \ getattr(msg, \"message_id\", None)\n        if message_id is None:\n       \
+    \     return None\n        await self._record_rich_sent(chat_id, message_id, content)\n\
+    \        return SendResult(success=True, message_id=str(message_id))"
+- file: plugins/platforms/telegram/adapter.py
+  description: Resilient dictionary unpacking in _send_chunk_with_retries
+  old_block: "                send_kwargs = {\n                    \"chat_id\": normalize_telegram_chat_id(chat_id),\
+    \ \"reply_to_message_id\": reply_to_id, **thread_kwargs,\n                   \
+    \ **self._link_preview_kwargs(), **self._notification_kwargs(metadata)}\n    \
+    \            return await self._send_chunk_markdown_or_plain(chunk, send_kwargs),\
+    \ used_thread_fallback"
+  new_block: "                tk = thread_kwargs if isinstance(thread_kwargs, dict)\
+    \ else {}\n                lp = self._link_preview_kwargs() if hasattr(self, \"\
+    _link_preview_kwargs\") else {}\n                nk = self._notification_kwargs(metadata)\
+    \ if hasattr(self, \"_notification_kwargs\") else {}\n                send_kwargs\
+    \ = {\n                    \"chat_id\": normalize_telegram_chat_id(chat_id), \"\
+    reply_to_message_id\": reply_to_id,\n                    **(tk if isinstance(tk,\
+    \ dict) else {}),\n                    **(lp if isinstance(lp, dict) else {}),\n\
+    \                    **(nk if isinstance(nk, dict) else {})}\n               \
+    \ return await self._send_chunk_markdown_or_plain(chunk, send_kwargs), used_thread_fallback"
+- file: plugins/platforms/telegram/adapter.py
+  description: Resilient dictionary unpacking in _send_overflow_continuation
+  old_block: '        base = {**self._link_preview_kwargs(), **self._notification_kwargs(metadata)}'
+  new_block: "        lp = self._link_preview_kwargs() if hasattr(self, \"_link_preview_kwargs\"\
+    ) else {}\n        nk = self._notification_kwargs(metadata) if hasattr(self, \"\
+    _notification_kwargs\") else {}\n        base = {**(lp if isinstance(lp, dict)\
+    \ else {}), **(nk if isinstance(nk, dict) else {})}"
+- file: plugins/platforms/telegram/adapter.py
+  description: Resilient dictionary unpacking in _media_send_kwargs
+  old_block: "        thread_kwargs = self._thread_kwargs_for_send(\n            chat_id,\
+    \ self._metadata_thread_id(metadata), metadata, reply_to_message_id=reply_to_id,\
+    \ reply_to_mode=self._reply_to_mode)\n        return reply_to_id, {\n        \
+    \    \"chat_id\": normalize_telegram_chat_id(chat_id), \"reply_to_message_id\"\
+    : reply_to_id,\n            \"read_timeout\": _MEDIA_SEND_READ_TIMEOUT, **thread_kwargs,\
+    \ **self._notification_kwargs(metadata)}"
+  new_block: "        thread_kwargs = self._thread_kwargs_for_send(\n            chat_id,\
+    \ self._metadata_thread_id(metadata), metadata, reply_to_message_id=reply_to_id,\
+    \ reply_to_mode=self._reply_to_mode)\n        tk = thread_kwargs if isinstance(thread_kwargs,\
+    \ dict) else {}\n        nk = self._notification_kwargs(metadata) if hasattr(self,\
+    \ \"_notification_kwargs\") else {}\n        return reply_to_id, {\n         \
+    \   \"chat_id\": normalize_telegram_chat_id(chat_id), \"reply_to_message_id\"\
+    : reply_to_id,\n            \"read_timeout\": _MEDIA_SEND_READ_TIMEOUT,\n    \
+    \        **(tk if isinstance(tk, dict) else {}),\n            **(nk if isinstance(nk,\
+    \ dict) else {})}"
+- file: plugins/platforms/telegram/adapter.py
+  description: Resilient geometry unpacking in send_video
+  old_block: "            def build_kwargs(f):\n                payload = {\"video\"\
+    : f, \"caption\": self._caption_1024(caption), **geometry}"
+  new_block: "            def build_kwargs(f):\n                geo = geometry if\
+    \ isinstance(geometry, dict) else {}\n                payload = {\"video\": f,\
+    \ \"caption\": self._caption_1024(caption), **geo}"
+- file: plugins/platforms/telegram/adapter.py
+  description: Safe empty content handling in format_message entry
+  old_block: "    def format_message(self, content: str) -> str:\n        \"\"\"Convert\
+    \ standard markdown to Telegram MarkdownV2: code is stashed behind placeholders\
+    \ first (never\n        modified), markdown constructs become MarkdownV2 syntax,\
+    \ everything else is escaped.\"\"\"\n        if not content:\n            return\
+    \ content"
+  new_block: "    def format_message(self, content: str) -> str:\n        \"\"\"Convert\
+    \ standard markdown to Telegram MarkdownV2: code is stashed behind placeholders\
+    \ first (never\n        modified), markdown constructs become MarkdownV2 syntax,\
+    \ everything else is escaped.\"\"\"\n        if not content:\n            return\
+    \ content or \"\""
+id: telegram-ux
+i18n:
+  en:
+    name: Telegram UX & Rich Formatting
+    description: 'Telegram rich messaging UX: delivery of rich formatting (tables,
+      LaTeX, spoilers), multiline quotes, and photo burst grouping'
+  ru:
+    name: Telegram UX & Rich Formatting
+    description: 'Комплексный UX Telegram: доставка Rich Messages (таблицы, LaTeX,
+      спойлеры), поддержка multiline-цитат и группировка фото-пакетов'
+  es:
+    name: Telegram UX & Rich Formatting
+    description: 'UX enriquecido de Telegram: entrega de formato avanzado (tablas,
+      LaTeX, spoilers), citas multilínea y agrupación de ráfagas de fotos'
+  fr:
+    name: Telegram UX & Rich Formatting
+    description: 'Expérience enrichie sur Telegram : prise en charge du formatage
+      enrichi (tableaux, LaTeX, spoilers), citations multilignes et regroupement de
+      photos'
+  zh:
+    name: Telegram UX & Rich Formatting
+    description: Telegram富文本消息UX优化：支持富文本格式化（表格、LaTeX、剧透内容）、多行引用及连拍照片智能分组
+  ar:
+    name: Telegram UX & Rich Formatting
+    description: 'تجربة مستخدم غنية لتيليجرام: تسليم التنسيق الغني (الجداول، LaTeX،
+      النصوص المخفية)، واقتباسات متعددة الأسطر وتجميع حزم الصور'
+  de:
+    name: Telegram UX & Rich Formatting
+    description: 'Telegram-Rich-Messaging-UX: Bereitstellung von Rich-Formatierungen
+      (Tabellen, LaTeX, Spoiler), mehrzeiligen Zitaten und Foto-Burst-Gruppierung'
+  pt:
+    name: Telegram UX & Rich Formatting
+    description: 'UX de mensagens ricas no Telegram: entrega de formatação avançada
+      (tabelas, LaTeX, spoilers), citações multilinha e agrupamento de lotes de fotos'
+tests:
+  test_telegram_adapter_contracts: 'from plugins.platforms.telegram.adapter import
+    TelegramAdapter, _repair_telegram_chunks
+
+    assert callable(_repair_telegram_chunks)
+
+    assert hasattr(TelegramAdapter, "_rich_eligible")
+
+    assert hasattr(TelegramAdapter, "_should_attempt_rich")
+
+    assert hasattr(TelegramAdapter, "_send_text_locked")
+
+    '
+  test_telegram_ux_suite: "import subprocess\nres = subprocess.run([\n    \"/usr/local/lib/hermes-agent/venv/bin/pytest\"\
+    , \"-q\",\n    \"/usr/local/lib/hermes-agent/tests/plugins/platforms/telegram/\"\
+    \n], capture_output=True, text=True)\nassert res.returncode == 0, res.stdout +\
+    \ res.stderr\n"

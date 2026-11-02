@@ -1,0 +1,7 @@
+id: mod-folder-skills
+name: Mod Folder Skills Discovery & Integration
+description: 'Support for folder mods with co-located skills: automatic registration
+  in skills_list, skill_view, and system prompt'
+version: 1.3.0
+author: Engine
+enabled: true

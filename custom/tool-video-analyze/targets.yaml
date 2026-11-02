@@ -1,0 +1,42 @@
+targets:
+- file: toolsets.py
+  old_block: "    \"read_file\", \"write_file\", \"patch\", \"search_files\",\n  \
+    \  \"vision_analyze\", \"image_generate\",\n"
+  new_block: "    \"read_file\", \"write_file\", \"patch\", \"search_files\",\n  \
+    \  \"vision_analyze\", \"video_analyze\", \"image_generate\",\n"
+  description: core-tools-video-analyze
+- file: tools/vision_tools.py
+  description: Support task parameter in _aux_call_kwargs for video
+  old_block: "def _aux_call_kwargs(messages: list, model: Optional[str], default_timeout:\
+    \ float, *,\n                     min_timeout: Optional[float] = None) -> dict:\n\
+    \    \"\"\"``async_call_llm`` kwargs with ``auxiliary.vision.timeout`` / ``.temperature``\
+    \ from config.\n    Local vision models (llama.cpp, ollama) can take well over\
+    \ 30s, hence generous defaults\n    (temperature 0.1); ``min_timeout`` lets video\
+    \ enforce a floor.\"\"\"\n    timeout, temperature = default_timeout, 0.1\n  \
+    \  try:\n        _vision_cfg = _cfg_auxiliary(\"vision\", default={}) or {}\n\
+    \        if _vision_cfg.get(\"timeout\") is not None:\n            timeout = max(float(_vision_cfg[\"\
+    timeout\"]), float(\"-inf\") if min_timeout is None else min_timeout)\n      \
+    \  if _vision_cfg.get(\"temperature\") is not None:\n            temperature =\
+    \ float(_vision_cfg[\"temperature\"])\n    except Exception:\n        pass\n \
+    \   return {\"task\": \"vision\", \"messages\": messages, \"temperature\": temperature,\
+    \ \"timeout\": timeout,\n            **({\"model\": model} if model else {})}\n"
+  new_block: "def _aux_call_kwargs(messages: list, model: Optional[str], default_timeout:\
+    \ float, *,\n                     min_timeout: Optional[float] = None, task: str\
+    \ = \"vision\") -> dict:\n    \"\"\"``async_call_llm`` kwargs with ``auxiliary.vision.timeout``\
+    \ / ``.temperature`` from config.\n    Local vision models (llama.cpp, ollama)\
+    \ can take well over 30s, hence generous defaults\n    (temperature 0.1); ``min_timeout``\
+    \ lets video enforce a floor.\"\"\"\n    timeout, temperature = default_timeout,\
+    \ 0.1\n    try:\n        _vision_cfg = _cfg_auxiliary(task, default={}) or {}\n\
+    \        if _vision_cfg.get(\"timeout\") is not None:\n            timeout = max(float(_vision_cfg[\"\
+    timeout\"]), float(\"-inf\") if min_timeout is None else min_timeout)\n      \
+    \  if _vision_cfg.get(\"temperature\") is not None:\n            temperature =\
+    \ float(_vision_cfg[\"temperature\"])\n    except Exception:\n        pass\n \
+    \   return {\"task\": task, \"messages\": messages, \"temperature\": temperature,\
+    \ \"timeout\": timeout,\n            **({\"model\": model} if model else {})}\n"
+- file: tools/vision_tools.py
+  description: Support auxiliary.video task for video_analyze
+  old_block: "        messages = _media_messages(prompt, \"video_url\", video_data_url)\n\
+    \        call_kwargs = _aux_call_kwargs(messages, model, 180.0, min_timeout=180.0)\n"
+  new_block: "        messages = _media_messages(prompt, \"video_url\", video_data_url)\n\
+    \        call_kwargs = _aux_call_kwargs(messages, model, 180.0, min_timeout=180.0,\
+    \ task=\"video\")\n"

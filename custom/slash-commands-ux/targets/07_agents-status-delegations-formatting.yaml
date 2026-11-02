@@ -1,0 +1,80 @@
+targets:
+- file: gateway/slash_commands_status.py
+  description: agents-status-delegations-formatting
+  old_block: "def _agents_delegation_lines(d: dict) -> list[str]:\n    \"\"\"/agents\
+    \ rows for one background delegation. Live per-child activity comes from the\n\
+    \    registry's progress sampler: api calls, current tool, seconds since last\
+    \ activity.\"\"\"\n    goal = _clip(\" \".join(str(d.get(\"goal\") or \"\").split()),\
+    \ 70)\n    status = d.get(\"status\", \"?\")\n    row = f\"- `{d.get('delegation_id',\
+    \ '?')}` · {status}\"\n    quiet = d.get(\"stalled_after_quiet_seconds\")\n  \
+    \  if status == \"stalling\" and quiet is not None:\n        row += t(\"gateway.agents.no_progress\"\
+    , seconds=f\"{quiet:.0f}\")\n    elif status != \"stalling\" and d.get(\"seconds_since_progress\"\
+    , 0) >= 60:\n        row += t(\"gateway.agents.quiet_for\", seconds=f\"{d['seconds_since_progress']:.0f}\"\
+    )\n    if goal:\n        row += f\" · {goal}\"\n    lines = [row]\n    for i,\
+    \ child in enumerate(d.get(\"children_activity\") or []):\n        if not isinstance(child,\
+    \ dict):\n            continue\n        tool = child.get(\"current_tool\")\n \
+    \       doing = f\"`{tool}`\" if tool else t(\"gateway.agents.between_turns\"\
+    )\n        part = t(\"gateway.agents.child_row\", index=i + 1, calls=child.get(\"\
+    api_calls\", \"?\"), doing=doing)\n        idle = child.get(\"seconds_since_activity\"\
+    )\n        lines.append(part + (t(\"gateway.agents.active_ago\", seconds=f\"{idle:.0f}\"\
+    ) if idle is not None else \"\"))\n    return lines\n\n"
+  new_block: "def _agents_delegation_lines(d, current_session_key: str = \"\", idx:\
+    \ int = 1) -> list[str]:\n    \"\"\"Clean /agents rows for one background delegation.\n\
+    \    Each subagent displays its own goal snippet, iteration count, and specific\
+    \ model.\n    \"\"\"\n    import re\n    from tools.process_registry import format_uptime_short\n\
+    \    from tools.delegate_tool_registry import _active_subagents, _active_subagents_lock\n\
+    \n    if isinstance(d, (tuple, list)) and len(d) == 2 and isinstance(d[0], int)\
+    \ and isinstance(d[1], dict):\n        idx, d = d\n    if idx is None:\n     \
+    \   idx = 1\n\n    did = d.get(\"delegation_id\", \"?\")\n    raw_status = d.get(\"\
+    status\", \"running\")\n    session_key = str(d.get(\"session_key\") or \"\")\n\
+    \    topic_label = _human_topic_label(session_key) if session_key else f\"`{did}`\"\
+    \n    this_chat_label = t('gateway.agents.this_chat').lstrip(\" · \")\n    current\
+    \ = f\" • {this_chat_label}\" if current_session_key and session_key == current_session_key\
+    \ else \"\"\n\n    now = time.time()\n    dispatched_at = d.get(\"dispatched_at\"\
+    )\n    elapsed_str = f\" • {format_uptime_short(max(0, int(now - dispatched_at)))}\"\
+    \ if dispatched_at else \"\"\n\n    status_warning = \"\"\n    if raw_status in\
+    \ (\"stalling\", \"stalled\"):\n        status_warning = \" • зависает\"\n   \
+    \ elif raw_status not in (\"running\", \"completed\"):\n        status_warning\
+    \ = f\" • {raw_status}\"\n\n    quiet = d.get(\"stalled_after_quiet_seconds\"\
+    )\n    if quiet is not None:\n        status_warning += f\" • молчит {quiet:.0f}s\"\
+    \n    elif raw_status != \"stalling\" and d.get(\"seconds_since_progress\", 0)\
+    \ >= 60:\n        status_warning += f\" • молчит {d['seconds_since_progress']:.0f}s\"\
+    \n\n    children = d.get(\"children_activity\") or []\n    raw_goals = d.get(\"\
+    goals\") or []\n    task_indexes = d.get(\"task_indexes\")\n\n    matched_subagents\
+    \ = []\n    try:\n        with _active_subagents_lock:\n            for rec in\
+    \ _active_subagents.values():\n                if rec.get(\"delegation_id\") ==\
+    \ did:\n                    matched_subagents.append(rec)\n    except Exception:\n\
+    \        pass\n\n    total_tasks = max(len(children), len(raw_goals), 1)\n\n \
+    \   root_line = f\"**{idx}. {topic_label}**{elapsed_str}{status_warning}{current}:\"\
+    \n    lines = [root_line]\n\n    count = max(len(children), len(raw_goals), 1)\n\
+    \    for i in range(count):\n        child = children[i] if i < len(children)\
+    \ and isinstance(children[i], dict) else {}\n\n        g = \"\"\n        if raw_goals:\n\
+    \            g_idx = task_indexes[i] if task_indexes and i < len(task_indexes)\
+    \ else i\n            if 0 <= g_idx < len(raw_goals):\n                g = str(raw_goals[g_idx]\
+    \ or \"\")\n        if not g:\n            g = str(d.get(\"goal\") or \"\")\n\n\
+    \        g = \" \".join(g.split())\n        g = re.sub(r\"^\\d+\\s+parallel\\\
+    s+subagents:\\s*\", \"\", g)\n        clean_goal = re.sub(r\"^(?:[A-Za-zА-Яа-яЁё]+\\\
+    s+)?\\d+[\\.:\\)]\\s*\", \"\", g)\n        if len(clean_goal) > 48:\n        \
+    \    clean_goal = clean_goal[:45].rstrip() + \"...\"\n        goal_part = clean_goal\
+    \ if clean_goal else f\"Задача\"\n\n        calls = child.get(\"api_calls\")\n\
+    \        calls_str = f\"{calls} итераций • \" if calls is not None else \"\"\n\
+    \n        model = child.get(\"model\") or d.get(\"model\")\n        if model:\n\
+    \            model = _reverse_alias_for_display(model)\n\n        used_tok = 0\n\
+    \        ctx_len = 0\n        if i < len(matched_subagents):\n            sub_agent\
+    \ = matched_subagents[i].get(\"agent\")\n            if sub_agent:\n         \
+    \       if not model:\n                    model = _reverse_alias_for_display(getattr(sub_agent,\
+    \ \"model\", \"\"))\n                cc = getattr(sub_agent, \"context_compressor\"\
+    , None)\n                if cc:\n                    used_tok = _int_value(getattr(cc,\
+    \ \"last_prompt_tokens\", 0))\n                    ctx_len = _int_value(getattr(cc,\
+    \ \"context_length\", 0))\n            if not model:\n                model =\
+    \ _reverse_alias_for_display(matched_subagents[i].get(\"model\", \"\"))\n\n  \
+    \      if not ctx_len and model:\n            from agent.model_metadata import\
+    \ get_model_context_length\n            try:\n                ctx_len = _int_value(get_model_context_length(str(model)))\n\
+    \            except Exception:\n                ctx_len = 0\n\n        ctx_str\
+    \ = \"\"\n        if used_tok > 0 or ctx_len > 0:\n            if ctx_len > 0:\n\
+    \                ctx_str = f\"({_format_tokens_compact(used_tok)} / {_format_tokens_compact(ctx_len)})\
+    \ • \"\n            else:\n                ctx_str = f\"({_format_tokens_compact(used_tok)})\
+    \ • \"\n\n        display_sub_model = _reverse_alias_for_display(model) if model\
+    \ else \"\"\n        model_str = f\"`{display_sub_model}` • \" if display_sub_model\
+    \ else \"\"\n\n        lines.append(f\"  • {model_str}{ctx_str}{calls_str}{goal_part}\"\
+    )\n\n    return lines"

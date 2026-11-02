@@ -1,0 +1,37 @@
+targets:
+- file: agent/context_breakdown.py
+  description: Add include_summary parameter to render_context_breakdown_lines
+  old_block: "def render_context_breakdown_lines(\n    payload: dict[str, Any],\n\
+    \    *,\n    details: Optional[dict[str, Any]] = None,\n    grid: bool = True,\n\
+    ) -> list[str]:\n    \"\"\"Full /context view. ``grid`` prepends the glyph grid\
+    \ (CLI; the gateway\n    keeps its own gauge); ``details`` appends the expanded\
+    \ listings.\"\"\"\n    lines: list[str] = [*render_context_grid(payload), \"\"\
+    ] if grid else []\n    lines.extend(render_context_category_lines(payload))\n\n\
+    \    context_max = int(payload.get(\"context_max\") or 0)\n    if context_max\
+    \ > 0:\n        used, pct = int(payload.get(\"context_used\") or 0), int(payload.get(\"\
+    context_percent\") or 0)\n        mark = \"~\" if payload.get(\"context_estimated\"\
+    ) else \"\"\n        lines.extend([\"\", t(\"gateway.context.window_line\", mark=mark,\
+    \ used=f\"{used:,}\", max=f\"{context_max:,}\", pct=pct)])\n        source = payload.get(\"\
+    context_source\")\n        if source:\n            source_label = t(f\"gateway.context.source.{source}\"\
+    ) if source in _CONTEXT_SOURCES else source\n            lines.append(t(\"gateway.context.source_line\"\
+    , source=source_label))\n\n    if details is None:\n        lines.extend([\"\"\
+    , t(\"gateway.context.hint_all\")])\n    elif detail_lines := render_context_details_lines(details):\n\
+    \        lines.extend([\"\", *detail_lines])\n    return lines"
+  new_block: "def render_context_breakdown_lines(\n    payload: dict[str, Any],\n\
+    \    *,\n    details: Optional[dict[str, Any]] = None,\n    grid: bool = True,\n\
+    \    include_summary: bool = True,\n) -> list[str]:\n    \"\"\"Full /context view.\
+    \ ``grid`` prepends the glyph grid (CLI; the gateway\n    keeps its own gauge);\
+    \ ``details`` appends the expanded listings.\"\"\"\n    lines: list[str] = [*render_context_grid(payload),\
+    \ \"\"] if grid else []\n    lines.extend(render_context_category_lines(payload))\n\
+    \n    if include_summary:\n        context_max = int(payload.get(\"context_max\"\
+    ) or 0)\n        if context_max > 0:\n            used, pct = int(payload.get(\"\
+    context_used\") or 0), int(payload.get(\"context_percent\") or 0)\n          \
+    \  mark = \"~\" if payload.get(\"context_estimated\") else \"\"\n            lines.extend([\"\
+    \", t(\"gateway.context.window_line\", mark=mark, used=f\"{used:,}\", max=f\"\
+    {context_max:,}\", pct=pct)])\n            source = payload.get(\"context_source\"\
+    )\n            if source:\n                source_label = t(f\"gateway.context.source.{source}\"\
+    ) if source in _CONTEXT_SOURCES else source\n                lines.append(t(\"\
+    gateway.context.source_line\", source=source_label))\n\n    if details is None:\n\
+    \        lines.extend([\"\", t(\"gateway.context.hint_all\")])\n    elif detail_lines\
+    \ := render_context_details_lines(details):\n        lines.extend([\"\", *detail_lines])\n\
+    \    return lines"

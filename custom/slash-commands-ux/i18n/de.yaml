@@ -1,0 +1,40 @@
+name: Slash Commands UX Polish
+description: 'Umfassende UX für Slash-Befehle: Formatierung von /undo, /goal, /model,
+  /agents, /help und /commands, /compress [N], /handoff, /context, /usage, /status,
+  /insights (echte Token und Cache-Prozentsatz in allen Befehlen)'
+slash:
+  handoff:
+    description: Sitzungskontext an eine neue, saubere Sitzung übergeben (Aufgaben-Briefing
+      beibehalten)
+  compress:
+    description: Konversationskontext komprimieren ([N] angeben, um die letzten N
+      Nachrichten zu behalten; --preview oder --dry-run zur Vorschau)
+gateway:
+  context:
+    threshold: 'Automatische Komprimierung bei: {threshold} ({threshold_pct}%) — verbleibend
+      {to_go} ({to_go_pct})'
+    over_threshold: ⚠️ **Schwelle für automatische Komprimierung überschritten ({threshold},
+      {threshold_pct}%)**
+    category_row: '{glyph} {label}  ~  {tokens} Token  ~  {pct}%'
+    compressions: 'Komprimierungen in dieser Sitzung: {count}'
+    compressions_total: 'Komprimierungen insgesamt: {count}'
+    last_savings: 'Letzte Komprimierung sparte: {savings}% Kontext'
+    totals_header: 'Gesamtstatistik (kumulativ über {calls} API-Aufrufe):'
+    totals_line: 'Eingabe: {input} · Ausgabe: {output} · Denkprozess: {reasoning}'
+    total_billed: 'Gesamt: {total}'
+    total_billed_with_cache: 'Gesamt: {total} ({cache_pct}% Cache)'
+    detail_after_first: _(Detailliertere Informationen sind nach der ersten Agentenantwort
+      verfügbar)_
+  usage:
+    label_output_tokens: 'Ausgabe-Token: {count}'
+    label_total: 'Gesamt: {total}'
+    label_total_with_cache: 'Gesamt: {total} ({cache_pct}% Cache)'
+    label_api_calls: 'API-Aufrufe: {count}'
+    header_tokens: 'Token-Nutzung:'
+    tokens_line: 'Eingabe: {input} · Ausgabe: {output} · Denkprozess: {reasoning}'
+  status:
+    tokens_with_cache: '**Token insgesamt:** {tokens} ({cache_pct}% Cache) _(dies
+      ist nicht die aktuelle Kontextbelegung; nutzen Sie `/context`)_'
+cli:
+  usage:
+    cache_label: Cache

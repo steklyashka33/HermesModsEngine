@@ -1,0 +1,86 @@
+# User mods and custom modules (tracked for full distribution)
+# custom/*
+# !custom/.gitkeep
+
+# Secrets and local configurations
+secrets.json
+secrets.yaml
+secrets.yml
+*.secrets.yaml
+*.secrets.yml
+secrets.*
+.secrets.*
+config.yaml
+config.yml
+.env
+.env*
+.env.*
+
+# State files
+.state.json
+*.state.json
+
+# Runtime cache, state, and lock files
+.commands_cache.json*
+..commands_cache.json*
+.locales_cache.json*
+..locales_cache.json*
+.mcp_cache.json*
+..mcp_cache.json*
+.circuit_breaker*
+..circuit_breaker*
+*.circuit_breaker*
+test_cache.json
+.test_cache.json*
+..test_cache.json*
+.engine/test_cache.json*
+.engine/.test_cache.json*
+*.test_cache.json*
+monitors_state.json
+mod_export.json
+args.json
+backup_manifest.json
+latest.json
+*.lock
+..*.lock
+
+# Logs and runtime outputs
+*.log
+logs/
+
+# Backups and archives
+*.bak
+*.backup
+.archive/
+.archive
+backups/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Python runtime artifacts
+__pycache__/
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.pytest_cache
+.pytest-cache/
+.pytest-cache
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+
+# System and editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/

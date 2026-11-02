@@ -1,0 +1,50 @@
+targets:
+- description: Отображение процента кэша и оценка размера по транскрипту в /status
+    шлюза
+  file: gateway/slash_commands_status.py
+  new_block: "        from agent.context_breakdown import context_display_source\n\
+    \        mark = \"~\" if context_display_source(getattr(status_agent, \"context_compressor\"\
+    , None)) != \"provider_usage\" else \"\"\n        if context_used <= 0 and hasattr(self,\
+    \ \"async_session_store\"):\n            try:\n                history = await\
+    \ self.async_session_store.load_transcript(session_entry.session_id)\n       \
+    \         if history:\n                    approx, _ = _transcript_estimate(history)\n\
+    \                    if approx > 0:\n                        context_used = approx\n\
+    \                        mark = \"~\"\n            except Exception:\n       \
+    \         pass\n        if context_total:\n            pct = min(100, round((context_used\
+    \ / context_total) * 100))\n            lines.append(t(\"gateway.status.context\"\
+    , used=mark + _fmt(context_used), total=_fmt(context_total),\n               \
+    \            pct=f\"{mark}{pct}\"))\n        elif context_used:\n            lines.append(t(\"\
+    gateway.status.context_used\", used=mark + _fmt(context_used)))\n        sid_st\
+    \ = session_entry.session_id or str(getattr(status_agent, \"session_id\", \"\"\
+    ) or \"\")\n        db_usage_st = _active_window_usage_from_db(sid_st) if sid_st\
+    \ else {\"calls\": 0, \"input\": 0, \"output\": 0, \"reasoning\": 0, \"cache\"\
+    : 0, \"total\": 0, \"compressions\": 0}\n        st_cache = max(\n           \
+    \ _int_value(session_row.get(\"cache_read_tokens\")) + _int_value(session_row.get(\"\
+    cache_write_tokens\")),\n            _n(status_agent, \"session_cache_read_tokens\"\
+    ) + _n(status_agent, \"session_cache_write_tokens\"),\n            db_usage_st.get(\"\
+    cache\", 0),\n        )\n        st_inp = max(_int_value(session_row.get(\"input_tokens\"\
+    )), _n(status_agent, \"session_input_tokens\"), db_usage_st.get(\"input\", 0))\n\
+    \        st_out = max(_int_value(session_row.get(\"output_tokens\")), _n(status_agent,\
+    \ \"session_output_tokens\"), db_usage_st.get(\"output\", 0))\n        st_prompt\
+    \ = st_inp + st_cache\n        st_cache_pct = round(st_cache / st_prompt * 100)\
+    \ if (st_cache > 0 and st_prompt > 0) else 0\n        st_tot = (st_inp + st_cache\
+    \ + st_out) if (st_inp + st_cache + st_out) > 0 else _int_value(fields[\"tokens\"\
+    ])\n\n        state = t(\"gateway.status.state_yes\") if fields[\"agent_running\"\
+    ] else t(\"gateway.status.state_no\")\n        token_line = (\n            t(\"\
+    gateway.status.tokens_with_cache\", tokens=_fmt(st_tot), cache_pct=st_cache_pct)\n\
+    \            if st_cache_pct > 0\n            else t(\"gateway.status.tokens\"\
+    , tokens=_fmt(st_tot))\n        )\n        lines += [token_line,\n           \
+    \       t(\"gateway.status.agent_running\", state=state)]\n        if queue_depth:\n\
+    \            lines.append(t(\"gateway.status.queued\", count=queue_depth))"
+  old_block: "        from agent.context_breakdown import context_display_source\n\
+    \        mark = \"~\" if context_display_source(getattr(status_agent, \"context_compressor\"\
+    , None)) != \"provider_usage\" else \"\"\n        if context_total:\n        \
+    \    pct = min(100, round((context_used / context_total) * 100))\n           \
+    \ lines.append(t(\"gateway.status.context\", used=mark + _fmt(context_used), total=_fmt(context_total),\n\
+    \                           pct=f\"{mark}{pct}\"))\n        elif context_used:\n\
+    \            lines.append(t(\"gateway.status.context_used\", used=mark + _fmt(context_used)))\n\
+    \        state = t(\"gateway.status.state_yes\") if fields[\"agent_running\"]\
+    \ else t(\"gateway.status.state_no\")\n        lines += [t(\"gateway.status.tokens\"\
+    , tokens=fields[\"tokens\"]),\n                  t(\"gateway.status.agent_running\"\
+    , state=state)]\n        if queue_depth:\n            lines.append(t(\"gateway.status.queued\"\
+    , count=queue_depth))"

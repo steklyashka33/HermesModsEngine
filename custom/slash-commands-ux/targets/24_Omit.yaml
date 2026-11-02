@@ -1,0 +1,17 @@
+targets:
+- file: gateway/slash_commands_status.py
+  description: Omit context files in brief /context, guard agent, and disable duplicate
+    window summary
+  old_block: "            details = _quiet_sync(lambda: compute_context_details(agent),\
+    \ {\"skills\": [], \"toolsets\": []}) if expanded else None\n            from\
+    \ agent.context_file_sources import context_file_sources_for_agent, render_context_file_lines\n\
+    \            file_lines = _quiet_sync(lambda: render_context_file_lines(context_file_sources_for_agent(agent)),\
+    \ [])\n            return render_context_breakdown_lines(payload, details=details,\
+    \ grid=False) + ([\"\"] + file_lines if file_lines else [])"
+  new_block: "            details = _quiet_sync(lambda: compute_context_details(agent),\
+    \ {\"skills\": [], \"toolsets\": []}) if (expanded and agent) else None\n    \
+    \        from agent.context_file_sources import context_file_sources_for_agent,\
+    \ render_context_file_lines\n            file_lines = _quiet_sync(lambda: render_context_file_lines(context_file_sources_for_agent(agent)),\
+    \ []) if (expanded and agent) else []\n            return render_context_breakdown_lines(payload,\
+    \ details=details, grid=False, include_summary=False) + ([\"\"] + file_lines if\
+    \ file_lines else [])"

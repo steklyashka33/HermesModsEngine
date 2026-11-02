@@ -1,0 +1,10 @@
+commands:
+- name: mods
+  aliases:
+  - mod
+  description: Manage and inspect Hermes mods
+  args_hint: '[list|info|status|logs] [mod_id] [N]'
+  category: Management
+  busy_policy: dispatch
+  handler_file: scripts/handler.py
+  entrypoint: handle

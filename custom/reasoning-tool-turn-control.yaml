@@ -1,0 +1,117 @@
+id: reasoning-tool-turn-control
+name: Reasoning Tool Turn Control
+description: 'Reasoning turn control: suppression of premature clean-stop on tool
+  turns and proper accounting of reasoning tokens'
+version: 1.2.0
+author: Hermes Admin
+enabled: true
+targets:
+- file: agent/turn_final_response.py
+  old_block: "    _content = assistant_message.content\n    _promoted = None\n   \
+    \ if (\n        finish_reason == \"stop\"\n        and not assistant_message.tool_calls\n\
+    \        and (_content is None or (isinstance(_content, str) and not _content.strip()))\n\
+    \        and not any(\n            isinstance(d, dict) and (\n               \
+    \ (d.get(\"type\") in (\"thinking\", \"redacted_thinking\") and (d.get(\"signature\"\
+    ) or d.get(\"data\")))\n                or str(d.get(\"type\") or \"\").endswith(\"\
+    .native_assistant\")\n            )\n            for d in getattr(assistant_message,\
+    \ \"reasoning_details\", None) or ()\n        )\n        and answer_in_reasoning_capability(agent)\n\
+    \    ):\n        _promoted = agent._extract_reasoning(assistant_message) or None\n\
+    \        if _promoted:\n            # WARNING, not INFO: a model that keeps ending\
+    \ turns this way is stalled\n            # (planning monologue, zero tool calls)\
+    \ while the turn reports \"complete\".\n            logger.warning(\n        \
+    \        \"Reasoning-only clean stop (%d chars) — returning the reasoning as the\
+    \ final \"\n                \"response (model=%s provider=%s api_calls=%d tool_turns=%d)\"\
+    ,\n                len(_promoted), agent.model, agent.provider, api_call_count,\n\
+    \                sum(1 for m in messages if isinstance(m, dict) and m.get(\"role\"\
+    ) == \"assistant\" and m.get(\"tool_calls\")),\n            )\n    final_response\
+    \ = _promoted or assistant_message.content or \"\""
+  new_block: "    from agent.agent_runtime_helpers import tool_results_this_turn\n\
+    \n    _content = assistant_message.content\n    _promoted = None\n    _tool_rows\
+    \ = tool_results_this_turn(messages)\n    if (\n        finish_reason == \"stop\"\
+    \n        and not assistant_message.tool_calls\n        and _tool_rows == 0\n\
+    \        and (_content is None or (isinstance(_content, str) and not _content.strip()))\n\
+    \        and not any(\n            isinstance(d, dict) and (\n               \
+    \ (d.get(\"type\") in (\"thinking\", \"redacted_thinking\") and (d.get(\"signature\"\
+    ) or d.get(\"data\")))\n                or str(d.get(\"type\") or \"\").endswith(\"\
+    .native_assistant\")\n            )\n            for d in getattr(assistant_message,\
+    \ \"reasoning_details\", None) or ()\n        )\n        and answer_in_reasoning_capability(agent)\n\
+    \    ):\n        _promoted = agent._extract_reasoning(assistant_message) or None\n\
+    \        if _promoted:\n            # WARNING, not INFO: a model that keeps ending\
+    \ turns this way is stalled\n            # (planning monologue, zero tool calls)\
+    \ while the turn reports \"complete\".\n            logger.warning(\n        \
+    \        \"Reasoning-only clean stop (%d chars) — returning the reasoning as the\
+    \ final \"\n                \"response (model=%s provider=%s api_calls=%d tool_turns=%d)\"\
+    ,\n                len(_promoted), agent.model, agent.provider, api_call_count,\n\
+    \                sum(1 for m in messages if isinstance(m, dict) and m.get(\"role\"\
+    ) == \"assistant\" and m.get(\"tool_calls\")),\n            )\n    final_response\
+    \ = _promoted or assistant_message.content or \"\""
+  description: reasoning-clean-stop-suppress-on-tool-turns
+- file: agent/usage_pricing.py
+  description: Извлечение токенов рассуждений (reasoning_tokens) из CPA, OmniRoute,
+    Gemini и нестандартных провайдеров
+  old_block: "    # Responses API: output_tokens_details.reasoning_tokens. Chat Completions\n\
+    \    # (OpenAI, OpenRouter, DeepSeek, ...): completion_tokens_details.reasoning_tokens.\n\
+    \    # Hidden thinking dominates output spend on reasoning models, so read both.\n\
+    \    reasoning_tokens = _first_nonzero(\n        u, (\"output_tokens_details\"\
+    , \"reasoning_tokens\"), (\"completion_tokens_details\", \"reasoning_tokens\"\
+    )\n    )"
+  new_block: "    # Responses API: output_tokens_details.reasoning_tokens. Chat Completions\n\
+    \    # (OpenAI, OpenRouter, DeepSeek, ...): completion_tokens_details.reasoning_tokens.\n\
+    \    # Top-level (CPA, OmniRoute, GitHub Models): reasoning_tokens, thoughts_token_count,\
+    \ thinking_tokens.\n    # Hidden thinking dominates output spend on reasoning\
+    \ models, so read all standard variants.\n    reasoning_tokens = _first_nonzero(\n\
+    \        u,\n        (\"output_tokens_details\", \"reasoning_tokens\"),\n    \
+    \    (\"completion_tokens_details\", \"reasoning_tokens\"),\n        (\"reasoning_tokens\"\
+    ,),\n        (\"thoughts_token_count\",),\n        (\"thoughtsTokenCount\",),\n\
+    \        (\"thinking_tokens\",),\n        (\"thinking_token_count\",),\n     \
+    \   (\"completion_tokens_details\", \"thinking_tokens\"),\n        (\"completion_tokens_details\"\
+    , \"thoughts_token_count\"),\n        (\"usage_metadata\", \"thoughts_token_count\"\
+    ),\n        (\"usage_metadata\", \"thoughtsTokenCount\"),\n    )"
+i18n:
+  en:
+    name: Reasoning Tool Turn Control
+    description: 'Reasoning turn control: suppression of premature clean-stop on tool
+      turns and proper accounting of reasoning tokens'
+  ru:
+    name: Reasoning Tool Turn Control
+    description: 'Управление ходами рассуждений: подавление преждевременного clean-stop
+      на tool-ходах и корректный учёт токенов reasoning'
+  es:
+    name: Reasoning Tool Turn Control
+    description: 'Control de turnos de razonamiento: supresión de paradas limpias
+      prematuras en turnos de herramientas y recuento adecuado de tokens de razonamiento'
+  fr:
+    name: Reasoning Tool Turn Control
+    description: 'Contrôle des tours de raisonnement : suppression de l''arrêt propre
+      prématuré lors des tours d''outils et comptabilisation correcte des jetons de
+      raisonnement'
+  zh:
+    name: Reasoning Tool Turn Control
+    description: 推理轮次控制：抑制工具调用轮次中的过早clean-stop，并准确统计推理Token
+  ar:
+    name: Reasoning Tool Turn Control
+    description: 'التحكم في أدوار التفكير: منع التوقف النظيف المبكر في أدوار الأدوات
+      والاحتساب الصحيح لرموز التفكير'
+  de:
+    name: Reasoning Tool Turn Control
+    description: 'Steuerung von Reasoning-Zügen: Unterdrückung vorzeitiger Clean-Stops
+      bei Werkzeugaufrufen und korrekte Zählung von Reasoning-Tokens'
+  pt:
+    name: Reasoning Tool Turn Control
+    description: 'Controle de turnos de raciocínio: supressão de parada limpa prematura
+      em turnos de ferramentas e contagem adequada de tokens de raciocínio'
+tests:
+  test_turn_final_response_contract: 'from agent.turn_final_response import finish_text_response
+
+    assert callable(finish_text_response)
+
+    '
+  test_reasoning_tokens_extraction: 'from agent.usage_pricing import _first_nonzero
+
+    u = {"thoughts_token_count": 42}
+
+    val = _first_nonzero(u, ("thoughts_token_count",))
+
+    assert val == 42
+
+    '

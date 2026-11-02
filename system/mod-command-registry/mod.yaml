@@ -1,0 +1,7 @@
+id: mod-command-registry
+name: Mod Command Registry
+description: Native registration, caching, and dispatch of declarative slash commands
+  from active Hermes mods
+version: 1.3.0
+author: Engine
+enabled: true

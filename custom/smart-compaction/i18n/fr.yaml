@@ -1,0 +1,21 @@
+name: Smart Compaction Dual-Trigger
+description: 'Compactage intelligent de contexte à double niveau (Dual-Trigger) :
+  élagage proactif en direct des outils et compactage en arrière-plan'
+config:
+  enabled:
+    title: Activation Dual-Trigger
+    description: Activer le compactage intelligent de contexte (Dual-Trigger)
+  idle_seconds:
+    title: Délai d'inactivité
+    description: Seuil d'inactivité (en secondes) pour le compactage à froid du contexte
+      entre les tours
+  live_threshold_ratio:
+    title: Seuil d'élagage en direct
+    description: Seuil d'élagage en direct des anciens résultats d'outils en fraction
+      de threshold_tokens (0.70 = 70%)
+  min_prune_chars:
+    title: Taille minimale d'outil
+    description: Longueur minimale de sortie d'outil en caractères pour l'élagage
+  min_reclaim_tokens:
+    title: Récupération minimale
+    description: Nombre minimal de jetons à libérer pour confirmer l'élagage des outils

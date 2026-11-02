@@ -1,0 +1,397 @@
+id: network-resilience
+name: Comprehensive Network Resilience & Message Delivery Guard
+description: 'Unified network resilience: LLM stream retry, 60s connect timeout, None
+  base read timeout (SSE streaming preserved), Gemini reasoning floors (300s), Telegram
+  media/sticker retry, Telegram message drop prevention, TUI WebSocket 5s teardown
+  timeout, ACP prompt preservation, and MCP failover ring 45s deadline'
+version: 1.3.0
+author: Hermes Admin
+enabled: true
+tests:
+  test_telegram_adapter_resilience: 'from plugins.platforms.telegram.adapter import
+    TelegramAdapter
+
+    assert hasattr(TelegramAdapter, "_ext_from_path")
+
+    '
+  test_chat_completion_helpers: 'import agent.chat_completion_helpers
+
+    '
+  test_keyless_mcp: 'import plugins.web.keyless_mcp
+
+    '
+  test_reasoning_timeouts: 'from agent.reasoning_timeouts import get_reasoning_stale_timeout_floor
+
+    assert get_reasoning_stale_timeout_floor("cpa/gemini-3.8-high") == 300.0
+
+    assert get_reasoning_stale_timeout_floor("gemini") == 300.0
+
+    '
+  test_bootstrap_timeout: 'from agent.process_bootstrap import build_keepalive_http_client
+
+    client = build_keepalive_http_client("https://api.example.com/v1", verify=False)
+
+    assert client.timeout.connect == 60.0
+
+    assert client.timeout.read is None
+
+    '
+  test_stream_timeouts_stale_floor: 'from types import SimpleNamespace
+
+    from agent.chat_completion_helpers import _StreamingCall
+
+    agent = SimpleNamespace(provider="antigravity", model="cpa/gemini-3.8-high", base_url="https://api.example.com/v1")
+
+    call = _StreamingCall(agent, {}, None)
+
+    call._stream_stale_timeout = 300.0
+
+    base, read, conn = call._stream_timeouts()
+
+    assert read >= 300.0, f"Expected read >= 300.0, got {read}"
+
+    assert conn == 60.0, f"Expected conn == 60.0, got {conn}"
+
+    '
+targets:
+- file: plugins/platforms/telegram/adapter.py
+  old_block: "    @staticmethod\n    def _ext_from_path(file_path: Optional[str],\
+    \ candidates, default: str) -> str:\n        \"\"\"First extension in ``candidates``\
+    \ that ``file_path`` ends with (case-insensitive), else default.\"\"\"\n     \
+    \   if file_path:\n            lowered = file_path.lower()\n            for candidate\
+    \ in candidates:\n                if lowered.endswith(candidate):\n          \
+    \          return candidate\n        return default\n\n    async def _cache_inbound_av(self,\
+    \ msg, event: MessageEvent, source: Any, label: str, kind: str, ext: str, mime:\
+    \ str) -> bool:"
+  new_block: "    @staticmethod\n    def _ext_from_path(file_path: Optional[str],\
+    \ candidates, default: str) -> str:\n        \"\"\"First extension in ``candidates``\
+    \ that ``file_path`` ends with (case-insensitive), else default.\"\"\"\n     \
+    \   if file_path:\n            lowered = file_path.lower()\n            for candidate\
+    \ in candidates:\n                if lowered.endswith(candidate):\n          \
+    \          return candidate\n        return default\n\n    async def _download_telegram_media_file(\n\
+    \        self,\n        source: Any,\n        kind: str = \"media\",\n       \
+    \ max_attempts: int = 3,\n        read_timeout: float = 20.0,\n        connect_timeout:\
+    \ float = 10.0,\n    ) -> tuple[Any, bytearray]:\n        \"\"\"Download a Telegram\
+    \ media file with retries and balanced timeouts (max ~35s worst-case).\"\"\"\n\
+    \        last_exc: Optional[Exception] = None\n        for attempt in range(1,\
+    \ max_attempts + 1):\n            try:\n                file_obj = await source.get_file(read_timeout=read_timeout,\
+    \ connect_timeout=connect_timeout)\n                data = await file_obj.download_as_bytearray(read_timeout=read_timeout,\
+    \ connect_timeout=connect_timeout)\n                if attempt > 1:\n        \
+    \            logger.info(\"[Telegram] Successfully downloaded %s on attempt %d/%d\"\
+    , kind, attempt, max_attempts)\n                return file_obj, data\n      \
+    \      except Exception as exc:\n                last_exc = exc\n            \
+    \    if attempt < max_attempts:\n                    delay = float(attempt)\n\
+    \                    logger.warning(\n                        \"[Telegram] Download\
+    \ attempt %d/%d for %s failed (%s: %s); retrying in %.1fs...\",\n            \
+    \            attempt, max_attempts, kind, exc.__class__.__name__, _redact_telegram_error_text(exc),\
+    \ delay\n                    )\n                    await asyncio.sleep(delay)\n\
+    \                else:\n                    logger.error(\n                  \
+    \      \"[Telegram] All %d download attempts for %s failed (%s: %s)\",\n     \
+    \                   max_attempts, kind, exc.__class__.__name__, _redact_telegram_error_text(exc)\n\
+    \                    )\n        if last_exc is not None:\n            raise last_exc\n\
+    \        raise RuntimeError(f\"Download failed for {kind}\")\n\n    async def\
+    \ _cache_inbound_av(self, msg, event: MessageEvent, source: Any, label: str, kind:\
+    \ str, ext: str, mime: str) -> bool:"
+  description: Add _download_telegram_media_file helper with retry and balanced timeout
+- file: plugins/platforms/telegram/adapter.py
+  old_block: "        try:\n            file_obj = await source.get_file()\n     \
+    \       data = bytes(await file_obj.download_as_bytearray())"
+  new_block: "        try:\n            file_obj, data_arr = await self._download_telegram_media_file(source,\
+    \ kind=what)\n            data = bytes(data_arr)"
+  description: Use retry download in _download_observed_media
+- file: plugins/platforms/telegram/adapter.py
+  old_block: "            file_obj = await source.get_file()\n            data = await\
+    \ file_obj.download_as_bytearray()"
+  new_block: '            file_obj, data = await self._download_telegram_media_file(source,
+    kind=kind)'
+  description: Use retry download in _cache_inbound_av (voice, audio, video)
+- file: plugins/platforms/telegram/adapter.py
+  old_block: "            if ext in _TELEGRAM_IMAGE_EXTENSIONS or doc_mime.startswith(\"\
+    image/\"):\n                file_obj = await doc.get_file()\n                image_bytes\
+    \ = await file_obj.download_as_bytearray()"
+  new_block: "            if ext in _TELEGRAM_IMAGE_EXTENSIONS or doc_mime.startswith(\"\
+    image/\"):\n                file_obj, image_bytes = await self._download_telegram_media_file(doc,\
+    \ kind=\"image document\")"
+  description: Use retry download in _cache_inbound_document for images
+- file: plugins/platforms/telegram/adapter.py
+  old_block: "            if ext in SUPPORTED_VIDEO_TYPES:\n                file_obj\
+    \ = await doc.get_file()\n                video_bytes = await file_obj.download_as_bytearray()"
+  new_block: "            if ext in SUPPORTED_VIDEO_TYPES:\n                file_obj,\
+    \ video_bytes = await self._download_telegram_media_file(doc, kind=\"video document\"\
+    )"
+  description: Use retry download in _cache_inbound_document for video
+- file: plugins/platforms/telegram/adapter.py
+  old_block: "            # Any file type is accepted (authorization is the gate,\
+    \ not the extension); unknown types get\n            # application/octet-stream.\
+    \ Image documents already returned above.\n            file_obj = await doc.get_file()\n\
+    \            raw_bytes = bytes(await file_obj.download_as_bytearray())"
+  new_block: "            # Any file type is accepted (authorization is the gate,\
+    \ not the extension); unknown types get\n            # application/octet-stream.\
+    \ Image documents already returned above.\n            file_obj, raw_arr = await\
+    \ self._download_telegram_media_file(doc, kind=\"document\")\n            raw_bytes\
+    \ = bytes(raw_arr)"
+  description: Use retry download in _cache_inbound_document for generic documents
+- file: plugins/platforms/telegram/adapter.py
+  old_block: "        # Cache photo locally: Telegram's file URLs expire (~1 hour)\
+    \ before vision may run.\n        if msg.photo:\n            try:\n          \
+    \      file_obj = await msg.photo[-1].get_file()  # PhotoSize list sorted by size;\
+    \ largest last\n                image_bytes = await file_obj.download_as_bytearray()"
+  new_block: "        # Cache photo locally: Telegram's file URLs expire (~1 hour)\
+    \ before vision may run.\n        if msg.photo:\n            try:\n          \
+    \      file_obj, image_bytes = await self._download_telegram_media_file(msg.photo[-1],\
+    \ kind=\"photo\")"
+  description: Use retry download for incoming photos
+- file: plugins/platforms/telegram/adapter.py
+  old_block: "        fallback = f\"a sticker with emoji {emoji}\" if emoji else \"\
+    a sticker\"\n        try:\n            file_obj = await sticker.get_file()\n \
+    \           image_bytes = await file_obj.download_as_bytearray()"
+  new_block: "        fallback = f\"a sticker with emoji {emoji}\" if emoji else \"\
+    a sticker\"\n        try:\n            file_obj, image_bytes = await self._download_telegram_media_file(sticker,\
+    \ kind=\"sticker\")"
+  description: Retry download for incoming stickers
+- file: plugins/platforms/telegram/adapter.py
+  old_block: "        # Cold-boot queue: drop server-side pending updates on first\
+    \ boot (default True,\n        # preserves historical behaviour). Set extra.drop_pending_on_cold_boot:\
+    \ false to\n        # receive messages sent while the gateway was offline (e.g.\
+    \ nightly-off hosts).\n        # Watcher reconnects always preserve the queue\
+    \ regardless of this setting.\n        self._drop_pending_on_cold_boot: bool =\
+    \ self._coerce_bool_extra(\"drop_pending_on_cold_boot\", True)"
+  new_block: "        # Cold-boot queue: preserve server-side pending updates on boot\
+    \ and restarts by default (False)\n        # so messages sent during network outages/reconnects\
+    \ are never wiped. Set extra.drop_pending_on_cold_boot: true\n        # only if\
+    \ historical dropping behaviour is explicitly desired.\n        self._drop_pending_on_cold_boot:\
+    \ bool = self._coerce_bool_extra(\"drop_pending_on_cold_boot\", False)"
+  description: Preserve Telegram updates queue on cold boot and restarts by default
+- file: agent/process_bootstrap.py
+  old_block: "        proxy = _get_proxy_for_base_url(base_url)\n        limits =\
+    \ httpx.Limits(max_keepalive_connections=20, max_connections=100, keepalive_expiry=20.0)\n\
+    \        timeout = httpx.Timeout(connect=15.0, read=None, write=15.0, pool=10.0)\
+    \  # read=None for SSE streaming\n        transport_cls = httpx.AsyncHTTPTransport\
+    \ if async_mode else httpx.HTTPTransport"
+  new_block: "        proxy = _get_proxy_for_base_url(base_url)\n        limits =\
+    \ httpx.Limits(max_keepalive_connections=20, max_connections=100, keepalive_expiry=20.0)\n\
+    \        import os\n        _raw_read = os.environ.get(\"HERMES_HTTP_READ_TIMEOUT\"\
+    , \"none\")\n        _def_read = None if _raw_read.lower() in (\"none\", \"null\"\
+    , \"\") else float(_raw_read)\n        _raw_conn = os.environ.get(\"HERMES_HTTP_CONNECT_TIMEOUT\"\
+    , \"60.0\")\n        _def_conn = 60.0 if _raw_conn.lower() in (\"none\", \"null\"\
+    , \"\") else float(_raw_conn)\n        timeout = httpx.Timeout(connect=_def_conn,\
+    \ read=_def_read, write=60.0, pool=30.0)  # read=None for SSE streaming; connect=60s\
+    \ guards handshakes\n        transport_cls = httpx.AsyncHTTPTransport if async_mode\
+    \ else httpx.HTTPTransport"
+  description: Safe default 60s connect timeout and None read timeout (preserving
+    SSE streaming) on bootstrap HTTP client
+- file: agent/chat_completion_helpers.py
+  old_block: "_SSE_CONN_PHRASES = (\"connection lost\", \"connection reset\", \"connection\
+    \ closed\", \"connection terminated\",\n    \"network error\", \"network connection\"\
+    , \"terminated\", \"peer closed\", \"broken pipe\",\n    \"upstream connect error\"\
+    )"
+  new_block: "_SSE_CONN_PHRASES = (\"connection lost\", \"connection reset\", \"connection\
+    \ closed\", \"connection terminated\",\n    \"connection error\", \"network error\"\
+    , \"network connection\", \"terminated\", \"peer closed\", \"broken pipe\",\n\
+    \    \"upstream connect error\", \"incomplete read\", \"remoteprotocolerror\"\
+    , \"server disconnected\",\n    \"closed without sending\")"
+  description: Expand _SSE_CONN_PHRASES for stream disconnects
+- file: agent/chat_completion_helpers.py
+  old_block: "def _anthropic_connection_error_types() -> tuple:\n    # An Anthropic\
+    \ error instance implies the SDK is already imported; never import\n    # (or\
+    \ lazy-install) it from inside an error handler.\n    anthropic = sys.modules.get(\"\
+    anthropic\")\n    return (anthropic.APIConnectionError,) if anthropic is not None\
+    \ else ()"
+  new_block: "def _anthropic_connection_error_types() -> tuple:\n    # An Anthropic\
+    \ error instance implies the SDK is already imported; never import\n    # (or\
+    \ lazy-install) it from inside an error handler.\n    anthropic = sys.modules.get(\"\
+    anthropic\")\n    return (anthropic.APIConnectionError,) if anthropic is not None\
+    \ else ()\n\n\ndef _openai_connection_error_types() -> tuple:\n    openai = sys.modules.get(\"\
+    openai\")\n    return (openai.APIConnectionError,) if openai is not None else\
+    \ ()\n\n\ndef _httpcore_connection_error_types() -> tuple:\n    httpcore = sys.modules.get(\"\
+    httpcore\")\n    return (httpcore.NetworkError, httpcore.ProtocolError, httpcore.TimeoutException)\
+    \ if httpcore is not None else ()"
+  description: Add _openai_connection_error_types and _httpcore_connection_error_types
+    helpers
+- file: agent/chat_completion_helpers.py
+  old_block: "        # ReadError: abort/reset mid-body (stale-kill shutdown under\
+    \ a parked reader,\n        # ECONNRESET) — the retry loop owns recovery.\n  \
+    \      # anthropic.APIConnectionError: the Anthropic SDK wraps connect/read drops\n\
+    \        # (incl. stale-kill aborts) in its own type, not httpx's.\n        _is_conn_err\
+    \ = isinstance(e, (_httpx.ConnectError, _httpx.ReadError, _httpx.RemoteProtocolError,\
+    \ ConnectionError,\n                                      *_anthropic_connection_error_types()))"
+  new_block: "        # ReadError: abort/reset mid-body (stale-kill shutdown under\
+    \ a parked reader,\n        # ECONNRESET) — the retry loop owns recovery.\n  \
+    \      # anthropic.APIConnectionError & openai.APIConnectionError wrap connect/read\
+    \ drops\n        # (incl. stale-kill aborts, incomplete read, socket drops) in\
+    \ their own types.\n        import http.client as _http_client\n        _conn_types\
+    \ = (\n            _httpx.ConnectError, _httpx.ReadError, _httpx.RemoteProtocolError,\
+    \ _httpx.TransportError,\n            ConnectionError, _http_client.IncompleteRead,\
+    \ _http_client.RemoteDisconnected,\n            *_anthropic_connection_error_types(),\
+    \ *_openai_connection_error_types(), *_httpcore_connection_error_types()\n   \
+    \     )\n        _is_conn_err = False\n        _cur_err: Optional[BaseException]\
+    \ = e\n        _visited_errs = set()\n        while _cur_err is not None and id(_cur_err)\
+    \ not in _visited_errs:\n            _visited_errs.add(id(_cur_err))\n       \
+    \     if isinstance(_cur_err, _conn_types):\n                _is_conn_err = True\n\
+    \                break\n            _cur_err = getattr(_cur_err, \"__cause__\"\
+    , None) or getattr(_cur_err, \"__context__\", None)"
+  description: Causal chain inspection for transient stream errors in _handle_stream_error
+- file: agent/reasoning_timeouts.py
+  old_block: "        # MiniMax M2.x (m2.5/m2.7): reasoning_content before first content\
+    \ token; 240s\n        # mid-think stalls observed (#62353).\n        \"minimax-m2\"\
+    ,\n    ),"
+  new_block: "        # MiniMax M2.x (m2.5/m2.7): reasoning_content before first content\
+    \ token; 240s\n        # mid-think stalls observed (#62353).\n        \"minimax-m2\"\
+    ,\n        # Google Gemini models (gemini-3.8, gemini-3, gemini)\n        \"gemini-3.8\"\
+    , \"gemini-3\", \"gemini\",\n    ),"
+  description: Add gemini-3.8, gemini-3 and gemini to reasoning stale timeout floors
+    (300s)
+- file: agent/chat_completion_helpers.py
+  old_block: "        cfg = get_provider_request_timeout(self.agent.provider, self.agent.model)\n\
+    \        base = cfg if cfg is not None else env_float(\"HERMES_API_TIMEOUT\",\
+    \ 1800.0)\n        if cfg is not None:\n            return base, cfg, min(base,\
+    \ 60.0)\n        read = env_float(\"HERMES_STREAM_READ_TIMEOUT\", 120.0)\n   \
+    \     stale = self._stream_stale_timeout\n        if read == 120.0 and self.agent.base_url\
+    \ and is_local_endpoint(self.agent.base_url):\n            read = base  # local\
+    \ providers prefill for minutes\n            logger.debug(\"Local provider detected\
+    \ (%s) — stream read timeout raised to %.0fs\", self.agent.base_url, read)\n \
+    \       elif read == 120.0 and stale is not None and stale != float(\"inf\") and\
+    \ stale > read:\n            # Reasoning models pause mid-stream for minutes;\
+    \ the stale detector\n            # tolerates that, so the raw read timeout must\
+    \ not fire first.\n            read = stale\n            logger.debug(\"Cloud\
+    \ reasoning stream — read timeout raised to %.0fs to match stale-stream detector\"\
+    , read)\n        return base, read, 30.0"
+  new_block: "        cfg = get_provider_request_timeout(self.agent.provider, self.agent.model)\n\
+    \        base = cfg if cfg is not None else env_float(\"HERMES_API_TIMEOUT\",\
+    \ 1800.0)\n        read = cfg if cfg is not None else env_float(\"HERMES_STREAM_READ_TIMEOUT\"\
+    , 120.0)\n        stale = self._stream_stale_timeout\n        if self.agent.base_url\
+    \ and is_local_endpoint(self.agent.base_url):\n            read = max(read, base)\n\
+    \            logger.debug(\"Local provider detected (%s) — stream read timeout\
+    \ raised to %.0fs\", self.agent.base_url, read)\n        elif stale is not None\
+    \ and stale != float(\"inf\") and stale > read:\n            # Reasoning models\
+    \ pause mid-stream for minutes; the stale detector\n            # tolerates that,\
+    \ so the raw read timeout must not fire first.\n            read = stale\n   \
+    \         logger.debug(\"Cloud reasoning stream — read timeout raised to %.0fs\
+    \ to match stale-stream detector\", read)\n        conn_cap = env_float(\"HERMES_STREAM_CONNECT_TIMEOUT\"\
+    , 60.0)\n        return base, read, conn_cap"
+  description: Raise stream read timeout to stale floor (300s) even when provider
+    request_timeout is set, and 60s connect timeout
+- file: agent/agent_runtime_helpers.py
+  old_block: "    # keeps SDK retries because it is NOT wrapped by the conversation\
+    \ loop.\n    client_kwargs.setdefault(\"max_retries\", 0)\n    _ensure_copilot_headers(client_kwargs)"
+  new_block: "    # keeps SDK retries because it is NOT wrapped by the conversation\
+    \ loop.\n    client_kwargs.setdefault(\"max_retries\", 0)\n    import os\n   \
+    \ client_kwargs.setdefault(\"timeout\", float(os.environ.get(\"HERMES_DEFAULT_TIMEOUT\"\
+    , \"300.0\")))\n    _ensure_copilot_headers(client_kwargs)"
+  description: Default 300s timeout on OpenAI clients to prevent premature connect/generation
+    drops on reasoning models
+- file: plugins/web/keyless_mcp.py
+  description: Сквозной дедлайн (45.0с) для цикла обхода кольца провайдеров Keyless
+    MCP
+  old_block: "def _walk_ring(name: str, kind: str, call, throttled) -> tuple:\n  \
+    \  \"\"\"Call each vendor from :func:`_ring_order` until a result is not ``throttled``.\n\
+    \    Returns ``(order, vendor, result, exhausted)``; ``order`` is empty (result\
+    \ None)\n    when every vendor is pinned paid.\"\"\"\n    order = _ring_order(name)\n\
+    \    vendor, result = None, None\n    for i, vendor in enumerate(order):\n   \
+    \     result = call(vendor)\n        if not throttled(result):\n            return\
+    \ order, vendor, result, False\n        if i + 1 < len(order):\n            logger.info(\"\
+    keyless %s %s unavailable; failing over to %s\", vendor, kind, order[i + 1])\n\
+    \    return order, vendor, result, True"
+  new_block: "def _walk_ring(name: str, kind: str, call, throttled, timeout: Optional[float]\
+    \ = None) -> tuple:\n    \"\"\"Call each vendor from :func:`_ring_order` until\
+    \ a result is not ``throttled``\n    or the overall ring timeout is exceeded.\n\
+    \    Returns ``(order, vendor, result, exhausted)``; ``order`` is empty (result\
+    \ None)\n    when every vendor is pinned paid.\"\"\"\n    import os\n    import\
+    \ time\n    if timeout is None:\n        try:\n            timeout = float(os.environ.get(\"\
+    HERMES_KEYLESS_RING_TIMEOUT\", \"45.0\"))\n        except (TypeError, ValueError):\n\
+    \            timeout = 45.0\n    order = _ring_order(name)\n    vendor, result\
+    \ = None, None\n    deadline = time.monotonic() + timeout\n    for i, vendor in\
+    \ enumerate(order):\n        if i > 0 and time.monotonic() >= deadline:\n    \
+    \        logger.warning(\"keyless %s ring walk deadline (%.1fs) exceeded before\
+    \ %s; stopping failover\", kind, timeout, vendor)\n            break\n       \
+    \ result = call(vendor)\n        if not throttled(result):\n            return\
+    \ order, vendor, result, False\n        if i + 1 < len(order):\n            if\
+    \ time.monotonic() >= deadline:\n                logger.warning(\"keyless %s ring\
+    \ walk deadline (%.1fs) exceeded after %s; stopping failover\", kind, timeout,\
+    \ vendor)\n                break\n            logger.info(\"keyless %s %s unavailable;\
+    \ failing over to %s\", vendor, kind, order[i + 1])\n    return order, vendor,\
+    \ result, True"
+- file: tui_gateway/ws.py
+  description: Таймаут ожидания (5.0с) и fallback-отмена диспетчера при закрытии WebSocket
+    TUI
+  old_block: "            await asyncio.wait({dispatcher})\n            failure =\
+    \ None if dispatcher.cancelled() else dispatcher.exception()\n            if failure\
+    \ is not None and not isinstance(failure, _SendFailed):\n                _log.error(\"\
+    ws dispatcher failed peer=%s\", peer, exc_info=failure)"
+  new_block: "            _done, _pending = await asyncio.wait({dispatcher}, timeout=5.0)\n\
+    \            if dispatcher in _pending:\n                _log.warning(\"ws dispatcher\
+    \ teardown timed out after 5.0s; cancelling dispatcher peer=%s\", peer)\n    \
+    \            dispatcher.cancel()\n                with contextlib.suppress(asyncio.CancelledError):\n\
+    \                    await asyncio.wait({dispatcher}, timeout=1.0)\n         \
+    \   failure = None if (not dispatcher.done() or dispatcher.cancelled()) else dispatcher.exception()\n\
+    \            if failure is not None and not isinstance(failure, _SendFailed):\n\
+    \                _log.error(\"ws dispatcher failed peer=%s\", peer, exc_info=failure)"
+- file: acp_adapter/server.py
+  description: Реестр фоновых задач и логирование необработанных исключений в _schedule_soon
+  old_block: "    def _schedule_soon(self, make_coro: Callable[[], Any]) -> None:\n\
+    \        \"\"\"Run a notification coroutine right after the current response is\
+    \ queued.\"\"\"\n        if not self._conn:\n            return\n        loop\
+    \ = asyncio.get_running_loop()\n        loop.call_soon(asyncio.create_task, make_coro())"
+  new_block: "    def _schedule_soon(self, make_coro: Callable[[], Any]) -> None:\n\
+    \        \"\"\"Run a notification coroutine right after the current response is\
+    \ queued.\"\"\"\n        if not self._conn:\n            return\n        tasks\
+    \ = getattr(self, \"_background_tasks\", None)\n        if tasks is None:\n  \
+    \          tasks = self._background_tasks = set()\n        loop = asyncio.get_running_loop()\n\
+    \n        def _spawn() -> None:\n            try:\n                task = asyncio.create_task(make_coro())\n\
+    \            except Exception:\n                logger.exception(\"Failed to spawn\
+    \ ACP background task\")\n                return\n            tasks.add(task)\n\
+    \n            def _on_done(t: asyncio.Task) -> None:\n                tasks.discard(t)\n\
+    \                if not t.cancelled() and t.exception() is not None:\n       \
+    \             logger.error(\"ACP background task failed: %s\", t.exception(),\
+    \ exc_info=t.exception())\n\n            task.add_done_callback(_on_done)\n\n\
+    \        loop.call_soon(_spawn)"
+- file: acp_adapter/server.py
+  description: Возврат пользовательского промпта в очередь при сетевом сбое отправки
+    обновления в _drain_queued_prompts
+  old_block: "            if conn:\n                await conn.session_update(session_id,\
+    \ acp.update_user_message_text(next_prompt))\n            await self.prompt(prompt=[TextContentBlock(type=\"\
+    text\", text=next_prompt)], session_id=session_id)"
+  new_block: "            if conn:\n                try:\n                    await\
+    \ conn.session_update(session_id, acp.update_user_message_text(next_prompt))\n\
+    \                except BaseException as exc:\n                    with state.runtime_lock:\n\
+    \                        state.queued_prompts.insert(0, next_prompt)\n       \
+    \             if isinstance(exc, Exception):\n                        logger.warning(\n\
+    \                            \"Session %s: network error sending queued prompt\
+    \ update, returned prompt to queue: %s\",\n                            session_id,\
+    \ exc\n                        )\n                        return\n           \
+    \         raise\n            await self.prompt(prompt=[TextContentBlock(type=\"\
+    text\", text=next_prompt)], session_id=session_id)"
+i18n:
+  en:
+    name: Comprehensive Network Resilience & Message Delivery Guard
+    description: 'Unified network resilience: LLM stream retry, 60s connect timeout,
+      None base read timeout (SSE streaming preserved), Gemini reasoning floors (300s),
+      Telegram media/sticker retry, Telegram message drop prevention, TUI WebSocket
+      5s teardown timeout, ACP prompt preservation, and MCP failover ring 45s deadline'
+  ru:
+    name: Comprehensive Network Resilience & Message Delivery Guard
+    description: 'Комплексная сетевая устойчивость: ретраи потоков LLM, таймаут подключения
+      60с и защита от зацикливания Keyless MCP'
+  es:
+    name: Comprehensive Network Resilience & Message Delivery Guard
+    description: 'Resiliencia de red unificada: reintentos de flujo LLM, tiempo de
+      espera de conexión de 60s y protección contra bucles en Keyless MCP'
+  fr:
+    name: Comprehensive Network Resilience & Message Delivery Guard
+    description: 'Résilience réseau unifiée : nouvelles tentatives de flux LLM, délai
+      d''attente de connexion de 60s et protection anti-boucle Keyless MCP'
+  zh:
+    name: Comprehensive Network Resilience & Message Delivery Guard
+    description: 综合网络弹性与消息传递守卫：LLM流重试、60秒连接超时及Keyless MCP防循环保护
+  ar:
+    name: Comprehensive Network Resilience & Message Delivery Guard
+    description: 'مرونة شبكية موحدة: إعادة محاولة تدفقات LLM، مهلة اتصال 60 ثانية
+      وحماية من الحلقات المفرغة في Keyless MCP'
+  de:
+    name: Comprehensive Network Resilience & Message Delivery Guard
+    description: 'Umfassende Netzwerk-Resilienz: LLM-Stream-Wiederholungen, 60s Verbindungs-Timeout
+      und Schutz vor Endlosschleifen bei Keyless MCP'
+  pt:
+    name: Comprehensive Network Resilience & Message Delivery Guard
+    description: 'Resiliência de rede unificada: novas tentativas de fluxo LLM, tempo
+      limite de conexão de 60s e proteção contra loops em Keyless MCP'

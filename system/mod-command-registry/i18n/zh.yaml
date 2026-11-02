@@ -1,0 +1,17 @@
+name: Mod命令注册表
+description: Hermes活跃Mod声明式斜杠命令的原生注册、缓存与分发
+mods:
+  command_registry:
+    usage: "ℹ️ 用法: /{canonical_name} {hint}"
+    circuit_breaker_disabled: "⚠️ 由于重复故障，Mod '{mod_id}' 已被断路器 (Circuit Breaker) 临时禁用。"
+    handler_not_found: "⚠️ 未找到命令处理程序: {handler_path}"
+    no_handler_configured: "⚠️ 命令 /{canonical_name} 未配置处理程序 (handler_script, python, shell)。"
+    timeout_isolated: "⏱️ 命令 /{canonical_name} 执行超时。Mod '{mod_id}' 已被 Circuit Breaker 隔离。"
+    timeout: "⏱️ 命令 /{canonical_name} 执行超时 (30秒)。"
+    error_isolated: "⚠️ 执行 /{canonical_name} 发生错误: {exc}。Mod '{mod_id}' 已被 Circuit Breaker 隔离。"
+    error: "⚠️ 执行 /{canonical_name} 发生错误: {exc}"
+    module_spec_error: "⚠️ 无法加载模块规范: {script_path}"
+    entrypoint_not_found: "⚠️ 在脚本 {script_name} 中未找到可调用函数 '{entrypoint}'。"
+    script_error: "⚠️ 脚本错误 (退出代码 {code}): {error}"
+    shell_error: "⚠️ Shell 命令错误 (退出代码 {code}): {error}"
+    alias: "别名"

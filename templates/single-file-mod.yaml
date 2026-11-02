@@ -1,0 +1,77 @@
+# ==============================================================================
+# Hermes Single-File Mod Template
+# ==============================================================================
+# Single-file mods are ideal for focused, atomic patches to Hermes Agent.
+# Place your finished mod into `custom/<mod-name>.yaml` or `~/.hermes/mods/<mod-name>.yaml`.
+#
+# Reference documentation: docs/manifest-spec.md
+# ==============================================================================
+
+id: example-single-mod
+name: Example Single File Mod
+description: Demonstrates declarative targets, config, commands, and monitors in a single file
+version: 1.0.0
+author: Community
+enabled: true
+
+# Dependencies on other mods (optional)
+dependencies: []
+
+# Declarative configuration options
+config:
+  greeting_prefix:
+    type: string
+    description: Prefix to prepend before messages
+    default: "Hello"
+  retries_count:
+    type: int
+    description: Number of retry attempts
+    default: 3
+    min: 1
+    max: 10
+  enable_verbose_logging:
+    type: bool
+    description: Enable detailed debug logs
+    default: false
+  api_key:
+    type: string
+    description: Sensitive API key (securely stored in secrets.yaml with 0600 permissions)
+    sensitive: true
+    required: false
+
+# Inline verification tests (dictionary format)
+tests:
+  test_example_behavior: |
+    # Test logic executed by runner.py test
+    assert True
+
+# Declarative code patches against Hermes Agent source files
+targets:
+  - file: hermes_cli/commands.py
+    description: Example code modification
+    old_block: |
+      # Target matching block inside Hermes source file
+    new_block: |
+      # Replacement block to be applied transactionally
+    disabled: true
+    disabled_reason: "Template placeholder; enable and customize before applying"
+
+# Declarative custom slash commands
+commands:
+  - name: example
+    description: Example custom slash command
+    args_hint: "[text]"
+    python: |
+      print(f"Command executed with args: {args}")
+    category: Custom Mods
+    busy_policy: reject
+
+# Background monitors / health daemons (optional)
+monitors:
+  - id: sample_watcher
+    name: Sample Watcher
+    command: "python3 -c 'import time; print(\"Monitor tick\"); time.sleep(1)'"
+    description: Periodic sample monitor
+    when: always
+    delivery: log
+    interval: 60
