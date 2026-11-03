@@ -210,26 +210,21 @@ targets:
     helpers
 - file: agent/chat_completion_helpers.py
   old_block: "        # ReadError: abort/reset mid-body (stale-kill shutdown under\
-    \ a parked reader,\n        # ECONNRESET) — the retry loop owns recovery.\n  \
-    \      # anthropic.APIConnectionError: the Anthropic SDK wraps connect/read drops\n\
-    \        # (incl. stale-kill aborts) in its own type, not httpx's.\n        _is_conn_err\
-    \ = isinstance(e, (_httpx.ConnectError, _httpx.ReadError, _httpx.RemoteProtocolError,\
-    \ ConnectionError,\n                                      *_anthropic_connection_error_types()))"
+    \ a parked reader, ECONNRESET) — retry loop owns it.\n        # anthropic.APIConnectionError:\
+    \ the Anthropic SDK wraps connect/read drops\n        # (incl. stale-kill aborts)\
+    \ in its own type, not httpx's.\n        _is_conn_err = isinstance(e, (_httpx.ConnectError,\
+    \ _httpx.ReadError, _httpx.RemoteProtocolError, ConnectionError,\n           \
+    \                           *_anthropic_connection_error_types()))"
   new_block: "        # ReadError: abort/reset mid-body (stale-kill shutdown under\
-    \ a parked reader,\n        # ECONNRESET) — the retry loop owns recovery.\n  \
-    \      # anthropic.APIConnectionError & openai.APIConnectionError wrap connect/read\
-    \ drops\n        # (incl. stale-kill aborts, incomplete read, socket drops) in\
-    \ their own types.\n        import http.client as _http_client\n        _conn_types\
-    \ = (\n            _httpx.ConnectError, _httpx.ReadError, _httpx.RemoteProtocolError,\
-    \ _httpx.TransportError,\n            ConnectionError, _http_client.IncompleteRead,\
-    \ _http_client.RemoteDisconnected,\n            *_anthropic_connection_error_types(),\
-    \ *_openai_connection_error_types(), *_httpcore_connection_error_types()\n   \
-    \     )\n        _is_conn_err = False\n        _cur_err: Optional[BaseException]\
-    \ = e\n        _visited_errs = set()\n        while _cur_err is not None and id(_cur_err)\
-    \ not in _visited_errs:\n            _visited_errs.add(id(_cur_err))\n       \
-    \     if isinstance(_cur_err, _conn_types):\n                _is_conn_err = True\n\
-    \                break\n            _cur_err = getattr(_cur_err, \"__cause__\"\
-    , None) or getattr(_cur_err, \"__context__\", None)"
+    \ a parked reader, ECONNRESET) — retry loop owns it.\n        # anthropic.APIConnectionError:\
+    \ the Anthropic SDK wraps connect/read drops\n        # (incl. stale-kill aborts)\
+    \ in its own type, not httpx's.\n        _is_conn_err = isinstance(e, (_httpx.ConnectError,\
+    \ _httpx.ReadError, _httpx.RemoteProtocolError, ConnectionError,\n           \
+    \                           *_anthropic_connection_error_types()))\n        if\
+    \ not _is_conn_err and hasattr(e, \"__cause__\") and e.__cause__ is not None:\n\
+    \            _is_conn_err = isinstance(e.__cause__, (_httpx.ConnectError, _httpx.ReadError,\
+    \ _httpx.RemoteProtocolError, ConnectionError,\n                             \
+    \                      *_anthropic_connection_error_types()))"
   description: Causal chain inspection for transient stream errors in _handle_stream_error
 - file: agent/reasoning_timeouts.py
   old_block: "        # MiniMax M2.x (m2.5/m2.7): reasoning_content before first content\
@@ -273,11 +268,12 @@ targets:
     request_timeout is set, and 60s connect timeout
 - file: agent/agent_runtime_helpers.py
   old_block: "    # keeps SDK retries because it is NOT wrapped by the conversation\
-    \ loop.\n    client_kwargs.setdefault(\"max_retries\", 0)\n    _ensure_copilot_headers(client_kwargs)"
+    \ loop.\n    client_kwargs.setdefault(\"max_retries\", 0)\n    _ensure_route_client_headers(client_kwargs,\
+    \ str(getattr(agent, \"provider\", \"\") or \"\"))"
   new_block: "    # keeps SDK retries because it is NOT wrapped by the conversation\
-    \ loop.\n    client_kwargs.setdefault(\"max_retries\", 0)\n    import os\n   \
-    \ client_kwargs.setdefault(\"timeout\", float(os.environ.get(\"HERMES_DEFAULT_TIMEOUT\"\
-    , \"300.0\")))\n    _ensure_copilot_headers(client_kwargs)"
+    \ loop.\n    client_kwargs.setdefault(\"max_retries\", 0)\n    client_kwargs.setdefault(\"\
+    timeout\", 300.0)\n    _ensure_route_client_headers(client_kwargs, str(getattr(agent,\
+    \ \"provider\", \"\") or \"\"))"
   description: Default 300s timeout on OpenAI clients to prevent premature connect/generation
     drops on reasoning models
 - file: plugins/web/keyless_mcp.py

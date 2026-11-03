@@ -15,16 +15,26 @@ targets:
 - file: agent/skill_utils.py
   description: Make SKILL_PROMPT_DESC_LIMIT configurable via mods.skill-prompt-desc-limit.limit
     and fix truncation
-  old_block: "SKILL_PROMPT_DESC_LIMIT = 60\n\n\ndef _normalize_skill_description(frontmatter:\
-    \ dict[str, Any]) -> str:\n    \"\"\"Normalize a skill's description field for\
-    \ comparison/truncation.\"\"\"\n    raw_desc = frontmatter.get(\"description\"\
-    , \"\")\n    return str(raw_desc).strip().strip(\"'\\\"\") if raw_desc else \"\
-    \"\n\n\ndef extract_skill_description(frontmatter: dict[str, Any]) -> str:\n \
-    \   \"\"\"Extract a system-prompt-length description from parsed frontmatter.\"\
-    \"\"\n    desc = _normalize_skill_description(frontmatter)\n    return desc[:SKILL_PROMPT_DESC_LIMIT\
-    \ - 3] + \"...\" if len(desc) > SKILL_PROMPT_DESC_LIMIT else desc\n\n\ndef is_skill_description_truncated_for_prompt(frontmatter:\
-    \ dict[str, Any]) -> bool:\n    \"\"\"True when the description will be truncated\
-    \ in the system prompt skill index.\"\"\"\n    return len(_normalize_skill_description(frontmatter))\
+  old_block: "SKILL_PROMPT_DESC_LIMIT = 60\n_LAST_WHITESPACE_RE = re.compile(r\"\\\
+    s\\S*$\")\n_CLIP_TRAIL_RE = re.compile(r\"[\\s.,;:\\-\\u2013\\u2014(/]+$\")\n\n\
+    \ndef _normalize_skill_description(frontmatter: dict[str, Any]) -> str:\n    \"\
+    \"\"Normalize a skill's description field for comparison/truncation.\"\"\"\n \
+    \   raw_desc = frontmatter.get(\"description\", \"\")\n    return str(raw_desc).strip().strip(\"\
+    '\\\"\") if raw_desc else \"\"\n\n\ndef clip_skill_description(desc: str) -> str:\n\
+    \    \"\"\"*desc* fitted to SKILL_PROMPT_DESC_LIMIT, cut at a word boundary so\
+    \ the index never shows a half word.\"\"\"\n    if len(desc) <= SKILL_PROMPT_DESC_LIMIT:\n\
+    \        return desc\n    head = desc[:SKILL_PROMPT_DESC_LIMIT - 2]  # one char\
+    \ past the budget: whitespace there means the last word is whole\n    boundary\
+    \ = _LAST_WHITESPACE_RE.search(head)  # any whitespace (tab, NBSP, ...) separates\
+    \ words, not just \" \"\n    if not boundary or boundary.start() == 0:  # a single\
+    \ word longer than the budget has no boundary to cut at\n        return desc[:SKILL_PROMPT_DESC_LIMIT\
+    \ - 3] + \"...\"\n    return _CLIP_TRAIL_RE.sub(\"\", head[:boundary.start()])\
+    \ + \"...\"\n\n\ndef extract_skill_description(frontmatter: dict[str, Any]) ->\
+    \ str:\n    \"\"\"Extract a system-prompt-length description from parsed frontmatter.\"\
+    \"\"\n    return clip_skill_description(_normalize_skill_description(frontmatter))\n\
+    \n\ndef is_skill_description_truncated_for_prompt(frontmatter: dict[str, Any])\
+    \ -> bool:\n    \"\"\"True when the description will be truncated in the system\
+    \ prompt skill index.\"\"\"\n    return len(_normalize_skill_description(frontmatter))\
     \ > SKILL_PROMPT_DESC_LIMIT"
   new_block: "DEFAULT_SKILL_PROMPT_DESC_LIMIT = 60\n\n\ndef get_skill_prompt_desc_limit()\
     \ -> int:\n    \"\"\"Resolve skill description limit from config.yaml (`mods.skill-prompt-desc-limit.limit`\
@@ -49,18 +59,25 @@ targets:
     \ other\n    def __sub__(self, other):\n        return int(self) - other\n   \
     \ def __rsub__(self, other):\n        return other - int(self)\n    def __str__(self):\n\
     \        return str(int(self))\n    def __repr__(self):\n        return repr(int(self))\n\
-    \n\nSKILL_PROMPT_DESC_LIMIT = _DynamicSkillDescLimit()\n\n\ndef _normalize_skill_description(frontmatter:\
-    \ dict[str, Any]) -> str:\n    \"\"\"Normalize a skill's description field for\
-    \ comparison/truncation.\"\"\"\n    raw_desc = frontmatter.get(\"description\"\
-    , \"\")\n    return str(raw_desc).strip().strip(\"'\\\"\") if raw_desc else \"\
-    \"\n\n\ndef extract_skill_description(frontmatter: dict[str, Any]) -> str:\n \
-    \   \"\"\"Extract a system-prompt-length description from parsed frontmatter.\"\
-    \"\"\n    desc = _normalize_skill_description(frontmatter)\n    limit = int(SKILL_PROMPT_DESC_LIMIT)\n\
-    \    if limit <= 0:\n        return desc\n    return desc[:limit] + \"...\" if\
-    \ len(desc) > limit else desc\n\n\ndef is_skill_description_truncated_for_prompt(frontmatter:\
-    \ dict[str, Any]) -> bool:\n    \"\"\"True when the description will be truncated\
-    \ in the system prompt skill index.\"\"\"\n    limit = int(SKILL_PROMPT_DESC_LIMIT)\n\
-    \    if limit <= 0:\n        return False\n    return len(_normalize_skill_description(frontmatter))\
+    \n\nSKILL_PROMPT_DESC_LIMIT = _DynamicSkillDescLimit()\n_LAST_WHITESPACE_RE =\
+    \ re.compile(r\"\\s\\S*$\")\n_CLIP_TRAIL_RE = re.compile(r\"[\\s.,;:\\-\\u2013\\\
+    u2014(/]+$\")\n\n\ndef _normalize_skill_description(frontmatter: dict[str, Any])\
+    \ -> str:\n    \"\"\"Normalize a skill's description field for comparison/truncation.\"\
+    \"\"\n    raw_desc = frontmatter.get(\"description\", \"\")\n    return str(raw_desc).strip().strip(\"\
+    '\\\"\") if raw_desc else \"\"\n\n\ndef clip_skill_description(desc: str) -> str:\n\
+    \    \"\"\"*desc* fitted to SKILL_PROMPT_DESC_LIMIT, cut at a word boundary so\
+    \ the index never shows a half word.\"\"\"\n    limit = int(SKILL_PROMPT_DESC_LIMIT)\n\
+    \    if limit <= 0:\n        return desc\n    if len(desc) <= limit:\n       \
+    \ return desc\n    head = desc[:limit - 2]\n    boundary = _LAST_WHITESPACE_RE.search(head)\n\
+    \    if not boundary or boundary.start() == 0:\n        return desc[:limit - 3]\
+    \ + \"...\"\n    return _CLIP_TRAIL_RE.sub(\"\", head[:boundary.start()]) + \"\
+    ...\"\n\n\ndef extract_skill_description(frontmatter: dict[str, Any]) -> str:\n\
+    \    \"\"\"Extract a system-prompt-length description from parsed frontmatter.\"\
+    \"\"\n    return clip_skill_description(_normalize_skill_description(frontmatter))\n\
+    \n\ndef is_skill_description_truncated_for_prompt(frontmatter: dict[str, Any])\
+    \ -> bool:\n    \"\"\"True when the description will be truncated in the system\
+    \ prompt skill index.\"\"\"\n    limit = int(SKILL_PROMPT_DESC_LIMIT)\n    if\
+    \ limit <= 0:\n        return False\n    return len(_normalize_skill_description(frontmatter))\
     \ > limit"
 - file: tools/skill_manager_tool.py
   description: Make skill_manage tool docstring dynamically pull current limit
@@ -95,6 +112,8 @@ targets:
     \ + why, no PR numbers/dates/incident narration, one \"\n        \"rule per lesson,\
     \ references/ named by topic (extend before adding). \"\n        \"skill_view()\
     \ shows format conventions.\"\n    )"
+  disabled: true
+  disabled_reason: Merged upstream in v0.22.6
 i18n:
   en:
     name: Skill Prompt Description Limit Configuration
@@ -170,10 +189,12 @@ tests:
 
     from tools.skill_manager_tool import _skill_manage_description
 
+
     lim = int(SKILL_PROMPT_DESC_LIMIT)
 
-    assert f"currently {lim} chars" in _skill_manage_description()
+    assert f"max {lim} chars" in _skill_manage_description()
 
-    assert extract_skill_description({"description": "a"*(lim+10)}) == "a"*lim + "..."
+    assert extract_skill_description({"description": "a"*(lim+10)}) == "a"*(lim-3)
+    + "..."
 
     '

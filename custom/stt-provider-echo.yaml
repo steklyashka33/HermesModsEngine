@@ -133,10 +133,20 @@ targets:
   description: stt-echo-expandable-blockquote-with-provider
 - file: tools/transcription_command.py
   description: Распаковка JSON payload из command STT (чистый transcript + provider)
-  old_block: "    if transcript_text.startswith(\"{\") and transcript_text.endswith(\"\
-    }\"):\n        try:\n            parsed_json = json.loads(transcript_text)"
+  old_block: "    logger.info(\"Transcribed %s via command STT provider '%s' (%d chars)\"\
+    , audio.name, provider_name, len(transcript_text))\n    return _ok_result(transcript_text,\
+    \ provider_name)"
   new_block: "    if transcript_text.startswith(\"{\") and transcript_text.endswith(\"\
-    }\"):\n        try:\n            import json\n            parsed_json = json.loads(transcript_text)"
+    }\"):\n        try:\n            import json\n            parsed_json = json.loads(transcript_text)\n\
+    \            if isinstance(parsed_json, dict) and \"transcript\" in parsed_json:\n\
+    \                real_tx = str(parsed_json.get(\"transcript\") or \"\").strip()\n\
+    \                real_prov = str(parsed_json.get(\"provider\") or provider_name).strip()\
+    \ or provider_name\n                logger.info(\"Transcribed %s via command STT\
+    \ provider '%s' (real: '%s', %d chars)\", audio.name, provider_name, real_prov,\
+    \ len(real_tx))\n                return _ok_result(real_tx, real_prov)\n     \
+    \   except Exception:\n            pass\n    logger.info(\"Transcribed %s via\
+    \ command STT provider '%s' (%d chars)\", audio.name, provider_name, len(transcript_text))\n\
+    \    return _ok_result(transcript_text, provider_name)"
 i18n:
   en:
     name: STT Provider Tracking & Echo

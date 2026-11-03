@@ -92,20 +92,18 @@ targets:
 - file: gateway/response_filters.py
   description: Allow intentional silence when platform is Telegram or reply_expected
     is not strictly True
-  old_block: "def silence_allowed(display_kind: Any, reply_expected: Optional[bool]\
-    \ = None) -> bool:\n    \"\"\"Whether a successful bare silence marker may remain\
-    \ silent for this turn.\"\"\"\n    return is_machinery_display_kind(display_kind)\
-    \ or reply_expected is False"
-  new_block: "def silence_allowed(display_kind: Any, reply_expected: Optional[bool]\
-    \ = None) -> bool:\n    \"\"\"Whether a successful bare silence marker may remain\
-    \ silent for this turn.\"\"\"\n    return is_machinery_display_kind(display_kind)\
-    \ or reply_expected is not True"
+  old_block: "    if is_machinery_display_kind(display_kind) or reply_expected is\
+    \ False:\n        return True"
+  new_block: "    if is_machinery_display_kind(display_kind) or reply_expected is\
+    \ not True:\n        return True"
 - file: plugins/platforms/telegram/adapter.py
   description: Register VIDEO_NOTE filter in Telegram media handler
   old_block: filters.PHOTO | filters.VIDEO | filters.AUDIO | filters.VOICE | filters.Document.ALL
     | filters.Sticker.ALL
   new_block: filters.PHOTO | filters.VIDEO | getattr(filters, "VIDEO_NOTE", filters.VIDEO)
     | filters.AUDIO | filters.VOICE | filters.Document.ALL | filters.Sticker.ALL
+  disabled: true
+  disabled_reason: Merged upstream in v0.22.6 (#141468 / df128a1c)
 - file: plugins/platforms/telegram/adapter.py
   description: Classify video_note as MessageType.VIDEO in _media_message_type
   old_block: "(\"sticker\", MessageType.STICKER), (\"photo\", MessageType.PHOTO),\
@@ -114,6 +112,8 @@ targets:
   new_block: "(\"sticker\", MessageType.STICKER), (\"photo\", MessageType.PHOTO),\
     \ (\"video\", MessageType.VIDEO),\n            (\"video_note\", MessageType.VIDEO),\n\
     \            (\"audio\", MessageType.AUDIO), (\"voice\", MessageType.VOICE)"
+  disabled: true
+  disabled_reason: Merged upstream in v0.22.6 (#141468 / df128a1c)
 - file: plugins/platforms/telegram/adapter.py
   description: Extract replied-to video notes in _observed_media_source
   old_block: "if msg.video:\n            return msg.video, \"\", \"video/mp4\", \"\
@@ -121,6 +121,8 @@ targets:
   new_block: "if msg.video:\n            return msg.video, \"\", \"video/mp4\", \"\
     video\"\n        if msg.video_note:\n            return msg.video_note, \"\",\
     \ \"video/mp4\", \"video\"\n        if msg.voice:"
+  disabled: true
+  disabled_reason: Merged upstream in v0.22.6 (#141468 / df128a1c)
 - file: plugins/platforms/telegram/adapter.py
   description: Handle incoming video_note in _handle_media_message
   old_block: "elif msg.video:\n            if await self._cache_inbound_av(msg, event,\
@@ -133,10 +135,14 @@ targets:
     \ event, msg.video_note, \"video note\", \"video\", \".mp4\", \"video/mp4\"):\n\
     \                return\n        elif msg.document and await self._cache_inbound_document(msg,\
     \ event):"
+  disabled: true
+  disabled_reason: Merged upstream in v0.22.6 (#141468 / df128a1c)
 - file: plugins/platforms/telegram/adapter.py
   description: Add video note to _MEDIA_KIND_KEYS
   old_block: '"video file": "platform.telegram.media.kind_video"}'
   new_block: '"video file": "platform.telegram.media.kind_video", "video note": "platform.telegram.media.kind_video"}'
+  disabled: true
+  disabled_reason: Merged upstream in v0.22.6 (#141468 / df128a1c)
 - file: plugins/platforms/telegram/adapter.py
   description: Fix false-positive Telegram Desktop details math crash check by ignoring
     code fences and backticks

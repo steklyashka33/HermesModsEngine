@@ -33,44 +33,43 @@ targets:
   description: cascade-profile-secret-scope-inheritance
 - file: hermes_cli/config.py
   old_block: "    managed_dir = managed_scope.get_managed_dir()\n    try:\n      \
-    \  mst = (managed_dir / \"config.yaml\").stat() if managed_dir else None\n   \
-    \     managed_sig = file_signature(mst) if mst else (0, 0, 0, 0)\n    except OSError:\n\
-    \        managed_sig = (0, 0, 0, 0)\n    if user_sig is None and managed_sig ==\
-    \ (0, 0, 0, 0):\n        return None, None\n    return user_sig, (*(user_sig or\
-    \ (0, 0, 0, 0)), *managed_sig)"
+    \  managed_sig = file_cache_version(managed_dir / \"config.yaml\") if managed_dir\
+    \ else (0, 0, 0, 0, \"\")  # config-reader: ok — managed overlay\n    except OSError:\n\
+    \        managed_sig = (0, 0, 0, 0, \"\")\n    if user_sig is None and managed_sig\
+    \ == (0, 0, 0, 0, \"\"):\n        return None, None\n    return user_sig, (*(user_sig\
+    \ or (0, 0, 0, 0, \"\")), *managed_sig)"
   new_block: "    managed_dir = managed_scope.get_managed_dir()\n    try:\n      \
-    \  mst = (managed_dir / \"config.yaml\").stat() if managed_dir else None\n   \
-    \     managed_sig = file_signature(mst) if mst else (0, 0, 0, 0)\n    except OSError:\n\
-    \        managed_sig = (0, 0, 0, 0)\n\n    # Fold in root config.yaml file_signature\
+    \  managed_sig = file_cache_version(managed_dir / \"config.yaml\") if managed_dir\
+    \ else (0, 0, 0, 0, \"\")  # config-reader: ok — managed overlay\n    except OSError:\n\
+    \        managed_sig = (0, 0, 0, 0, \"\")\n\n    # Fold in root config.yaml file_cache_version\
     \ for secondary profiles so edits invalidate profile cache\n    root_sig = (0,\
-    \ 0, 0, 0)\n    try:\n        from hermes_constants import get_default_hermes_root\n\
+    \ 0, 0, 0, \"\")\n    try:\n        from hermes_constants import get_default_hermes_root\n\
     \        _root = get_default_hermes_root().resolve()\n        _res_path = config_path.resolve()\n\
     \        _default_cfg = _root / \"config.yaml\"\n        if (_root / \"profiles\"\
-    ) in _res_path.parents and _default_cfg.exists():\n            _rst = _default_cfg.stat()\n\
-    \            root_sig = file_signature(_rst)\n    except Exception:\n        root_sig\
-    \ = (0, 0, 0, 0)\n\n    if user_sig is None and managed_sig == (0, 0, 0, 0) and\
-    \ root_sig == (0, 0, 0, 0):\n        return None, None\n    return user_sig, (*(user_sig\
-    \ or (0, 0, 0, 0)), *managed_sig, *root_sig)"
+    ) in _res_path.parents and _default_cfg.exists():\n            root_sig = file_cache_version(_default_cfg)\n\
+    \    except Exception:\n        root_sig = (0, 0, 0, 0, \"\")\n\n    if user_sig\
+    \ is None and managed_sig == (0, 0, 0, 0, \"\") and root_sig == (0, 0, 0, 0, \"\
+    \"):\n        return None, None\n    return user_sig, (*(user_sig or (0, 0, 0,\
+    \ 0, \"\")), *managed_sig, *root_sig)"
   description: cascade-profile-config-cache-root-invalidation
 - file: hermes_cli/config.py
   old_block: "        config = copy.deepcopy(DEFAULT_CONFIG)\n\n        if user_sig\
-    \ is not None:\n            try:\n                with open(config_path, encoding=\"\
-    utf-8-sig\") as f:\n                    user_config = fast_safe_load(f) or {}"
+    \ is not None:\n            try:\n                user_config = read_config_doc(config_path)\
+    \ or {}"
   new_block: "        config = copy.deepcopy(DEFAULT_CONFIG)\n\n        # Profile\
     \ inheritance: if loading a secondary profile config, first merge default profile\
     \ user config\n        try:\n            from hermes_constants import get_default_hermes_root\n\
     \            _root = get_default_hermes_root().resolve()\n            _res_path\
     \ = config_path.resolve()\n            _default_cfg = _root / \"config.yaml\"\n\
     \            if (_root / \"profiles\") in _res_path.parents and _default_cfg.exists()\
-    \ and _default_cfg != _res_path:\n                with open(_default_cfg, encoding=\"\
-    utf-8\") as _df:\n                    _def_user = fast_safe_load(_df) or {}\n\
-    \                if isinstance(_def_user, dict):\n                    _def_copy\
-    \ = copy.deepcopy(_def_user)\n                    if \"gateway\" in _def_copy\
-    \ and isinstance(_def_copy[\"gateway\"], dict):\n                        _def_copy[\"\
-    gateway\"].pop(\"profile_routes\", None)\n                    config = _deep_merge(config,\
-    \ _def_copy)\n        except Exception:\n            pass\n\n        if user_sig\
-    \ is not None:\n            try:\n                with open(config_path, encoding=\"\
-    utf-8-sig\") as f:\n                    user_config = fast_safe_load(f) or {}"
+    \ and _default_cfg != _res_path:\n                _def_user = read_config_doc(_default_cfg)\
+    \ or {}\n                if isinstance(_def_user, dict):\n                   \
+    \ _def_copy = copy.deepcopy(_def_user)\n                    if \"gateway\" in\
+    \ _def_copy and isinstance(_def_copy[\"gateway\"], dict):\n                  \
+    \      _def_copy[\"gateway\"].pop(\"profile_routes\", None)\n                \
+    \    config = _deep_merge(config, _def_copy)\n        except Exception:\n    \
+    \        pass\n\n        if user_sig is not None:\n            try:\n        \
+    \        user_config = read_config_doc(config_path) or {}"
   description: cascade-profile-config-load-config-deep-merge
 - file: hermes_cli/config_effective.py
   old_block: "        effective = _effective(raw)\n        # A recovered result is\

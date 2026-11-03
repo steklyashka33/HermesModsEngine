@@ -6,36 +6,18 @@ version: 1.1.0
 author: Hermes Admin
 enabled: true
 targets:
-- file: cron/jobs.py
-  old_block: "def _main_model_pin() -> tuple[Optional[str], Optional[str]]:\n    \"\
-    \"\"``(provider, model)`` the main agent runs on right now (``model.default``\
-    \ + the provider it\n    resolves to), for ``pinned=True`` jobs: the lock is a\
-    \ plain per-job pin, so the scheduler needs\n    no second precedence axis. ``(None,\
-    \ None)`` when nothing is configured (the job stays unpinned).\"\"\"\n    from\
-    \ hermes_cli.config_effective import load_user_config_effective\n\n    cfg_path\
-    \ = get_hermes_home() / \"config.yaml\"\n    cfg = load_user_config_effective(cfg_path)\
-    \ if cfg_path.exists() else {}\n    model_cfg = cfg.get(\"model\") or {}\n   \
-    \ model = model_cfg.get(\"default\") or model_cfg.get(\"model\") if isinstance(model_cfg,\
-    \ dict) else model_cfg\n    model = _normalize_job_optional_text(model)\n    if\
-    \ not model:\n        return None, None\n    provider = None\n    with contextlib.suppress(Exception):\n\
-    \        from hermes_cli.runtime_provider import resolve_runtime_provider\n  \
-    \      provider = _normalize_job_optional_text(resolve_runtime_provider(requested=None).get(\"\
+- file: cron/jobs_model_pin.py
+  old_block: "    with contextlib.suppress(Exception):\n        from hermes_cli.runtime_provider\
+    \ import resolve_runtime_provider\n        provider = _normalize_job_optional_text(resolve_runtime_provider(requested=None).get(\"\
     provider\"))\n    return (provider.lower() if provider else None), model"
-  new_block: "def _main_model_pin() -> tuple[Optional[str], Optional[str]]:\n    \"\
-    \"\"Return the effective provider identity and model for a pinned cron job.\"\"\
-    \"\n    from hermes_cli.config_effective import load_user_config_effective\n\n\
-    \    cfg_path = get_hermes_home() / \"config.yaml\"\n    cfg = load_user_config_effective(cfg_path)\
-    \ if cfg_path.exists() else {}\n    model_cfg = cfg.get(\"model\") or {}\n   \
-    \ model = model_cfg.get(\"default\") or model_cfg.get(\"model\") if isinstance(model_cfg,\
-    \ dict) else model_cfg\n    model = _normalize_job_optional_text(model)\n    if\
-    \ not model:\n        return None, None\n    provider = None\n    with contextlib.suppress(Exception):\n\
-    \        from hermes_cli.runtime_provider import resolve_runtime_provider\n  \
-    \      runtime = resolve_runtime_provider(requested=None, target_model=model)\n\
-    \        provider = _normalize_job_optional_text(runtime.get(\"provider\"))\n\
-    \        if provider and provider.lower() == \"custom\":\n            requested\
-    \ = _normalize_job_optional_text(runtime.get(\"requested_provider\"))\n      \
-    \      if requested and requested.lower() != \"custom\":\n                provider\
-    \ = requested\n    return (provider.lower() if provider else None), model"
+  new_block: "    with contextlib.suppress(Exception):\n        from hermes_cli.runtime_provider\
+    \ import resolve_runtime_provider\n        runtime = resolve_runtime_provider(requested=None,\
+    \ target_model=model)\n        provider = _normalize_job_optional_text(runtime.get(\"\
+    provider\"))\n        if provider and provider.lower() == \"custom\":\n      \
+    \      requested = _normalize_job_optional_text(runtime.get(\"requested_provider\"\
+    ))\n            if requested and requested.lower() != \"custom\":\n          \
+    \      provider = requested\n    return (provider.lower() if provider else None),\
+    \ model"
   description: cron-resolve-named-custom-provider-snapshot
 - file: cron/scheduler_delivery.py
   old_block: "    if wrap_response:\n        task_name = job.get(\"name\", job[\"\
@@ -54,6 +36,8 @@ targets:
     \ & enabled_mcp:\n        return result"
   new_block: "    enabled_mcp = enabled_mcp_server_names(cfg)\n    if {s.removeprefix(\"\
     mcp-\") for s in result} & enabled_mcp:\n        return result"
+  disabled: true
+  disabled_reason: Merged upstream in v0.22.6 (#141468)
 i18n:
   en:
     name: Cron Subsystem Enhancements

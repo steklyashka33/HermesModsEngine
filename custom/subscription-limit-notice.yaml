@@ -373,12 +373,19 @@ targets:
     \ strings.\"\"\"\n    fields.setdefault(\"home\", display_hermes_home())\n   \
     \ return _SITE_COPY[code].format_map(_Defaults(fields))\n\n\ndef exhausted_copy(reason:\
     \ str, *, label: str, attempts: int, summary: str, reset_seconds: Optional[float]\
-    \ = None) -> str:\n    \"\"\"Chat copy once retries + fallback are exhausted (``max_retries_exhausted_result``).\
-    \ A rate\n    limit whose reset window is known names it: an 8.6h plan quota is\
-    \ not \"wait a minute\" (#89401).\"\"\"\n    first_attempt = attempts == 1 and\
-    \ reason in _EXHAUSTED_FIRST_ATTEMPT_LEADS\n    lead = (_EXHAUSTED_FIRST_ATTEMPT_LEADS\
+    \ = None,\n                   error: Any = None) -> str:\n    \"\"\"Chat copy\
+    \ once retries + fallback are exhausted (``max_retries_exhausted_result``). A\
+    \ rate\n    limit whose reset window is known names it: an 8.6h plan quota is\
+    \ not \"wait a minute\" (#89401).\n    A stream cut by ``agent.stream_max_lifetime``\
+    \ names the setting: the provider was responding,\n    so neither waiting nor\
+    \ a backup provider helps.\"\"\"\n    if isinstance(error, StreamLifetimeExceeded):\n\
+    \        return (f\"The response was still streaming when agent.stream_max_lifetime\
+    \ ({error.cap:g}s) cut it, \"\n                f\"on all {attempts} attempts.\
+    \ Raise agent.stream_max_lifetime, or set it to 0 to turn the \"\n           \
+    \     \"cap off, if this model legitimately streams this long.\")\n    first_attempt\
+    \ = attempts == 1 and reason in _EXHAUSTED_FIRST_ATTEMPT_LEADS\n    lead = (_EXHAUSTED_FIRST_ATTEMPT_LEADS\
     \ if first_attempt else _EXHAUSTED_LEADS).get(\n        reason, _EXHAUSTED_DEFAULT_LEAD).format(label=label,\
-    \ attempts=attempts)\n"
+    \ attempts=attempts)"
   new_block: "def site_copy(code: str, **fields: Any) -> str:\n    \"\"\"Chat copy\
     \ for a failure code or one-off loop outcome; unknown fields default to empty\
     \ strings.\"\"\"\n    fields.setdefault(\"home\", display_hermes_home())\n   \
@@ -404,32 +411,36 @@ targets:
     \ /model или дождитесь.\"\n    except Exception:\n        return f\"Лимит подписки\
     \ исчерпан, сброс через {time_val or 'некоторое время'}. Поменять модель: /model\
     \ или дождитесь.\"\n\n\ndef exhausted_copy(reason: str, *, label: str, attempts:\
-    \ int, summary: str, reset_seconds: Optional[float] = None) -> str:\n    \"\"\"\
-    Chat copy once retries + fallback are exhausted (``max_retries_exhausted_result``).\
-    \ A rate\n    limit whose reset window is known names it: an 8.6h plan quota is\
-    \ not \"wait a minute\" (#89401).\"\"\"\n    summary_lower = summary.lower()\n\
-    \    is_sub = (\n        reason in (getattr(FailoverReason, \"subscription_limit\"\
-    , None) and FailoverReason.subscription_limit.value, \"subscription_limit\")\n\
-    \        or \"unavailable (reset after\" in summary_lower\n        or (\"reset\
-    \ after\" in summary_lower and any(code in summary for code in (\"429\", \"503\"\
-    )))\n        or \"cooling down\" in summary_lower\n        or \"model_cooldown\"\
-    \ in summary_lower\n        or (reset_seconds is not None and reset_seconds >=\
-    \ 60 and (\"rate\" in reason or \"quota\" in summary_lower or \"429\" in summary))\n\
-    \    )\n    if is_sub:\n        import re\n        from agent.error_classifier\
-    \ import _format_cooldown_human\n        m = re.search(r\"reset(?:s)?\\s+(?:after|in)\\\
-    s+~?([^\\),\\.\\\"\\n]+)\", summary, re.IGNORECASE)\n        if m:\n         \
-    \   x_val = m.group(1).strip()\n        elif reset_seconds is not None and reset_seconds\
-    \ > 0:\n            x_val = _format_cooldown_human(reset_seconds)\n        else:\n\
-    \            m_sec = re.search(r\"(?:reset_seconds|resets_in_seconds)[\\\"':\\\
-    s=]+(\\d+(?:\\.\\d+)?)\", summary, re.IGNORECASE)\n            if m_sec:\n   \
-    \             try:\n                    x_val = _format_cooldown_human(float(m_sec.group(1)))\n\
+    \ int, summary: str, reset_seconds: Optional[float] = None,\n                \
+    \   error: Any = None) -> str:\n    \"\"\"Chat copy once retries + fallback are\
+    \ exhausted (``max_retries_exhausted_result``). A rate\n    limit whose reset\
+    \ window is known names it: an 8.6h plan quota is not \"wait a minute\" (#89401).\"\
+    \"\"\n    summary_lower = summary.lower()\n    is_sub = (\n        reason in (getattr(FailoverReason,\
+    \ \"subscription_limit\", None) and FailoverReason.subscription_limit.value, \"\
+    subscription_limit\")\n        or \"unavailable (reset after\" in summary_lower\n\
+    \        or (\"reset after\" in summary_lower and any(code in summary for code\
+    \ in (\"429\", \"503\")))\n        or \"cooling down\" in summary_lower\n    \
+    \    or \"model_cooldown\" in summary_lower\n        or (reset_seconds is not\
+    \ None and reset_seconds >= 60 and (\"rate\" in reason or \"quota\" in summary_lower\
+    \ or \"429\" in summary))\n    )\n    if is_sub:\n        import re\n        from\
+    \ agent.error_classifier import _format_cooldown_human\n        m = re.search(r\"\
+    reset(?:s)?\\s+(?:after|in)\\s+~?([^\\),\\.\\\"\\n]+)\", summary, re.IGNORECASE)\n\
+    \        if m:\n            x_val = m.group(1).strip()\n        elif reset_seconds\
+    \ is not None and reset_seconds > 0:\n            x_val = _format_cooldown_human(reset_seconds)\n\
+    \        else:\n            m_sec = re.search(r\"(?:reset_seconds|resets_in_seconds)[\\\
+    \"':\\s=]+(\\d+(?:\\.\\d+)?)\", summary, re.IGNORECASE)\n            if m_sec:\n\
+    \                try:\n                    x_val = _format_cooldown_human(float(m_sec.group(1)))\n\
     \                except (ValueError, TypeError):\n                    x_val =\
     \ None\n            else:\n                m2 = re.search(r\"cooling down\\s*\\\
     (([^)]+)\\)\", summary, re.IGNORECASE)\n                x_val = m2.group(1).strip()\
-    \ if m2 else None\n        return _format_subscription_notice(x_val)\n    first_attempt\
-    \ = attempts == 1 and reason in _EXHAUSTED_FIRST_ATTEMPT_LEADS\n    lead = (_EXHAUSTED_FIRST_ATTEMPT_LEADS\
-    \ if first_attempt else _EXHAUSTED_LEADS).get(\n        reason, _EXHAUSTED_DEFAULT_LEAD).format(label=label,\
-    \ attempts=attempts)\n"
+    \ if m2 else None\n        return _format_subscription_notice(x_val)\n    if isinstance(error,\
+    \ StreamLifetimeExceeded):\n        return (f\"The response was still streaming\
+    \ when agent.stream_max_lifetime ({error.cap:g}s) cut it, \"\n               \
+    \ f\"on all {attempts} attempts. Raise agent.stream_max_lifetime, or set it to\
+    \ 0 to turn the \"\n                \"cap off, if this model legitimately streams\
+    \ this long.\")\n    first_attempt = attempts == 1 and reason in _EXHAUSTED_FIRST_ATTEMPT_LEADS\n\
+    \    lead = (_EXHAUSTED_FIRST_ATTEMPT_LEADS if first_attempt else _EXHAUSTED_LEADS).get(\n\
+    \        reason, _EXHAUSTED_DEFAULT_LEAD).format(label=label, attempts=attempts)\n"
 - file: agent/turn_failure_copy.py
   description: Immediate localized subscription limit notice in nonretryable_copy
   old_block: "def nonretryable_copy(\n    classified: Any, *, provider: Any, model:\
