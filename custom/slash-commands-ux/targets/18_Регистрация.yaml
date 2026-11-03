@@ -1,9 +1,9 @@
 targets:
 - file: gateway/run_busy.py
-  description: Перенос /usage в _PLAIN_COMMANDS для немедленного ответа без блокировки
+  description: Перенос /usage и /insights в _PLAIN_COMMANDS для немедленного ответа без блокировки
   old_block: '        "status", "context", "restart",'
-  new_block: '        "status", "context", "usage", "restart",'
+  new_block: '        "status", "context", "usage", "insights", "restart",'
 - file: gateway/run_busy.py
-  description: Регистрация /handoff и удаление /usage из _IDLE_COMMANDS
+  description: Регистрация /handoff и удаление /usage, /insights из _IDLE_COMMANDS
   old_block: '        "sethome", "compress", "usage",'
   new_block: '        "sethome", "compress", "handoff",'

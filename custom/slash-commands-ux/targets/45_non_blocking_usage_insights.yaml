@@ -1,0 +1,24 @@
+targets:
+- file: hermes_cli/commands.py
+  description: Explicitly configure busy_policy dispatch for usage and insights
+  old_block: "    CommandDef(\"usage\", \"Show token usage and rate limits; `reset`\
+    \ redeems a banked Codex limit reset\", \"Info\",\n               args_hint=\"\
+    [reset [--force]]\"),\n    CommandDef(\"subscription\", \"View your Nous plan\
+    \ and change it in the browser\", \"Info\",\n               cli_only=True, aliases=(\"\
+    upgrade\",)),\n    CommandDef(\"login\", \"Sign in with a Nous account (keeps\
+    \ your connectors)\", \"Info\",\n               busy_policy=\"dispatch\", desktop=\"\
+    settings\"),\n    CommandDef(\"topup\", \"Show your Nous balance and manage billing\
+    \ on the portal\", \"Info\"),\n    CommandDef(\"insights\", \"Show usage insights\
+    \ and analytics\", \"Info\",\n               args_hint=\"[days]\", desktop=\"\
+    advanced\"),"
+  new_block: "    CommandDef(\"usage\", \"Show token usage and rate limits; `reset`\
+    \ redeems a banked Codex limit reset\", \"Info\",\n               args_hint=\"\
+    [reset [--force]]\", busy_policy=\"dispatch\"),\n    CommandDef(\"subscription\"\
+    , \"View your Nous plan and change it in the browser\", \"Info\",\n          \
+    \     cli_only=True, aliases=(\"upgrade\",)),\n    CommandDef(\"login\", \"Sign\
+    \ in with a Nous account (keeps your connectors)\", \"Info\",\n              \
+    \ busy_policy=\"dispatch\", desktop=\"settings\"),\n    CommandDef(\"topup\",\
+    \ \"Show your Nous balance and manage billing on the portal\", \"Info\"),\n  \
+    \  CommandDef(\"insights\", \"Show usage insights and analytics\", \"Info\",\n\
+    \               args_hint=\"[days]\", busy_policy=\"dispatch\", desktop=\"advanced\"\
+    ),"
